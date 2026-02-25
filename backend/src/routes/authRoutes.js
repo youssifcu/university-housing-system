@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const verifyToken = require('../middlewares/verifyFirebaseToken');
+const verifyFirebaseToken = require('../middlewares/verifyFirebaseToken');
 
-
+// تأكد إن authController.loginUser موجودة فعلاً في ملف الـ controller
 router.post('/login', authController.loginUser);
-//router.post('/register', verifyToken, authController.registerUser);
 
+// تأكد إن authController.registerUser موجودة فعلاً في ملف الـ controller
+router.post('/register', verifyFirebaseToken, authController.registerUser);
 
 module.exports = router;
