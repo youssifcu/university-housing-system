@@ -5,10 +5,20 @@ const admin = require('./src/config/firebase');
 
 const app = express();
 
+// الاتصال بالداتا بيز
 connectDB();
 
 app.use(cors());
 app.use(express.json());
+
+// 
+app.use((req, res, next) => {
+  console.log(`${req.method} request to ${req.url}`);
+  next();
+});
+
+// ربط الراوتس (تأكد من المسار)
+app.use('/api/auth', require('./src/routes/authRoutes'));
 
 app.get('/', (req, res) => {
   res.send('University Housing Server is Running...');
@@ -16,5 +26,5 @@ app.get('/', (req, res) => {
 
 const PORT = 5000;
 app.listen(PORT, () => {
-  console.log(` Server is barking on port ${PORT}`);
+  console.log(`Server is barking on port ${PORT}`);
 });
