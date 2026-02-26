@@ -17,7 +17,8 @@
   "bugs": {
     "url": "https://github.com/youssifcu/university-housing-system/issues"
   },
-  "homepage": "https://github.com/youssifcu/university-housing-system#readme"
+  "homepage": "https://github.com/youssifcu/university-housing-system#readme",
+  "dependencies": {
+    "firebase": "^12.9.0"
+  }
 }
-
-
