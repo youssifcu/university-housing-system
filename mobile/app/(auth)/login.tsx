@@ -63,9 +63,12 @@ export default function LoginScreen() {
     if (!validateForm()) return;
 
     setLoading(true);
+    // call your Firebase or backend auth here; in this example we simply wait
     setTimeout(() => {
       setLoading(false);
-      router.replace('/(tabs)');
+      // navigate into the tab navigator. you can go to the default landing
+      // (explore) or jump straight to profile:
+      router.replace('/profile');
     }, 2000);
   };
 
@@ -149,7 +152,7 @@ export default function LoginScreen() {
                 />
                 <Text style={styles.smallText}>Remember Me</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => router.push('/(auth)/forgot')}>
+              <TouchableOpacity onPress={() => router.push('/forgot')}>
                 <Text style={[styles.smallText, { color: COLORS.DEEP_BLUE, fontWeight: '700' }]}>{t('forgotPassword')}</Text>
               </TouchableOpacity>
             </View>

@@ -9,7 +9,9 @@ export default function HomeScreen() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.replace('/(auth)/login');
+      // the auth group is not part of the route name – just send user back to
+      // the login screen by its plain path
+      router.replace('/login');
     } catch (error) {
       Alert.alert('Error', 'Failed to logout');
     }

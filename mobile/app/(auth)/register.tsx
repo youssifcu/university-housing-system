@@ -35,13 +35,30 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
+    // basic client‑side validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const pwdRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/; // min8, upper, number, special
+
     if (!fullName || !studentId || !email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill all fields');
       return;
     }
 
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert('Error', 'Please enter a valid university email');
+      return;
+    }
+
     if (password !== confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    if (!pwdRegex.test(password)) {
+      Alert.alert(
+        'Error',
+        'Password must be at least 8 characters long and contain an uppercase letter, a number and a special character'
+      );
       return;
     }
 
@@ -70,7 +87,8 @@ export default function RegisterScreen() {
       });
 
       Alert.alert('Success', 'Account Created');
-      router.replace('/(tabs)');
+      // send user to login screen after successful registration
+      router.replace('/login');
     } catch (error: any) {
       let message = 'Something went wrong';
 
@@ -144,7 +162,7 @@ export default function RegisterScreen() {
 
             <View style={styles.footerLinkContainer}>
               <Text style={styles.footerText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+              <TouchableOpacity onPress={() => router.push('/login')}>
                 <Text style={styles.loginLink}>Sign In</Text>
               </TouchableOpacity>
             </View>
