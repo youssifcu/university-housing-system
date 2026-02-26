@@ -14,7 +14,8 @@ jobs:
     
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
+        # Node 20 has caused sporadic install failures (Expo & some deps)
+        node-version: [18.x]
         project: [backend, mobile, web]
     
     steps:
@@ -39,13 +40,17 @@ jobs:
       
       - name: Check if tests script exists
         id: test_check
-        run: cd ${{ matrix.project }} && npm run | grep -q " test" && echo "has_tests=true" >> $GITHUB_OUTPUT || echo "has_tests=false" >> $GITHUB_OUTPUT
-        continue-on-error: true
+        run: |
+          cd ${{ matrix.project }}
+          if npm run | grep -q " test"; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_tests=false" >> $GITHUB_OUTPUT
+          fi
       
       - name: Run tests for ${{ matrix.project }}
         if: steps.test_check.outputs.has_tests == 'true'
         run: cd ${{ matrix.project }} && npm test
-        continue-on-error: true
       
       - name: Skip tests (no test script)
         if: steps.test_check.outputs.has_tests != 'true'
