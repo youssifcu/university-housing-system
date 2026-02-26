@@ -91,15 +91,17 @@ cd mobile
 cp .env.example .env
 ```
 
-Edit `mobile/.env`:
+Edit `mobile/.env` and supply your own Firebase credentials. **Do not commit real API keys.**
 ```bash
-FIREBASE_API_KEY=AIzaSyA9qMYj0jfGyVXgZUVL_2L1BBgLWjyyoH4
-FIREBASE_AUTH_DOMAIN=housing-53d87.firebaseapp.com
-FIREBASE_PROJECT_ID=housing-53d87
-FIREBASE_STORAGE_BUCKET=housing-53d87.firebasestorage.app
-FIREBASE_MESSAGING_SENDER_ID=399139942239
-FIREBASE_APP_ID=1:399139942239:web:97bbe5b8d529031d3b50ea
+FIREBASE_API_KEY=YOUR_API_KEY  # revoke any leaked key and generate a new one
+FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+FIREBASE_MESSAGING_SENDER_ID=1234567890
+FIREBASE_APP_ID=1:1234567890:web:abcdef123456
 ```
+
+> 🔒 **Security tip:** if you ever accidentally commit secrets, revoke the keys immediately in the Google Cloud Console and remove them from the repository history.
 
 #### Backend (.env)
 
@@ -132,13 +134,15 @@ cd ../web
 cp .env.example .env
 ```
 
-Edit `web/.env`:
+Edit `web/.env` and substitute your own values. Use placeholders in repo and never commit real keys.
 ```bash
-VITE_FIREBASE_API_KEY=AIzaSy...
-VITE_FIREBASE_AUTH_DOMAIN=housing-53d87.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=housing-53d87
+VITE_FIREBASE_API_KEY=YOUR_API_KEY   # generate a new key if any were exposed
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
 VITE_API_BASE_URL=http://localhost:5000/api
 ```
+
+> 🔒 Keys should only live in environment variables or CI vaults. Remove any committed secrets from history.
 
 ---
 

@@ -180,10 +180,10 @@ console.log('  projectId:', extra.firebaseProjectId);     // Should be "housing-
 
 **If any shows FALSE or blank:**
 1. Check that `.env` file exists in `mobile/` folder
-2. Check that `.env` contains valid values:
+2. Check that `.env` contains valid values (use your own keys, not the ones shown here):
    ```
-   FIREBASE_API_KEY=AIzaSy...
-   FIREBASE_PROJECT_ID=housing-53d87
+   FIREBASE_API_KEY=YOUR_API_KEY
+   FIREBASE_PROJECT_ID=your-project-id
    ```
 3. Restart Expo: `npm start -c`
 
