@@ -35,17 +35,37 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    // basic client‑side validation
+    console.log('📝 handleRegister called');
+    
+    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const pwdRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/; // min8, upper, number, special
+    
+    // Password: min 6 chars (Firebase default), at least one letter and one number
+    const pwdRegex = /^(?=.*[a-zA-Z])(?=.*\d).{6,}$/;
 
-    if (!fullName || !studentId || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill all fields');
+    // Validation checks
+    if (!fullName.trim()) {
+      Alert.alert('Error', 'Please enter your full name');
+      return;
+    }
+
+    if (!studentId.trim()) {
+      Alert.alert('Error', 'Please enter your student ID');
+      return;
+    }
+
+    if (!email.trim()) {
+      Alert.alert('Error', 'Please enter your email');
       return;
     }
 
     if (!emailRegex.test(email.trim())) {
-      Alert.alert('Error', 'Please enter a valid university email');
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
 
@@ -55,21 +75,20 @@ export default function RegisterScreen() {
     }
 
     if (!pwdRegex.test(password)) {
-      Alert.alert(
-        'Error',
-        'Password must be at least 8 characters long and contain an uppercase letter, a number and a special character'
-      );
+      Alert.alert('Error', 'Password must contain letters and numbers');
       return;
     }
 
     if (!agreeToTerms) {
-      Alert.alert('Error', 'You must agree to the terms');
+      Alert.alert('Error', 'You must agree to the Terms & Conditions');
       return;
     }
 
     setLoading(true);
+    console.log('🔄 Starting registration with email:', email.trim());
 
     try {
+      console.log('📲 Creating user in Firebase Auth...');
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email.trim(),
@@ -77,30 +96,40 @@ export default function RegisterScreen() {
       );
 
       const user = userCredential.user;
+      console.log('✅ User created in Auth:', user.uid);
 
+      console.log('💾 Saving user profile to Firestore...');
       await setDoc(doc(db, 'users', user.uid), {
-        fullName,
-        studentId,
+        fullName: fullName.trim(),
+        studentId: studentId.trim(),
         email: user.email,
         role: 'student',
         createdAt: serverTimestamp(),
       });
 
-      Alert.alert('Success', 'Account Created');
-      // send user to login screen after successful registration
+      console.log('✅ User profile saved successfully');
+      Alert.alert('Success', 'Account created! Please sign in.');
       router.replace('/login');
     } catch (error: any) {
-      let message = 'Something went wrong';
+      console.error('❌ Registration error:', error.code, error.message);
+      
+      let message = 'Something went wrong. Please try again.';
 
       if (error.code === 'auth/email-already-in-use') {
-        message = 'This email is already registered';
+        message = 'This email is already registered. Please sign in or use a different email.';
       } else if (error.code === 'auth/invalid-email') {
-        message = 'Invalid email address';
+        message = 'The email address is invalid.';
       } else if (error.code === 'auth/weak-password') {
-        message = 'Password should be at least 6 characters';
+        message = 'Password is too weak. Use at least 6 characters with letters and numbers.';
+      } else if (error.code === 'auth/invalid-api-key') {
+        message = 'Firebase configuration error. Please contact support.';
+      } else if (error.code === 'auth/network-request-failed') {
+        message = 'Network error. Please check your internet connection.';
+      } else if (error.message) {
+        message = error.message;
       }
 
-      Alert.alert('Registration Error', message);
+      Alert.alert('Registration Failed', message);
     } finally {
       setLoading(false);
     }

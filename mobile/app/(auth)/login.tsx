@@ -16,6 +16,8 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../../firebaseConfig';
 
 
 const COLORS = {
@@ -47,29 +49,56 @@ export default function LoginScreen() {
       newErrors.email = t('invalidEmail');
     }
 
-    // password complexity: min 8, uppercase, number, special
-    const pwdRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
     if (!password) {
       newErrors.password = t('passwordRequired');
-    } else if (!pwdRegex.test(password)) {
-      newErrors.password = t('passwordComplexity');
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogin = () => {
-    if (!validateForm()) return;
+  const handleLogin = async () => {
+    console.log('🔐 Login attempt with email:', email.trim());
+    
+    if (!validateForm()) {
+      console.log('❌ Validation failed');
+      return;
+    }
 
     setLoading(true);
-    // call your Firebase or backend auth here; in this example we simply wait
-    setTimeout(() => {
-      setLoading(false);
-      // navigate into the tab navigator. you can go to the default landing
-      // (explore) or jump straight to profile:
+
+    try {
+      console.log('📲 Authenticating with Firebase...');
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password
+      );
+
+      console.log('✅ Login successful:', userCredential.user.uid);
+      Alert.alert('Success', 'Welcome back!');
       router.replace('/profile');
-    }, 2000);
+    } catch (error: any) {
+      console.error('❌ Login error:', error.code, error.message);
+      
+      let message = 'Login failed. Please try again.';
+
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+        message = 'Invalid email or password.';
+      } else if (error.code === 'auth/user-disabled') {
+        message = 'This account has been disabled.';
+      } else if (error.code === 'auth/invalid-email') {
+        message = 'Invalid email format.';
+      } else if (error.code === 'auth/network-request-failed') {
+        message = 'Network error. Please check your connection.';
+      } else if (error.code === 'auth/invalid-api-key') {
+        message = 'Firebase configuration error. Please contact support.';
+      }
+
+      Alert.alert('Login Failed', message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
