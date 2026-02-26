@@ -25,6 +25,7 @@ serviceAccountKey.json
 Thumbs.db
 *.sublime-project
 *.sublime-workspace
+*.code-workspace
 
 # Build outputs
 dist/
@@ -43,6 +44,8 @@ local.properties
 *.ipa
 *.xcarchive
 .metro-cache/
+.watchman-cache/
+*.hprof
 
 # Firebase
 .firebase/
@@ -55,6 +58,7 @@ coverage/
 .jest_cache/
 *.lcov
 *.log
+.vitest/
 
 # Misc
 .turbo/
@@ -66,7 +70,7 @@ tmp/
 temp/
 
 # OS
-[Ll]ogs/
+Logs/
 *.log
 .DS_Store
 
@@ -98,11 +102,13 @@ backend/serviceAccountKey.json
 mobile/.env
 mobile/node_modules/
 mobile/.expo-shared/
+mobile/.metro-cache/
 
 # Web specific
 web/.env
 web/node_modules/
 web/dist/
+web/.vite/
 
 # IDE temp files
 *.iml
@@ -117,3 +123,22 @@ web/dist/
 *.rar
 *.tar.gz
 *.tgz
+
+# Local environment overrides
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# macOS specific
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+
+# Windows specific
+[Ll]og files
+$RECYCLE.BIN/
+
+# IntelliJ
+out/

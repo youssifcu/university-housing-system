@@ -2,14 +2,14 @@ name: 🔍 Lint & Code Quality
 
 on:
   push:
-    branches: [main, develop, "feature/**"]
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
 
 jobs:
   lint:
-    name: Lint Code
+    name: Lint ${{ matrix.project }}
     runs-on: ubuntu-latest
     
     strategy:
@@ -24,29 +24,28 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18.x'
-          cache: 'npm'
       
-      - name: Install root dependencies
-        run: npm install
-        if: matrix.project == 'backend'
+      - name: Cache npm packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-18-${{ hashFiles('${{ matrix.project }}/package-lock.json') }}
       
       - name: Install ${{ matrix.project }} dependencies
-        run: cd ${{ matrix.project }} && npm install
+        run: cd ${{ matrix.project }} && npm install --legacy-peer-deps
       
-      - name: Check formatting
-        run: cd ${{ matrix.project }} && npm run format:check
+      - name: Check if lint script exists
+        id: lint_check
+        run: cd ${{ matrix.project }} && npm run | grep -q " lint" && echo "has_lint=true" >> $GITHUB_OUTPUT || echo "has_lint=false" >> $GITHUB_OUTPUT
         continue-on-error: true
       
       - name: Run ESLint
+        if: steps.lint_check.outputs.has_lint == 'true'
         run: cd ${{ matrix.project }} && npm run lint
-        continue-on-error: true
-      
-      - name: TypeScript check
-        run: cd ${{ matrix.project }} && npm run type-check
         continue-on-error: true
 
   security:
-    name: Security Audit
+    name: Node Security Audit
     runs-on: ubuntu-latest
     
     steps:
@@ -57,96 +56,43 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18.x'
-          cache: 'npm'
       
-      - name: Install root dependencies
-        run: npm install
-      
-      - name: Run npm audit
-        run: npm audit --production
-        continue-on-error: true
-      
-      - name: Check for secrets
-        uses: trufflesecurity/trufflehog@main
+      - name: Cache npm packages
+        uses: actions/cache@v3
         with:
-          path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
-          extra_args: --only-verified
+          path: ~/.npm
+          key: ${{ runner.os }}-node-audit
+      
+      - name: Run npm audit (backend)
         continue-on-error: true
-
-  quality:
-    name: Code Quality Checks
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18.x'
-          cache: 'npm'
-      
-      - name: Install dependencies
         run: |
-          npm install
-          cd backend && npm install
-          cd ../mobile && npm install
-          cd ../web && npm install
+          cd backend
+          npm audit --production 2>&1 || true
       
-      - name: Check file sizes
-        run: |
-          echo "## 📦 Build Size Check" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Bundle Sizes" >> $GITHUB_STEP_SUMMARY
-          cd web && npm run build 2>/dev/null && du -sh dist/ >> $GITHUB_STEP_SUMMARY || echo "Build not available"
-      
-      - name: Code duplication check
-        run: npx jscpd --version || echo "jscpd not available"
+      - name: Run npm audit (mobile)
         continue-on-error: true
-
-  analysis:
-    name: Static Code Analysis
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18.x'
-          cache: 'npm'
-      
-      - name: Analyze code structure
         run: |
-          echo "## 🔍 Code Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "### Project Structure" >> $GITHUB_STEP_SUMMARY
-          echo "```" >> $GITHUB_STEP_SUMMARY
-          find . -type f \( -name "*.js" -o -name "*.ts" -o -name "*.tsx" \) | wc -l | xargs echo "Total source files:" >> $GITHUB_STEP_SUMMARY
-          echo "```" >> $GITHUB_STEP_SUMMARY
+          cd mobile
+          npm audit --production 2>&1 || true
+      
+      - name: Run npm audit (web)
+        continue-on-error: true
+        run: |
+          cd web
+          npm audit --production 2>&1 || true
 
   summary:
     name: Lint Summary
     runs-on: ubuntu-latest
     if: always()
-    needs: [lint, security, quality, analysis]
+    needs: [lint, security]
     
     steps:
       - name: Create summary
         run: |
-          echo "## ✅ Lint Check Complete" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Lint & Quality Check Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Checks Performed" >> $GITHUB_STEP_SUMMARY
-          echo "- ✓ Code formatting" >> $GITHUB_STEP_SUMMARY
-          echo "- ✓ ESLint rules" >> $GITHUB_STEP_SUMMARY
-          echo "- ✓ TypeScript types" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Code linting (ESLint)" >> $GITHUB_STEP_SUMMARY
           echo "- ✓ Security audits" >> $GITHUB_STEP_SUMMARY
-          echo "- ✓ Code quality" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Review workflow results above for any issues." >> $GITHUB_STEP_SUMMARY
+

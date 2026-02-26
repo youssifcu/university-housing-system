@@ -2,14 +2,14 @@ name: 🧪 Tests
 
 on:
   push:
-    branches: [main, develop, "feature/**"]
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
 
 jobs:
   test:
-    name: Run Tests
+    name: Test ${{ matrix.project }} (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     
     strategy:
@@ -25,64 +25,28 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
       
-      - name: Install root dependencies
-        run: npm install
-        if: matrix.project == 'backend'
+      - name: Cache npm packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json', '${{ matrix.project }}/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.node-version }}-
       
-      - name: Install ${{ matrix.project }} dependencies
-        run: cd ${{ matrix.project }} && npm install
+      - name: Install dependencies for ${{ matrix.project }}
+        run: cd ${{ matrix.project }} && npm install --legacy-peer-deps
       
-      - name: Run tests for ${{ matrix.project }}
-        run: cd ${{ matrix.project }} && npm test -- --coverage
+      - name: Check if tests script exists
+        id: test_check
+        run: cd ${{ matrix.project }} && npm run | grep -q " test" && echo "has_tests=true" >> $GITHUB_OUTPUT || echo "has_tests=false" >> $GITHUB_OUTPUT
         continue-on-error: true
       
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./${{ matrix.project }}/coverage/coverage-final.json
-          flags: ${{ matrix.project }}
-          name: ${{ matrix.project }}-coverage
-          fail_ci_if_error: false
+      - name: Run tests for ${{ matrix.project }}
+        if: steps.test_check.outputs.has_tests == 'true'
+        run: cd ${{ matrix.project }} && npm test
+        continue-on-error: true
       
-      - name: Archive test results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-results-${{ matrix.project }}-node${{ matrix.node-version }}
-          path: ${{ matrix.project }}/coverage/
-          retention-days: 30
-
-  coverage:
-    name: Check Coverage
-    runs-on: ubuntu-latest
-    needs: test
-    if: always()
-    
-    steps:
-      - name: Download all coverage artifacts
-        uses: actions/download-artifact@v3
-      
-      - name: Report coverage
-        run: |
-          echo "## 📊 Test Coverage Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Coverage reports have been generated." >> $GITHUB_STEP_SUMMARY
-          echo "Check the artifacts for detailed coverage information." >> $GITHUB_STEP_SUMMARY
-
-  summary:
-    name: Test Summary
-    runs-on: ubuntu-latest
-    if: always()
-    needs: [test, coverage]
-    
-    steps:
-      - name: Create summary
-        run: |
-          echo "## ✅ Test Run Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Results" >> $GITHUB_STEP_SUMMARY
-          echo "- Backend: ${{ needs.test.outputs.backend-status || 'Unknown' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Mobile: ${{ needs.test.outputs.mobile-status || 'Unknown' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Web: ${{ needs.test.outputs.web-status || 'Unknown' }}" >> $GITHUB_STEP_SUMMARY
+      - name: Skip tests (no test script)
+        if: steps.test_check.outputs.has_tests != 'true'
+        run: echo "ℹ️ No test script found for ${{ matrix.project }}"

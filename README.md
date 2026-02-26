@@ -16,6 +16,29 @@ The University Housing System is a full-stack application designed to manage stu
 - **Mobile Access**: Native mobile app for on-the-go access
 - **Web Platform**: Responsive web interface for desktop users
 
+## 🚀 Quick Start
+
+Get up and running in 5 minutes:
+
+```bash
+# Clone and setup
+git clone https://github.com/youssifcu/university-housing-system.git
+cd university-housing-system
+npm run setup
+
+# Configure environment
+cd mobile && cp .env.example .env
+cd ../backend && cp .env.example .env
+cd ../web && cp .env.example .env
+
+# Start development
+npm run dev --workspaces
+```
+
+**📖 Full setup guide:** See [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)
+
+---
+
 ## 🏗️ Architecture
 
 The project is built with a **3-tier architecture**:
@@ -71,80 +94,22 @@ university-housing-system/
 └── package.json        # Root workspace configuration
 ```
 
-## 🚀 Getting Started
+## 🎯 Getting Started
 
-### Prerequisites
+### Quick Setup
 
-- **Node.js** (v14 or higher)
-- **npm** or **yarn** package manager
-- **Firebase** account with credentials
-- **Git** for version control
+1. **[Read the Development Guide](./docs/DEVELOPMENT.md)** - Complete setup instructions
+2. Clone the repository
+3. Install dependencies: `npm run setup`
+4. Configure `.env` files in each project folder
+5. Start development: `npm run dev --workspaces`
 
-### Installation
+### For Contributors
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd university-housing-system
-   ```
-
-2. **Install backend dependencies**
-   ```bash
-   cd backend
-   npm install
-   cd ..
-   ```
-
-3. **Install web app dependencies**
-   ```bash
-   cd web
-   npm install
-   cd ..
-   ```
-
-4. **Install mobile app dependencies**
-   ```bash
-   cd mobile
-   npm install
-   cd ..
-   ```
-
-### Configuration
-
-1. **Firebase Setup** (Backend)
-   - Add your `serviceAccountKey.json` to the `backend/` folder
-   - Update `backend/src/config/firebase.js` with your Firebase credentials
-
-2. **Database Configuration**
-   - Configure database connection in `backend/src/config/db.js`
-
-### Running the Application
-
-#### Backend Server
-```bash
-cd backend
-# create a .env file (see .env.example) and configure MONGO_URI, PORT etc.
-npm start
-# Server runs on http://localhost:5000 (or configured port in .env)
-```
-
-> The API endpoints are available under `/api/*` as documented above.
-
-<!-- web section intentionally omitted (handled by another team) -->
-
-#### Mobile Application
-```bash
-cd mobile
-npm install
-# start the Expo development server and scan the QR code
-npm run start
-# you can also run a specific platform:
-npm run ios      # iOS simulator or device
-npm run android  # Android emulator or device
-```
-
-> If scanning the QR code fails, ensure both your phone and machine are on the same network or press `w` and switch to the `tunnel` option.
-> This guide is focused on mobile; please coordinate with your teammate for any web-related changes.
+If you'd like to contribute:
+- [Contribution Guidelines](./docs/CONTRIBUTING.md) - How to submit PRs
+- [Code of Conduct](./docs/CODE_OF_CONDUCT.md) - Community standards  
+- [Git Workflow](./docs/GIT_WORKFLOW.md) - Branch and commit guidelines
 
 ## 🔧 Technology Stack
 
@@ -241,10 +206,21 @@ npm run android  # Android emulator or device
 
 ## 📚 Documentation
 
-For detailed documentation, see:
-- Backend API docs: `backend/README.md`
-- Web app docs: `web/README.md`
-- Mobile app docs: `mobile/README.md`
+For detailed guides and documentation, see the **[docs/](./docs/)** folder:
+
+- **[DEVELOPMENT.md](./docs/DEVELOPMENT.md)** - Local setup and development guide
+- **[CONTRIBUTING.md](./docs/CONTRIBUTING.md)** - How to contribute to the project
+- **[CODE_OF_CONDUCT.md](./docs/CODE_OF_CONDUCT.md)** - Community guidelines
+- **[GIT_WORKFLOW.md](./docs/GIT_WORKFLOW.md)** - Git branching and workflow
+- **[CHANGELOG.md](./docs/CHANGELOG.md)** - Release notes and version history
+
+Additional resources in docs/:
+- README Guidelines, Configuration Guide, Repository Structure, GitHub Optimization
+
+Project-specific documentation:
+- [Backend API](./backend/) - Backend docs and endpoints
+- [Web App](./web/) - Web application documentation  
+- [Mobile App](./mobile/) - Mobile app documentation
 
 ## 🤝 Contributing
 
