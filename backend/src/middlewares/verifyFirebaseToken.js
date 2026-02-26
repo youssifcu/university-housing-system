@@ -1,5 +1,7 @@
 const admin = require('../config/firebase');
 
+const User = require('../models/User');
+
 const verifyFirebaseToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -12,7 +14,15 @@ const verifyFirebaseToken = async (req, res, next) => {
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
     
+    // attach firebase data
     req.user = decodedToken;
+
+    // enrich with database record if exists (to get role, university info, etc.)
+    const userDoc = await User.findOne({ firebaseUID: decodedToken.uid });
+    if (userDoc) {
+      req.user.role = userDoc.role;
+      req.user.dbId = userDoc._id;
+    }
     
     next();
   } catch (error) {

@@ -1,15 +1,35 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import Constants from 'expo-constants';
+
+// Get Firebase config from Expo constants (populated from app.config.js or .env)
+const extra = (Constants.expoConfig?.extra as any) || {};
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA9qMYjOjfGyVXgZUvL_2L1BBgLWjyyoH4",
-  authDomain: "housing-53d87.firebaseapp.com",
-  projectId: "housing-53d87",
-  storageBucket: "housing-53d87.firebasestorage.app",
-  messagingSenderId: "399139942239",
-  appId: "1:399139942239:web:97bbe5b8d529031d3b50ea"
+  apiKey: extra.firebaseApiKey,
+  authDomain: extra.firebaseAuthDomain,
+  projectId: extra.firebaseProjectId,
+  storageBucket: extra.firebaseStorageBucket,
+  messagingSenderId: extra.firebaseMessagingSenderId,
+  appId: extra.firebaseAppId
 };
+
+// Warn if any required config is missing
+const requiredFields = [
+  'apiKey',
+  'projectId',
+  'appId'
+];
+
+const missingFields = requiredFields.filter(field => !firebaseConfig[field as keyof typeof firebaseConfig]);
+
+if (missingFields.length > 0) {
+  console.warn(
+    `⚠️  Firebase config incomplete. Missing: ${missingFields.join(', ')}. ` +
+    `Please set up mobile/.env file with Firebase credentials (see .env.example).`
+  );
+}
 
 const app = initializeApp(firebaseConfig);
 

@@ -123,24 +123,28 @@ university-housing-system/
 #### Backend Server
 ```bash
 cd backend
+# create a .env file (see .env.example) and configure MONGO_URI, PORT etc.
 npm start
-# Server runs on http://localhost:3000 (or configured port)
+# Server runs on http://localhost:5000 (or configured port in .env)
 ```
 
-#### Web Application
-```bash
-cd web
-npm run dev
-# Web app runs on http://localhost:5173
-```
+> The API endpoints are available under `/api/*` as documented above.
+
+<!-- web section intentionally omitted (handled by another team) -->
 
 #### Mobile Application
 ```bash
 cd mobile
-npm run ios      # For iOS
-npm run android  # For Android
-npm run web      # For web preview
+npm install
+# start the Expo development server and scan the QR code
+npm run start
+# you can also run a specific platform:
+npm run ios      # iOS simulator or device
+npm run android  # Android emulator or device
 ```
+
+> If scanning the QR code fails, ensure both your phone and machine are on the same network or press `w` and switch to the `tunnel` option.
+> This guide is focused on mobile; please coordinate with your teammate for any web-related changes.
 
 ## 🔧 Technology Stack
 
@@ -165,9 +169,9 @@ npm run web      # For web preview
 ## 📡 API Endpoints
 
 ### Authentication Routes
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login user
-- `POST /api/auth/logout` - Logout user
+- `POST /api/auth/register` - Register new user (requires valid Firebase ID token in Authorization header)
+- `POST /api/auth/login` - Login user (requires valid Firebase ID token)
+- `POST /api/auth/logout` - Logout user (token is managed client-side)
 
 ### Housing Routes
 - `GET /api/housing` - Get all housing listings
@@ -211,6 +215,8 @@ npm run web      # For web preview
 - Offline capabilities
 - Push notifications (future)
 - Location-based features
+
+> **Security note:** the Firebase API key is no longer hardcoded in the repo. It should be stored in a local `.env` file (see `mobile/.env.example`) and injected via Expo's configuration extras. You can further restrict usage of the key in the Firebase/Google Cloud console by limiting it to Android/iOS package names or specific domains. Never commit the `.env` file.
 
 ### Backend API
 - RESTful endpoints

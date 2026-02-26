@@ -2,7 +2,8 @@ const User = require('../models/User');
 
 exports.loginUser = async (req, res) => {
   try {
-    const { firebaseUID } = req.body;
+    // user must send a valid Firebase ID token; verifyFirebaseToken middleware attaches decoded data
+    const firebaseUID = req.user.uid;
 
     // بنبحث عن اليوزر بس
     let user = await User.findOne({ firebaseUID });
@@ -44,4 +45,9 @@ exports.registerUser = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "فشل في عملية التسجيل", error: error.message });
   }
+};
+
+// logout is mostly client-side for Firebase; this endpoint can be used to clear server session if any
+exports.logoutUser = async (req, res) => {
+  res.status(200).json({ message: 'User logged out (client should clear token)' });
 };

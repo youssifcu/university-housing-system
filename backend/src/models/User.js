@@ -12,6 +12,7 @@ const UserSchema = new mongoose.Schema({
   // University specifics (Great for Cairo University projects)
   universityID: { type: String }, 
   phoneNumber: { type: String },
+  faculty: { type: String },
   
   createdAt: { type: Date, default: Date.now }
 });
