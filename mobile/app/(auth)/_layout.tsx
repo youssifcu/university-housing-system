@@ -17,9 +17,10 @@ export default function AuthLayout() {
             animation: 'fade',
           }}
         >
-          <Stack.Screen name="index" /> 
+          <Stack.Screen name="index" />
           <Stack.Screen name="login" />
           <Stack.Screen name="register" />
+          <Stack.Screen name="forgot" />
         </Stack>
       </View>
     </SafeAreaView>

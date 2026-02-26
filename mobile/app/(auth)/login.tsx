@@ -15,6 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 
 const COLORS = {
@@ -35,20 +36,23 @@ export default function LoginScreen() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const { language, toggle, t } = useLanguage();
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
 
     if (!email.trim()) {
-      newErrors.email = 'University email is required';
+      newErrors.email = t('emailRequired');
     } else if (!email.includes('@')) {
-      newErrors.email = 'Please enter a valid email address';
+      newErrors.email = t('invalidEmail');
     }
 
+    // password complexity: min 8, uppercase, number, special
+    const pwdRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
     if (!password) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = t('passwordRequired');
+    } else if (!pwdRegex.test(password)) {
+      newErrors.password = t('passwordComplexity');
     }
 
     setErrors(newErrors);
@@ -81,13 +85,16 @@ export default function LoginScreen() {
             <View style={styles.logoContainer}>
               <MaterialCommunityIcons name="school" size={50} color={COLORS.DEEP_BLUE} />
             </View>
-            <Text style={styles.title}>Dorm System</Text>
-            <Text style={styles.subtitle}>University Housing Management</Text>
+            <Text style={styles.title}>{t('loginTitle')}</Text>
+            <Text style={styles.subtitle}>{t('loginSubtitle')}</Text>
+            <TouchableOpacity style={styles.langSwitch} onPress={toggle}>
+              <Text style={styles.langText}>{t('switchLanguage')}</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.formSection}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Student Email</Text>
+              <Text style={styles.label}>{t('studentEmail')}</Text>
               <View style={[styles.inputContainer, errors.email && styles.inputError]}>
                 <MaterialCommunityIcons name="email-outline" size={20} color={COLORS.SLATE_GRAY} style={styles.icon} />
                 <TextInput
@@ -106,7 +113,7 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
+              <Text style={styles.label}>{t('password')}</Text>
               <View style={[styles.inputContainer, errors.password && styles.inputError]}>
                 <MaterialCommunityIcons name="lock-outline" size={20} color={COLORS.SLATE_GRAY} style={styles.icon} />
                 <TextInput
@@ -142,8 +149,8 @@ export default function LoginScreen() {
                 />
                 <Text style={styles.smallText}>Remember Me</Text>
               </TouchableOpacity>
-              <TouchableOpacity>
-                <Text style={[styles.smallText, { color: COLORS.DEEP_BLUE, fontWeight: '700' }]}>Forgot Password?</Text>
+              <TouchableOpacity onPress={() => router.push('/(auth)/forgot')}>
+                <Text style={[styles.smallText, { color: COLORS.DEEP_BLUE, fontWeight: '700' }]}>{t('forgotPassword')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -155,7 +162,7 @@ export default function LoginScreen() {
               {loading ? (
                 <ActivityIndicator color={COLORS.WHITE} />
               ) : (
-                <Text style={styles.buttonText}>Login to Dashboard</Text>
+                <Text style={styles.buttonText}>{t('loginButton')}</Text>
               )}
             </TouchableOpacity>
 
@@ -169,7 +176,7 @@ export default function LoginScreen() {
               style={styles.secondaryButton}
               onPress={() => router.push('/register')}
             >
-              <Text style={styles.secondaryButtonText}>Create New Student Account</Text>
+              <Text style={styles.secondaryButtonText}>{t('createAccount')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -182,7 +189,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.SOFT_WHITE },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, padding: 24, justifyContent: 'center' },
-  headerSection: { alignItems: 'center', marginBottom: 40 },
+  headerSection: { alignItems: 'center', marginBottom: 40, position: 'relative' },
   logoContainer: {
     width: 100,
     height: 100,
@@ -243,4 +250,15 @@ const styles = StyleSheet.create({
     borderColor: COLORS.DEEP_BLUE,
   },
   secondaryButtonText: { color: COLORS.DEEP_BLUE, fontSize: 16, fontWeight: '700' },
+  langSwitch: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    padding: 6,
+  },
+  langText: {
+    color: COLORS.DEEP_BLUE,
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
