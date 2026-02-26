@@ -44,10 +44,10 @@ const COLORS = {
 };
 
 const FONTS = {
-  headingLarge: { fontSize: 28, fontWeight: '700', letterSpacing: -1 },
-  body: { fontSize: 16, fontWeight: '400', lineHeight: 24 },
-  label: { fontSize: 14, fontWeight: '600' },
-  small: { fontSize: 12, fontWeight: '400' },
+  headingLarge: { fontSize: 28, fontWeight: 700 as const, letterSpacing: -1 },
+  body: { fontSize: 16, fontWeight: 400 as const, lineHeight: 24 },
+  label: { fontSize: 14, fontWeight: 600 as const },
+  small: { fontSize: 12, fontWeight: 400 as const },
 };
 
 // PASSWORD STRENGTH CHECKER
@@ -126,8 +126,8 @@ const ModernRegisterScreen = () => {
     value: string;
     onChangeText: (text: string) => void;
     placeholder: string;
-    icon: string;
-    keyboardType?: string;
+    icon: string & keyof typeof MaterialCommunityIcons.glyphMap;
+    keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
     isPassword?: boolean;
   }) => {
     const isFocused = focusedField === label;
@@ -145,7 +145,7 @@ const ModernRegisterScreen = () => {
           ]}
         >
           <MaterialCommunityIcons
-            name={icon}
+            name={icon as any}
             size={20}
             color={isFocused ? COLORS.primary : COLORS.textLight}
             style={styles.icon}
@@ -196,8 +196,8 @@ const ModernRegisterScreen = () => {
               <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.primary} />
             </TouchableOpacity>
 
-            <Text style={[styles.title, FONTS.headingLarge]}>Create Account</Text>
-            <Text style={[styles.subtitle, FONTS.body, { color: COLORS.textLight }]}>
+            <Text style={[styles.title, FONTS.headingLarge] as any}>Create Account</Text>
+            <Text style={[styles.subtitle, FONTS.body, { color: COLORS.textLight }] as any}>
               Join the university housing network
             </Text>
           </View>
@@ -310,9 +310,9 @@ const ModernRegisterScreen = () => {
                   />
                 )}
               </View>
-              <Text style={[styles.termsText, FONTS.small]}>
+              <Text style={[styles.termsText, FONTS.small] as any}>
                 I agree to the{' '}
-                <Text style={{ fontWeight: '700', color: COLORS.primary }}>
+                <Text style={{ fontWeight: 700, color: COLORS.primary }}>
                   Terms & Conditions
                 </Text>
               </Text>
@@ -337,11 +337,11 @@ const ModernRegisterScreen = () => {
 
             {/* SIGN IN LINK */}
             <View style={styles.signInContainer}>
-              <Text style={[{ color: COLORS.textLight }, FONTS.body]}>
+              <Text style={[{ color: COLORS.textLight }, FONTS.body] as any}>
                 Already have an account?{' '}
               </Text>
               <TouchableOpacity onPress={() => router.push('/login')}>
-                <Text style={[{ color: COLORS.primary, fontWeight: '700' }, FONTS.body]}>
+                <Text style={[{ color: COLORS.primary, fontWeight: 700 }, FONTS.body] as any}>
                   Sign In
                 </Text>
               </TouchableOpacity>

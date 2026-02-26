@@ -1,0 +1,193 @@
+name: 🚀 Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.1)'
+        required: true
+
+jobs:
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm run setup
+      
+      - name: Run tests
+        run: npm test --workspaces
+      
+      - name: Run linting
+        run: npm run lint --workspaces
+
+  build:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    needs: validate
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm run setup
+      
+      - name: Build backend
+        run: cd backend && npm run build || echo "No build script"
+        continue-on-error: true
+      
+      - name: Build web
+        run: cd web && npm run build
+      
+      - name: Create web artifact
+        run: |
+          cd web
+          zip -r ../web-build.zip dist/
+      
+      - name: Upload backend artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend-build
+          path: backend/dist/
+          retention-days: 30
+        continue-on-error: true
+      
+      - name: Upload web artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: web-build
+          path: web-build.zip
+          retention-days: 30
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Get version from tag
+        id: tag_name
+        run: |
+          echo "source_branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+          echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+      
+      - name: Extract changelog
+        id: changelog
+        run: |
+          VERSION=${{ steps.tag_name.outputs.version }}
+          START=$(grep -n "## \[$VERSION\]" CHANGELOG.md | cut -d: -f1)
+          if [ -z "$START" ]; then
+            START=$(grep -n "## \[Unreleased\]" CHANGELOG.md | cut -d: -f1)
+          fi
+          END=$(tail -n +$((START+1)) CHANGELOG.md | grep -n "^## " | head -1 | cut -d: -f1)
+          END=$((START + END - 2))
+          
+          if [ -z "$END" ]; then
+            END=$(wc -l < CHANGELOG.md)
+          fi
+          
+          sed -n "$((START+1)),$((END))p" CHANGELOG.md > /tmp/changelog.md
+          
+          # Set multiline output
+          {
+            echo 'content<<EOF'
+            cat /tmp/changelog.md
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag_name.outputs.version }}
+          body: |
+            ## Release Notes
+            
+            ${{ steps.changelog.outputs.content }}
+            
+            ### Artifacts
+            
+            - **Web Build**: `web-build.zip`
+            - **Backend**: Check backend-build artifacts
+            
+            ### Installation
+            
+            ```bash
+            git clone https://github.com/youssifcu/university-housing-system.git
+            git checkout ${{ steps.tag_name.outputs.version }}
+            npm run setup
+            npm run dev --workspaces
+            ```
+            
+            See [DEVELOPMENT.md](./DEVELOPMENT.md) for detailed setup instructions.
+          draft: false
+          prerelease: false
+          files: |
+            web-build.zip
+
+  notify:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: release
+    if: always()
+    
+    steps:
+      - name: Create notification
+        run: |
+          echo "## 🚀 Release Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Version: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [Release Page](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Commits](https://github.com/${{ github.repository }}/commits/${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
+
+  deploy-docs:
+    name: Deploy Documentation
+    runs-on: ubuntu-latest
+    needs: release
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+      
+      - name: Check docs
+        run: |
+          if [ -d "docs" ]; then
+            echo "Documentation directory found"
+            ls -la docs/
+          else
+            echo "No documentation directory"
+          fi

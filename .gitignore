@@ -1,0 +1,119 @@
+# Node modules
+node_modules/
+npm-debug.log*
+npm-debug.log*.json
+package-lock.json
+yarn.lock
+.pnpm-lock.yaml
+
+# Environment files (CRITICAL - Never commit these!)
+.env
+.env.local
+.env.*.local
+.env.production.local
+serviceAccountKey.json
+
+# IDE & Editor
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+# Build outputs
+dist/
+build/
+*.js.map
+*.css.map
+
+# Expo & Mobile
+.expo/
+.expo-shared/
+dist-ssr/
+*.jsbundle
+.gradle/
+local.properties
+*.apk
+*.ipa
+*.xcarchive
+.metro-cache/
+
+# Firebase
+.firebase/
+.firebaserc
+firebase-debug.log
+
+# Testing
+coverage/
+.nyc_output/
+.jest_cache/
+*.lcov
+*.log
+
+# Misc
+.turbo/
+.cache/
+.parcel-cache
+.next/
+out/
+tmp/
+temp/
+
+# OS
+[Ll]ogs/
+*.log
+.DS_Store
+
+# Vendor
+3rdparty/
+vendor/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Storybook
+storybook-static/
+
+# Vite
+.vite/
+
+# Netlify
+.netlify/
+
+# Backend specific
+backend/node_modules/
+backend/.env
+backend/serviceAccountKey.json
+
+# Mobile specific
+mobile/.env
+mobile/node_modules/
+mobile/.expo-shared/
+
+# Web specific
+web/.env
+web/node_modules/
+web/dist/
+
+# IDE temp files
+*.iml
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# Archives
+*.zip
+*.rar
+*.tar.gz
+*.tgz

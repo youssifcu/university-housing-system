@@ -49,11 +49,11 @@ const COLORS = {
 
 // MODERN TYPOGRAPHY
 const FONTS = {
-  headingLarge: { fontSize: 32, fontWeight: '700', letterSpacing: -1 },
-  headingMedium: { fontSize: 24, fontWeight: '700', letterSpacing: -0.5 },
-  body: { fontSize: 16, fontWeight: '400', lineHeight: 24 },
-  label: { fontSize: 14, fontWeight: '600' },
-  small: { fontSize: 12, fontWeight: '400' },
+  headingLarge: { fontSize: 32, fontWeight: 700 as const, letterSpacing: -1 },
+  headingMedium: { fontSize: 24, fontWeight: 700 as const, letterSpacing: -0.5 },
+  body: { fontSize: 16, fontWeight: 400 as const, lineHeight: 24 },
+  label: { fontSize: 14, fontWeight: 600 as const },
+  small: { fontSize: 12, fontWeight: 400 as const },
 };
 
 const ModernLoginScreen = () => {
@@ -115,7 +115,7 @@ const ModernLoginScreen = () => {
     value: string;
     onChangeText: (text: string) => void;
     placeholder: string;
-    icon: string;
+    icon: string & keyof typeof MaterialCommunityIcons.glyphMap;
     isPassword?: boolean;
     focused: boolean;
   }) => (
@@ -130,7 +130,7 @@ const ModernLoginScreen = () => {
           !focused && styles.inputContainerDefault,
         ]}
       >
-        <MaterialCommunityIcons name={icon} size={20} color={focused ? COLORS.primary : COLORS.textLight} style={styles.icon} />
+        <MaterialCommunityIcons name={icon as any} size={20} color={focused ? COLORS.primary : COLORS.textLight} style={styles.icon} />
         <TextInput
           style={styles.input}
           value={value}
@@ -203,8 +203,8 @@ const ModernLoginScreen = () => {
             </View>
 
             {/* TITLE */}
-            <Text style={[styles.title, FONTS.headingLarge]}>Welcome Back</Text>
-            <Text style={[styles.subtitle, FONTS.body, { color: COLORS.textLight }]}>
+            <Text style={[styles.title, FONTS.headingLarge] as any}>Welcome Back</Text>
+            <Text style={[styles.subtitle, FONTS.body, { color: COLORS.textLight }] as any}>
               Sign in to your university housing account
             </Text>
           </View>
@@ -232,7 +232,7 @@ const ModernLoginScreen = () => {
 
             {/* FORGOT PASSWORD */}
             <TouchableOpacity style={styles.forgotContainer}>
-              <Text style={[styles.forgotText, FONTS.label]}>Forgot Password?</Text>
+              <Text style={[styles.forgotText, FONTS.label] as any}>Forgot Password?</Text>
             </TouchableOpacity>
 
             {/* LOGIN BUTTON */}
@@ -241,7 +241,7 @@ const ModernLoginScreen = () => {
             {/* DIVIDER */}
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={[{ color: COLORS.textLight }, FONTS.small]}>OR</Text>
+              <Text style={[{ color: COLORS.textLight }, FONTS.small] as any}>OR</Text>
               <View style={styles.dividerLine} />
             </View>
 
@@ -250,7 +250,7 @@ const ModernLoginScreen = () => {
               style={styles.secondaryButton}
               onPress={() => router.push('/register')}
             >
-              <Text style={[styles.secondaryButtonText, FONTS.label]}>
+              <Text style={[styles.secondaryButtonText, FONTS.label] as any}>
                 Don't have an account? Sign Up
               </Text>
             </TouchableOpacity>
@@ -258,7 +258,7 @@ const ModernLoginScreen = () => {
 
           {/* FOOTER */}
           <View style={styles.footer}>
-            <Text style={[{ color: COLORS.textLighter }, FONTS.small]}>
+            <Text style={[{ color: COLORS.textLighter }, FONTS.small] as any}>
               By signing in, you agree to our Terms & Privacy Policy
             </Text>
           </View>
@@ -339,7 +339,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1.5,
     backgroundColor: COLORS.surface,
-    transition: '200ms',
   },
   inputContainerDefault: {
     borderColor: COLORS.border,
