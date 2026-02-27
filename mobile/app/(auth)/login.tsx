@@ -15,7 +15,8 @@ import {
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../firebaseConfig";
 
 const COLORS = {
   DEEP_BLUE: '#1A237E',
@@ -55,14 +56,35 @@ export default function LoginScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!validateForm()) return;
 
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      setLoading(true);
+
+      await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password
+      );
+
       router.replace('/(tabs)');
-    }, 2000);
+
+    } catch (error: any) {
+
+      if (error.code === "auth/user-not-found") {
+        Alert.alert("Error", "Account does not exist");
+      } else if (error.code === "auth/wrong-password") {
+        Alert.alert("Error", "Incorrect password");
+      } else if (error.code === "auth/invalid-email") {
+        Alert.alert("Error", "Invalid email format");
+      } else {
+        Alert.alert("Login Failed", error.message);
+      }
+
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -86,6 +108,7 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.formSection}>
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Student Email</Text>
               <View style={[styles.inputContainer, errors.email && styles.inputError]}>
@@ -130,23 +153,6 @@ export default function LoginScreen() {
               {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
             </View>
 
-            <View style={styles.row}>
-              <TouchableOpacity 
-                style={styles.checkboxRow} 
-                onPress={() => setRememberMe(!rememberMe)}
-              >
-                <MaterialCommunityIcons 
-                  name={rememberMe ? "checkbox-marked" : "checkbox-blank-outline"} 
-                  size={22} 
-                  color={COLORS.DEEP_BLUE} 
-                />
-                <Text style={styles.smallText}>Remember Me</Text>
-              </TouchableOpacity>
-              <TouchableOpacity>
-                <Text style={[styles.smallText, { color: COLORS.DEEP_BLUE, fontWeight: '700' }]}>Forgot Password?</Text>
-              </TouchableOpacity>
-            </View>
-
             <TouchableOpacity 
               style={[styles.mainButton, loading && { opacity: 0.7 }]} 
               onPress={handleLogin}
@@ -155,22 +161,17 @@ export default function LoginScreen() {
               {loading ? (
                 <ActivityIndicator color={COLORS.WHITE} />
               ) : (
-                <Text style={styles.buttonText}>Login to Dashboard</Text>
+                <Text style={styles.buttonText}>Login</Text>
               )}
             </TouchableOpacity>
 
-            <View style={styles.divider}>
-              <View style={styles.line} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.line} />
+            <View style={styles.registerContainer}>
+              <Text style={styles.registerText}>I don’t have an account </Text>
+              <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+                <Text style={styles.registerLink}>Register</Text>
+              </TouchableOpacity>
             </View>
 
-            <TouchableOpacity 
-              style={styles.secondaryButton}
-              onPress={() => router.push('/register')}
-            >
-              <Text style={styles.secondaryButtonText}>Create New Student Account</Text>
-            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -196,11 +197,11 @@ const styles = StyleSheet.create({
       android: { elevation: 5 },
     }),
   },
-  title: { fontSize: 28, fontWeight: '800', color: COLORS.DEEP_BLUE, letterSpacing: 0.5 },
+  title: { fontSize: 28, fontWeight: '800', color: COLORS.DEEP_BLUE },
   subtitle: { fontSize: 16, color: COLORS.SLATE_GRAY, marginTop: 5 },
   formSection: { width: '100%' },
   inputGroup: { marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: '700', color: COLORS.DEEP_BLUE, marginBottom: 8, marginLeft: 4 },
+  label: { fontSize: 14, fontWeight: '700', color: COLORS.DEEP_BLUE, marginBottom: 8 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -214,33 +215,16 @@ const styles = StyleSheet.create({
   inputError: { borderColor: COLORS.ERROR_COLOR },
   icon: { marginRight: 10 },
   input: { flex: 1, fontSize: 16, color: COLORS.DEEP_BLUE },
-  errorText: { color: COLORS.ERROR_COLOR, fontSize: 12, marginTop: 5, marginLeft: 5 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
-  checkboxRow: { flexDirection: 'row', alignItems: 'center' },
-  smallText: { fontSize: 14, color: COLORS.SLATE_GRAY, marginLeft: 8 },
+  errorText: { color: COLORS.ERROR_COLOR, fontSize: 12, marginTop: 5 },
   mainButton: {
     backgroundColor: COLORS.DEEP_BLUE,
     height: 55,
     borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: COLORS.DEEP_BLUE,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
   },
   buttonText: { color: COLORS.WHITE, fontSize: 18, fontWeight: '700' },
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 25 },
-  line: { flex: 1, height: 1, backgroundColor: COLORS.BORDER_COLOR },
-  dividerText: { marginHorizontal: 10, color: COLORS.SLATE_GRAY, fontWeight: '600' },
-  secondaryButton: {
-    height: 55,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.DEEP_BLUE,
-  },
-  secondaryButtonText: { color: COLORS.DEEP_BLUE, fontSize: 16, fontWeight: '700' },
+  registerContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
+  registerText: { color: COLORS.SLATE_GRAY, fontSize: 14 },
+  registerLink: { color: COLORS.DEEP_BLUE, fontSize: 14, fontWeight: '700' },
 });

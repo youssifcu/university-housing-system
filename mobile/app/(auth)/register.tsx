@@ -15,8 +15,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../../firebaseConfig';
+import { auth } from "../../firebaseConfig";
 
 const DEEP_BLUE = '#1A237E';
 const SLATE_GRAY = '#475569';
@@ -35,7 +34,7 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (!fullName || !studentId || !email || !password || !confirmPassword) {
+    if (!fullName || !studentId || !email || !password) {
       Alert.alert('Error', 'Please fill all fields');
       return;
     }
@@ -46,43 +45,17 @@ export default function RegisterScreen() {
     }
 
     if (!agreeToTerms) {
-      Alert.alert('Error', 'You must agree to the terms');
+      Alert.alert('Error', 'You must agree to terms');
       return;
     }
 
-    setLoading(true);
-
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password
-      );
-
-      const user = userCredential.user;
-
-      await setDoc(doc(db, 'users', user.uid), {
-        fullName,
-        studentId,
-        email: user.email,
-        role: 'student',
-        createdAt: serverTimestamp(),
-      });
-
+      setLoading(true);
+      await createUserWithEmailAndPassword(auth, email, password);
       Alert.alert('Success', 'Account Created');
-      router.replace('/(tabs)');
-    } catch (error: any) {
-      let message = 'Something went wrong';
-
-      if (error.code === 'auth/email-already-in-use') {
-        message = 'This email is already registered';
-      } else if (error.code === 'auth/invalid-email') {
-        message = 'Invalid email address';
-      } else if (error.code === 'auth/weak-password') {
-        message = 'Password should be at least 6 characters';
-      }
-
-      Alert.alert('Registration Error', message);
+      router.replace('/(auth)/login');
+    } catch (error) {
+      Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
     }
