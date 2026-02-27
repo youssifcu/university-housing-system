@@ -14,6 +14,8 @@ import {
   StatusBar
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from "../../firebaseConfig";
 
 const DEEP_BLUE = '#1A237E';
 const SLATE_GRAY = '#475569';
@@ -31,17 +33,32 @@ export default function RegisterScreen() {
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!fullName || !studentId || !email || !password) {
       Alert.alert('Error', 'Please fill all fields');
       return;
     }
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    if (!agreeToTerms) {
+      Alert.alert('Error', 'You must agree to terms');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await createUserWithEmailAndPassword(auth, email, password);
       Alert.alert('Success', 'Account Created');
       router.replace('/(auth)/login');
-    }, 1500);
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
