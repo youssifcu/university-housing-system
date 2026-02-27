@@ -1,0 +1,90 @@
+.register-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 1rem;
+}
+
+.logo-section {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding: 1rem;
+}
+
+.logo-placeholder {
+  font-size: 4rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.page-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.registration-form {
+  width: 100%;
+}
+
+.general-error {
+  background-color: #fadbd8;
+  color: #e74c3c;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid #e74c3c;
+  font-size: 0.9rem;
+}
+
+.success-message {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.success-message h3 {
+  color: #27ae60;
+  margin-bottom: 0.5rem;
+}
+
+.success-message p {
+  color: #7f8c8d;
+  margin-bottom: 1rem;
+}
+
+.submit-button {
+  width: 100%;
+  margin: 1.5rem 0;
+}
+
+.form-footer {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.form-footer a {
+  color: #3498db;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.form-footer a:hover {
+  text-decoration: underline;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .register-page {
+    padding: 0.5rem;
+  }
+}
