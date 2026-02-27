@@ -3,7 +3,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIZasYAgQMYJ0jfGvVXgZUvL_2LI8BqLWjyyOH4",
+  apiKey: "AIzaSyA9qMYjOjfGyVXgZUvL_2L1BBgLWjyyoH4",
   authDomain: "housing-53d87.firebaseapp.com",
   projectId: "housing-53d87",
   storageBucket: "housing-53d87.firebasestorage.app",
@@ -12,5 +12,6 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
 export const auth = getAuth(app);
 export const db = getFirestore(app);
