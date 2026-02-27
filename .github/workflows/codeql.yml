@@ -8,7 +8,7 @@ on:
 
 jobs:
   analyze:
-    name: Analyze
+    name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -18,19 +18,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'javascript' ]   # غيرها لو مشروعك بلغة تانية
+        language: [ 'javascript-typescript' ]   # مهم: استخدم الاسم الجديد لمشاريع JS/TS
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'          # أو الإصدار المناسب لمشروعك
+
+    - name: Install dependencies
+      run: |
+        npm ci || npm install       # لو فشل npm ci، جرب npm install
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
+      uses: github/codeql-action/init@v3
       with:
         languages: ${{ matrix.language }}
-
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
+        build-mode: none             # مهم لمشاريع JS/TS عشان مايحاولش يعمل build تلقائي
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      uses: github/codeql-action/analyze@v3
