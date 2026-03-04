@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebaseConfig';
-import { getAllUsers, updateUserRole, updateUserProfile } from '../services/user_Service';
+import { getAllUsers, updateUserRole, updateUserProfile,deleteUser } from '../services/user_Service';
 import Button from '../components/Button';
 import '../styles/AdminDashboard.css';
 
@@ -108,7 +108,17 @@ const AdminDashboard = () => {
       </div>
     );
   }
-
+const handleDeleteUser = async (email) => {
+  if (window.confirm('Are you sure you want to delete this user?')) {
+    try {
+      await deleteUser(email); 
+      await loadUsers(); 
+      alert('  Deleted successfully');
+    } catch (error) {
+      alert('  Deletion error: ' + error.message);
+    }
+  }
+};
   return (
     <div className="admin-dashboard">
       <div className="member-container">
@@ -197,6 +207,12 @@ const AdminDashboard = () => {
                       >
                         Edit
                       </button>
+                      <button 
+                        className="action-btn delete" 
+                        onClick={() => handleDeleteUser(u.universityEmail)}
+                      >
+                         Delete
+                        </button>
                     </td>
                   </tr>
                 ))}

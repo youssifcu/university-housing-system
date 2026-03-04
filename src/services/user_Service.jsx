@@ -7,6 +7,7 @@ import {
   where, 
   addDoc, 
   updateDoc,
+  deleteDoc,
   setDoc
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -180,6 +181,16 @@ export const updateUserProfile = async (email, userData) => {
     });
   } catch (error) {
     console.error('Error updating user profile:', error);
+    throw error;
+  }
+};
+/*delete user */
+export const deleteUser = async (email) => {
+  try {
+    const userRef = doc(db, USERS_COLLECTION, email);  
+    await deleteDoc(userRef);
+  } catch (error) {
+    console.error('Error deleting user:', error);
     throw error;
   }
 };
