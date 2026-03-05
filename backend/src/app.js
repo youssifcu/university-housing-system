@@ -1,27 +1,31 @@
 const express = require('express');
 const cors = require('cors');
-const bookingRoutes = require('./routes/bookingRoutes'); // New Booking Routes
 const authRoutes = require('./routes/authRoutes');
+const bookingRoutes = require('./routes/bookingRoutes');
+const housingRoutes = require('./routes/housingRoutes'); // Import housing management routes
+const userRoutes = require('./routes/userRoutes');
 
 const app = express();
 
-// Middleware
+// Global Middlewares
 app.use(cors());
 app.use(express.json());
 
-// Logger for debugging on your Legion
+// Request Logger: Useful for debugging API calls on your terminal
 app.use((req, res, next) => {
   console.log(`${req.method} request to ${req.url}`);
   next();
 });
 
-// Root Route
+// Root Health Check Route
 app.get('/', (req, res) => {
   res.send('University Housing Server is Running...');
 });
 
 // Routes Registration
 app.use('/api/auth', authRoutes);
-app.use('/api/bookings', bookingRoutes); // This makes '/api/bookings' implicit
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/housing', housingRoutes); // Housing endpoint fixed at /api/housing
+app.use('/api/users', userRoutes);
 
-module.exports = app; // Export app to be used in server.js
+module.exports = app; // Export app for server.js to listen
