@@ -7,14 +7,16 @@ import {
   where, 
   addDoc, 
   updateDoc,
-  deleteDoc,
-  setDoc
+  setDoc,
+  deleteDoc 
 } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, getAuth as getSecondaryAuth } from 'firebase/auth'; 
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, auth, storage } from '../../lib/firebaseConfig';
+import { db, auth, storage, firebaseConfig } from '../../lib/firebaseConfig'; 
+import { initializeApp, deleteApp } from 'firebase/app';
 
 const USERS_COLLECTION = 'users';
+
 
 export const checkUserExists = async (email, studentId) => {
   try {
@@ -191,6 +193,38 @@ export const deleteUser = async (email) => {
     await deleteDoc(userRef);
   } catch (error) {
     console.error('Error deleting user:', error);
+    throw error;
+  }
+};
+export const adminRegisterUser = async (userData) => {
+  const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+  const secondaryAuth = getSecondaryAuth(secondaryApp);
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(
+      secondaryAuth, 
+      userData.universityEmail, 
+      userData.password
+    );
+
+    const userDataWithId = {
+      ...userData,
+      id: userCredential.user.uid,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    delete userDataWithId.password; 
+
+    const userDocRef = doc(db, 'users', userData.universityEmail);
+    await setDoc(userDocRef, userDataWithId);
+
+    await deleteApp(secondaryApp);
+
+    return userCredential.user.uid;
+  } catch (error) {
+    await deleteApp(secondaryApp);
+    console.error('Error in admin register:', error);
     throw error;
   }
 };

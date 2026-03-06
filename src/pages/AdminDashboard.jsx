@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebaseConfig';
-import { getAllUsers, updateUserRole, updateUserProfile,deleteUser } from '../services/user_Service';
+import { getAllUsers, updateUserRole, updateUserProfile,deleteUser,adminRegisterUser } from '../services/user_Service';
 import Button from '../components/Button';
 import '../styles/AdminDashboard.css';
+
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -16,6 +17,10 @@ const AdminDashboard = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [editData, setEditData] = useState({});
+  const [showAddModal, setShowAddModal] = useState(false);
+const [newUser, setNewUser] = useState({ fullName: '', 
+      universityEmail: '', studentId: '', password: '',
+       role: 'member' });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -119,6 +124,20 @@ const handleDeleteUser = async (email) => {
     }
   }
 };
+
+const handleAddUser = async (e) => {
+  e.preventDefault();
+  try {
+    await adminRegisterUser(newUser); 
+    
+    alert('The user was added successfully !');
+    setShowAddModal(false);  
+    setNewUser({ fullName: '', universityEmail: '', studentId: '', password: '', role: 'member' }); // بنفضي الخانات
+    await loadUsers(); 
+  } catch (error) {
+    alert(' error in addition : ' + error.message);
+  }
+};
   return (
     <div className="admin-dashboard">
       <div className="member-container">
@@ -218,6 +237,33 @@ const handleDeleteUser = async (email) => {
                 ))}
               </tbody>
             </table>
+ {/* add new user */}
+<button className="action-btn add" onClick={() => setShowAddModal(true)}>
+  + Add New User
+</button>
+
+{showAddModal && (
+  <div className="modal-overlay">
+    <div className="modal-content">
+      <h2>Add New User</h2>
+      <form onSubmit={handleAddUser}>
+        <input type="text" placeholder="Full Name" value={newUser.fullName} onChange={e => setNewUser({...newUser, fullName: e.target.value})} required />
+        <input type="email" placeholder="University Email" value={newUser.universityEmail} onChange={e => setNewUser({...newUser, universityEmail: e.target.value})} required />
+        <input type="text" placeholder="Student ID" value={newUser.studentId} onChange={e => setNewUser({...newUser, studentId: e.target.value})} required />
+        <input type="password" placeholder="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} required />
+        <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
+          <option value="member">Member</option>
+          <option value="admin">Admin</option>
+        </select>
+        
+        <div style={{ marginTop: '15px' }}>
+          <button type="submit" className="action-btn edit">Save</button>
+          <button type="button" className="action-btn delete" onClick={() => setShowAddModal(false)}>Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
           </div>
           
           <div className="logout-section-modern">
