@@ -2,11 +2,13 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const verifyFirebaseToken = require('../middlewares/verifyFirebaseToken');
+const upload = require('../middlewares/upload');
 
-// تأكد إن authController.loginUser موجودة فعلاً في ملف الـ controller
-router.post('/login', authController.loginUser);
+router.post('/register', upload.single('profilePicture'), authController.registerUser);
+router.post('/login', verifyFirebaseToken, authController.loginUser);
+router.post('/forgot-password', authController.forgotPassword);
 
-// تأكد إن authController.registerUser موجودة فعلاً في ملف الـ controller
-router.post('/register', verifyFirebaseToken, authController.registerUser);
+router.get('/profile', verifyFirebaseToken, authController.getUserProfile);
+router.put('/profile', verifyFirebaseToken, upload.single('profilePicture'), authController.updateUserProfile);
 
-module.exports = router;
+module.exports = router; 
