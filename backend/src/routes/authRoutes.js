@@ -12,4 +12,10 @@ router.post('/register', verifyFirebaseToken, authController.registerUser);
 // Protected Profile: Needs token to identify who is asking
 router.get('/profile', verifyFirebaseToken, authController.getProfile);
 
+// Change Password Route
+router.patch('/password', verifyFirebaseToken, authController.changePassword);
+
+// Forget Password
+router.post('/forgot-password', authController.forgotPassword);
+
 module.exports = router;

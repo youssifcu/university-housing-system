@@ -86,3 +86,76 @@ exports.getProfile = async (req, res) => {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
+
+// Make sure this matches your project's path to the firebase config
+const admin = require('../config/firebase'); 
+const User = require('../models/User');
+
+// ... (loginUser, registerUser, getProfile go here)
+
+/**
+ * @desc    Change current user password
+ * @route   PATCH /api/auth/password
+ */
+exports.changePassword = async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    
+    // This 'uid' comes from the decoded Firebase token in your middleware
+    const uid = req.user.uid; 
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ 
+        message: "New password must be at least 6 characters long." 
+      });
+    }
+
+    // This updates the password directly in Firebase Authentication
+    await admin.auth().updateUser(uid, {
+      password: newPassword
+    });
+
+    res.status(200).json({ 
+      success: true,
+      message: "Password updated successfully" 
+    });
+  } catch (error) {
+    console.error("Change Password Error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to update password", 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * @desc    Request a password reset link via email
+ * @route   POST /api/auth/forgot-password
+ */
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    // Generate the reset link via Firebase Admin
+    // Note: In a production app, you'd send this link via an email service (NodeMailer/SendGrid)
+    const link = await admin.auth().generatePasswordResetLink(email);
+
+    // For now, we return success. In a real scenario, you'd send the 'link' to the user's email.
+    console.log(`Password reset link for ${email}: ${link}`);
+
+    res.status(200).json({ 
+      success: true,
+      message: "Reset link sent" 
+    });
+  } catch (error) {
+    console.error("Forgot Password Error:", error);
+    // We often return 200 even if email doesn't exist for security (preventing email harvesting)
+    res.status(500).json({ message: "Error processing request", error: error.message });
+  }
+};
+
