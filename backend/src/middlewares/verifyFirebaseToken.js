@@ -1,5 +1,5 @@
 const admin = require('../config/firebase');
-const User = require('../models/User'); // Import your User model
+const User = require('../models/User');
 
 const verifyFirebaseToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -11,16 +11,16 @@ const verifyFirebaseToken = async (req, res, next) => {
   const token = authHeader.split('Bearer ')[1];
 
   try {
-    // 1. Verify the token with Firebase
     const decodedToken = await admin.auth().verifyIdToken(token);
     
-    // 2. Fetch the user's role from your MongoDB
-    const userDoc = await User.findOne({ firebaseUid: decodedToken.uid });
+    // FIX: Match the field name from your User model (firebaseUID)
+    const userDoc = await User.findOne({ firebaseUID: decodedToken.uid });
     
-    // 3. Attach both Firebase data and MongoDB role to the request object
     req.user = {
       ...decodedToken,
-      role: userDoc ? userDoc.role : 'student' // Default to student if not found
+      // Pass the MongoDB _id as well, it's very useful for your controllers
+      mongoId: userDoc ? userDoc._id : null,
+      role: userDoc ? userDoc.roles : 'user' // Note: your model used 'roles' (plural)
     };
     
     next();

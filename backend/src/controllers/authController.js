@@ -57,3 +57,32 @@ exports.registerUser = async (req, res) => {
     res.status(500).json({ message: "Registration failed", error: error.message });
   }
 };
+
+/**
+ * @desc    Get current user profile
+ * @route   GET /api/auth/profile
+ */
+exports.getProfile = async (req, res) => {
+  try {
+    // req.user.mongoId was attached by the verifyFirebaseToken middleware
+    const user = await User.findById(req.user.mongoId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.roles, // Ensure this matches 'roles' in your schema
+        phoneNumber: user.phone,
+        profilePicture: user.profilePicture
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
