@@ -28,7 +28,7 @@ const options = {
     },
     paths: {
       // --- APPLICATIONS ---
-      '/api/applications': {
+'/api/applications': {
         get: {
           summary: 'Get all applications (Admin only)',
           tags: ['Applications'],
@@ -36,11 +36,30 @@ const options = {
           responses: { 200: { description: 'Success' } }
         },
         post: {
-          summary: 'Submit application',
+          summary: 'Submit application with PDF document',
           tags: ['Applications'],
           security: [{ bearerAuth: [] }],
           requestBody: {
-            content: { 'application/json': { schema: { $ref: '#/components/schemas/Application' } } }
+            content: {
+              'multipart/form-data': { // Change this from application/json
+                schema: {
+                  type: 'object',
+                  properties: {
+                    // All your existing fields
+                    studentType: { type: 'string', enum: ['new', 'existing'] },
+                    fullName: { type: 'string' },
+                    college: { type: 'string' },
+                    academicYear: { type: 'string' },
+                    // The magic part for the PDF upload:
+                    document: { 
+                      type: 'string', 
+                      format: 'binary', 
+                      description: 'The PDF file to upload' 
+                    }
+                  }
+                }
+              }
+            }
           },
           responses: { 201: { description: 'Created' } }
         }

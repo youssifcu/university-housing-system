@@ -38,6 +38,7 @@ app.use('/api/applications', applicationRoutes);
 app.use('/api/buildings', buildingRoutes);
 app.use('/api/rooms', roomRoutes); // Added
 app.use('/api/housing-requests', housingRequestRoutes); // Added
+app.use('/uploads', express.static('uploads'));
 
 // Global Error Handler
 app.use((err, req, res, next) => {

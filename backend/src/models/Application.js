@@ -66,7 +66,14 @@ const applicationSchema = new mongoose.Schema({
   },
   rejectionReason: { type: String },
   submittedAt: { type: Date, default: Date.now },
-  reviewedAt: { type: Date }
+  reviewedAt: { type: Date } , 
+  
+  documentUrl: {
+    type: String,
+    required: [true, 'Please upload the required PDF document']
+  }
+
+  
 }, {
   timestamps: true // Adds createdAt and updatedAt
 });
