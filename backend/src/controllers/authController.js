@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const admin = require('../config/firebase'); 
 
 /**
  * @desc    Login user by verifying their Firebase UID in the database
@@ -87,9 +88,7 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-// Make sure this matches your project's path to the firebase config
-const admin = require('../config/firebase'); 
-const User = require('../models/User');
+
 
 // ... (loginUser, registerUser, getProfile go here)
 

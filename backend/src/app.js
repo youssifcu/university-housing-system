@@ -1,9 +1,15 @@
 const express = require('express');
 const cors = require('cors');
+const swaggerUi = require('swagger-ui-express'); 
+const swaggerSpec = require('./config/swagger'); 
+
 const authRoutes = require('./routes/authRoutes');
-const bookingRoutes = require('./routes/bookingRoutes');
-const housingRoutes = require('./routes/housingRoutes'); // Import housing management routes
+// const housingRoutes = require('./routes/housingRoutes'); // You can remove this if replaced by housing-requests
 const userRoutes = require('./routes/userRoutes');
+const applicationRoutes = require('./routes/applicationRoutes');
+const buildingRoutes = require('./routes/buildingRoutes');
+const roomRoutes = require('./routes/roomRoutes'); // Added
+const housingRequestRoutes = require('./routes/housingRequestRoutes'); // Added
 
 const app = express();
 
@@ -11,11 +17,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Request Logger: Useful for debugging API calls on your terminal
+// Request Logger
 app.use((req, res, next) => {
   console.log(`${req.method} request to ${req.url}`);
   next();
 });
+
+// --- Swagger Documentation Route ---
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Root Health Check Route
 app.get('/', (req, res) => {
@@ -24,8 +33,20 @@ app.get('/', (req, res) => {
 
 // Routes Registration
 app.use('/api/auth', authRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/housing', housingRoutes); // Housing endpoint fixed at /api/housing
 app.use('/api/users', userRoutes);
+app.use('/api/applications', applicationRoutes);
+app.use('/api/buildings', buildingRoutes);
+app.use('/api/rooms', roomRoutes); // Added
+app.use('/api/housing-requests', housingRequestRoutes); // Added
 
-module.exports = app; // Export app for server.js to listen
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    success: false,
+    message: 'Something went wrong on the server!',
+    error: process.env.NODE_ENV === 'development' ? err.message : {}
+  });
+});
+
+module.exports = app;
