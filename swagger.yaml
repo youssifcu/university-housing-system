@@ -1,0 +1,776 @@
+openapi: 3.0.3
+info:
+  title: University Housing System API
+  version: "1.0.0"
+  description: Complete API documentation for University Housing System
+servers:
+  - url: http://localhost:5000
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        error:
+          type: string
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        firebaseUID:
+          type: string
+        phone:
+          type: string
+        roles:
+          type: string
+        profilePicture:
+          type: string
+        status:
+          type: string
+    ApplicationInput:
+      type: object
+      required:
+        - studentType
+        - nationality
+        - nationalId
+        - fullName
+        - dateOfBirth
+        - placeOfBirth
+        - gender
+        - residenceAddress
+        - mobile
+        - fatherName
+        - fatherNationalId
+        - college
+        - academicYear
+        - documentUrl
+      properties:
+        studentType:
+          type: string
+        nationality:
+          type: string
+        nationalId:
+          type: string
+        shuonId:
+          type: string
+        fullName:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        placeOfBirth:
+          type: string
+        gender:
+          type: string
+          enum: [male, female]
+        religion:
+          type: string
+        residenceAddress:
+          type: string
+        detailedAddress:
+          type: string
+        phone:
+          type: string
+        mobile:
+          type: string
+        fatherName:
+          type: string
+        fatherNationalId:
+          type: string
+        fatherJob:
+          type: string
+        fatherPhone:
+          type: string
+        fatherAddress:
+          type: string
+        guardianName:
+          type: string
+        guardianRelation:
+          type: string
+        guardianNationalId:
+          type: string
+        guardianPhone:
+          type: string
+        guardianAddress:
+          type: string
+        parentsStatus:
+          type: string
+        college:
+          type: string
+        academicYear:
+          type: string
+        lastYearGrade:
+          type: string
+        gradePercentage:
+          type: number
+        previousHousing:
+          type: boolean
+        housingType:
+          type: string
+        hasSpecialNeeds:
+          type: boolean
+        familyAbroad:
+          type: boolean
+        hasMedicalCondition:
+          type: boolean
+        medicalReport:
+          type: string
+        documentUrl:
+          type: string
+    HousingRequestBody:
+      type: object
+      required:
+        - type
+        - reason
+      properties:
+        type:
+          type: string
+          enum: [transfer, vacate]
+        fromRoomId:
+          type: string
+        toRoomId:
+          type: string
+        reason:
+          type: string
+    BuildingBody:
+      type: object
+      required:
+        - name
+        - gender
+        - floors
+      properties:
+        name:
+          type: string
+        gender:
+          type: string
+          enum: [male, female]
+        floors:
+          type: integer
+        description:
+          type: string
+    RoomBody:
+      type: object
+      required:
+        - buildingId
+        - floorNumber
+        - roomNumber
+        - capacity
+      properties:
+        buildingId:
+          type: string
+        floorNumber:
+          type: integer
+        roomNumber:
+          type: string
+        capacity:
+          type: integer
+        currentOccupancy:
+          type: integer
+        status:
+          type: string
+          enum: [available, full, maintenance]
+    GenerateQRCodeRequest:
+      type: object
+      properties:
+        studentId:
+          type: string
+    ValidateQRCodeRequest:
+      type: object
+      required: [qrCode]
+      properties:
+        qrCode:
+          type: string
+paths:
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [firebaseUID]
+              properties:
+                firebaseUID:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register user
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [universityID, phoneNumber, faculty]
+              properties:
+                universityID:
+                  type: string
+                phoneNumber:
+                  type: string
+                faculty:
+                  type: string
+      responses:
+        '201':
+          description: Account created
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/auth/profile:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Profile returned
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/auth/password:
+    patch:
+      tags: [Auth]
+      summary: Change password
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newPassword]
+              properties:
+                newPassword:
+                  type: string
+      responses:
+        '200':
+          description: Password updated
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Forgot password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+      responses:
+        '200':
+          description: Reset link sent
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/users/{id}:
+    delete:
+      tags: [User]
+      summary: Delete user (admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted successfully
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/applications:
+    get:
+      tags: [Applications]
+      summary: List all applications (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+    post:
+      tags: [Applications]
+      summary: Submit housing application
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApplicationInput'
+      responses:
+        '201':
+          description: Created
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/applications/my:
+    get:
+      tags: [Applications]
+      summary: My applications
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/applications/{id}:
+    get:
+      tags: [Applications]
+      summary: Get application by ID
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+    patch:
+      tags: [Applications]
+      summary: Update application
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Updated
+    delete:
+      tags: [Applications]
+      summary: Delete application
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+  /api/applications/{id}/approve:
+    patch:
+      tags: [Applications]
+      summary: Approve application
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Approved
+  /api/applications/{id}/reject:
+    patch:
+      tags: [Applications]
+      summary: Reject application
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rejectionReason]
+              properties:
+                rejectionReason:
+                  type: string
+      responses:
+        '200':
+          description: Rejected
+  /api/students:
+    get:
+      tags: [Students]
+      summary: Get all students (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+  /api/students/me:
+    get:
+      tags: [Students]
+      summary: Get my profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+    patch:
+      tags: [Students]
+      summary: Update my profile
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Updated
+  /api/students/me/qr:
+    get:
+      tags: [Students]
+      summary: Get current student QR code value
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+  /api/students/me/generate-qr:
+    post:
+      tags: [Students]
+      summary: Generate/set QR code for logged-in student
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Generated
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/students/validate-qr:
+    post:
+      tags: [Students]
+      summary: Validate a QR code value
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateQRCodeRequest'
+      responses:
+        '200':
+          description: Valid QR code
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/students/{id}:
+    get:
+      tags: [Students]
+      summary: Get student by ID
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+  /api/housing-requests:
+    post:
+      tags: [Housing Requests]
+      summary: Create a housing request
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HousingRequestBody'
+      responses:
+        '201':
+          description: Created
+    get:
+      tags: [Housing Requests]
+      summary: Get all housing requests (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+  /api/housing-requests/{id}:
+    get:
+      tags: [Housing Requests]
+      summary: Get housing request by ID
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+  /api/housing-requests/{id}/approve:
+    patch:
+      tags: [Housing Requests]
+      summary: Approve request
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Approved
+  /api/housing-requests/{id}/reject:
+    patch:
+      tags: [Housing Requests]
+      summary: Reject request
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Rejected
+  /api/buildings:
+    get:
+      tags: [Buildings]
+      summary: List buildings
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+    post:
+      tags: [Buildings]
+      summary: Create building
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuildingBody'
+      responses:
+        '201':
+          description: Created
+  /api/buildings/{id}:
+    get:
+      tags: [Buildings]
+      summary: Get building by ID
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+    put:
+      tags: [Buildings]
+      summary: Update building
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuildingBody'
+      responses:
+        '200':
+          description: Updated
+  /api/rooms:
+    get:
+      tags: [Rooms]
+      summary: List all rooms
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+    post:
+      tags: [Rooms]
+      summary: Create room
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomBody'
+      responses:
+        '201':
+          description: Created
+  /api/rooms/available:
+    get:
+      tags: [Rooms]
+      summary: Get available rooms
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+  /api/rooms/building/{buildingId}:
+    get:
+      tags: [Rooms]
+      summary: Rooms by building
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: buildingId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+  /api/rooms/{id}:
+    get:
+      tags: [Rooms]
+      summary: Get room by ID
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+    put:
+      tags: [Rooms]
+      summary: Update room
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomBody'
+      responses:
+        '200':
+          description: Updated
+  /api/rooms/{id}/status:
+    patch:
+      tags: [Rooms]
+      summary: Change room status
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+      responses:
+        '200':
+          description: Updated
+  /api/rooms/{id}/assign:
+    patch:
+      tags: [Rooms]
+      summary: Assign student to room
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Assigned
+  /api/rooms/{id}/remove-student:
+    patch:
+      tags: [Rooms]
+      summary: Remove student from room
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Removed
+components:
+  responses: {}
