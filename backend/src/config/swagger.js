@@ -322,9 +322,114 @@ const options = {
         }
       },
 
-      
+      // --- AUTH ---
+      '/api/auth/login': {
+        post: {
+          summary: 'Login user',
+          tags: ['Auth'],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    firebaseUID: { type: 'string' }
+                  },
+                  required: ['firebaseUID']
+                }
+              }
+            }
+          },
+          responses: { 200: { description: 'Login successful' }, 404: { description: 'User not found' }, 500: { description: 'Server error' } }
+        }
+      },
+      '/api/auth/register': {
+        post: {
+          summary: 'Register user',
+          tags: ['Auth'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    universityID: { type: 'string' },
+                    phoneNumber: { type: 'string' },
+                    faculty: { type: 'string' }
+                  },
+                  required: ['universityID', 'phoneNumber', 'faculty']
+                }
+              }
+            }
+          },
+          responses: { 201: { description: 'Account created' }, 400: { description: 'Already registered' }, 500: { description: 'Server error' } }
+        }
+      },
+      '/api/auth/profile': {
+        get: {
+          summary: 'Get current user profile',
+          tags: ['Auth'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Profile returned' }, 401: { description: 'Unauthorized' }, 500: { description: 'Server error' } }
+        }
+      },
+      '/api/auth/password': {
+        patch: {
+          summary: 'Change password',
+          tags: ['Auth'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    newPassword: { type: 'string' }
+                  },
+                  required: ['newPassword']
+                }
+              }
+            }
+          },
+          responses: { 200: { description: 'Password updated' }, 400: { description: 'Bad request' }, 500: { description: 'Server error' } }
+        }
+      },
+      '/api/auth/forgot-password': {
+        post: {
+          summary: 'Request forgot password',
+          tags: ['Auth'],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    email: { type: 'string' }
+                  },
+                  required: ['email']
+                }
+              }
+            }
+          },
+          responses: { 200: { description: 'Reset link sent' }, 400: { description: 'Bad request' }, 500: { description: 'Server error' } }
+        }
+      },
+
+      // --- USERS ---
+      '/api/users/{id}': {
+        delete: {
+          summary: 'Delete user (admin)',
+          tags: ['User'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Deleted successfully' }, 401: { description: 'Unauthorized' }, 403: { description: 'Forbidden' }, 404: { description: 'Not found' }, 500: { description: 'Server error' } }
+        }
+      }
     }
   },
+  apis: []
+};
   apis: [] 
 };
 
