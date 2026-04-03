@@ -1,14 +1,7 @@
 const multer = require('multer');
-const path = require('path');
 
-// 1. Set storage engine (where to save files)
-const storage = multer.diskStorage({
-  destination: './uploads/applications/',
-  filename: (req, file, cb) => {
-    // Rename file: studentID-timestamp.pdf
-    cb(null, `${req.user.uid}-${Date.now()}${path.extname(file.originalname)}`);
-  }
-});
+// Keep uploaded file in memory so we can store it directly in MongoDB.
+const storage = multer.memoryStorage();
 
 // 2. Check file type (Allow only PDFs)
 const fileFilter = (req, file, cb) => {
@@ -20,9 +13,9 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({
-  storage: storage,
+  storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // Limit: 5MB
-  fileFilter: fileFilter
+  fileFilter
 });
 
 module.exports = upload;

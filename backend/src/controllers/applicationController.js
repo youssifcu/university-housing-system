@@ -10,6 +10,9 @@ const crypto = require('crypto'); // Built-in Node tool to generate QR strings
 exports.submitApplication = async (req, res) => {
   try {
     const userId = req.user.mongoId;
+    if (!req.file) {
+      return res.status(400).json({ message: 'Please upload the required PDF document' });
+    }
 
     // 1. Check if user already has a pending or approved application
     const existingApp = await Application.findOne({ userId });
@@ -23,10 +26,13 @@ exports.submitApplication = async (req, res) => {
     const newApplication = new Application({
       ...req.body,
       userId: userId,
+      documentData: req.file.buffer,
+      documentName: req.file.originalname,
+      documentMimeType: req.file.mimetype,
       status: 'pending' // Default status
     });
 
-    const savedApplication = await savedApplication.save();
+    const savedApplication = await newApplication.save();
 
     res.status(201).json({
       message: "Application submitted successfully",

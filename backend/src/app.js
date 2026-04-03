@@ -10,6 +10,10 @@ const applicationRoutes = require('./routes/applicationRoutes');
 const buildingRoutes = require('./routes/buildingRoutes');
 const roomRoutes = require('./routes/roomRoutes'); // Added
 const housingRequestRoutes = require('./routes/housingRequestRoutes'); // Added
+const mealRoutes = require('./routes/mealRoutes');
+const attendanceRoutes = require('./routes/attendanceRoutes');
+const reportRoutes = require('./routes/reportRoutes');
+const announcementRoutes = require('./routes/announcementRoutes');
 
 const app = express();
 
@@ -38,6 +42,10 @@ app.use('/api/applications', applicationRoutes);
 app.use('/api/buildings', buildingRoutes);
 app.use('/api/rooms', roomRoutes); // Added
 app.use('/api/housing-requests', housingRequestRoutes); // Added
+app.use('/api/meals', mealRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/announcements', announcementRoutes);
 app.use('/uploads', express.static('uploads'));
 
 // Global Error Handler
