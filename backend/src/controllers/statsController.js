@@ -5,6 +5,7 @@ const Building = require('../models/Building');
 const Meal = require('../models/Meal');
 const MealBooking = require('../models/MealBooking');
 const Payment = require('../models/Payment');
+const HousingRequest = require('../models/HousingRequest');
 
 /**
  * @desc    Get students by college
@@ -139,7 +140,7 @@ exports.getMealsPreparationStats = async (req, res) => {
 exports.getPaymentsStats = async (req, res) => {
   try {
     const totalPayments = await Payment.countDocuments();
-    const paidPayments = await Payment.countDocuments({ status: 'paid' });
+    const confirmedPayments = await Payment.countDocuments({ status: 'confirmed' });
     const pendingPayments = await Payment.countDocuments({ status: 'pending' });
     const totalAmount = await Payment.aggregate([
       { $group: { _id: null, total: { $sum: '$amount' } } }
@@ -147,7 +148,7 @@ exports.getPaymentsStats = async (req, res) => {
     
     res.status(200).json({
       totalPayments,
-      paidPayments,
+      confirmedPayments,
       pendingPayments,
       totalAmount: totalAmount.length > 0 ? totalAmount[0].total : 0
     });
@@ -157,7 +158,6 @@ exports.getPaymentsStats = async (req, res) => {
 };
 
 async function checkOnLeave(studentId) {
-  const HousingRequest = require('../models/HousingRequest');
   const leave = await HousingRequest.findOne({
     studentId,
     type: 'vacate',

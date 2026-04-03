@@ -1,9 +1,11 @@
 const HousingRequest = require('../models/HousingRequest');
+const Student = require('../models/Student');
+const MealBooking = require('../models/MealBooking');
 
 // POST /api/housing-requests (Student role)
 exports.submitRequest = async (req, res) => {
   try {
-    const student = await require('../models/Student').findOne({ userId: req.user.mongoId });
+    const student = await Student.findOne({ userId: req.user.mongoId });
     if (!student) return res.status(404).json({ message: 'Student not found' });
 
     const { type, fromRoomId, toRoomId, reason, startDate, endDate } = req.body;
@@ -70,10 +72,9 @@ exports.updateStatus = async (req, res) => {
 
     if (status === 'approved' && request.type === 'vacate') {
       // Set student status to suspended
-      await require('../models/Student').findByIdAndUpdate(request.studentId, { housingStatus: 'suspended' });
+      await Student.findByIdAndUpdate(request.studentId, { housingStatus: 'suspended' });
 
       // Cancel meal bookings during leave
-      const MealBooking = require('../models/MealBooking');
       await MealBooking.updateMany(
         {
           studentId: request.studentId,

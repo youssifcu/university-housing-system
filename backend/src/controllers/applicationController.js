@@ -1,5 +1,6 @@
 const Student = require('../models/Student');
 const Application = require('../models/Application');
+const Room = require('../models/Room');
 const crypto = require('crypto'); // Built-in Node tool to generate QR strings
 
 /**
@@ -207,12 +208,11 @@ exports.approveApplication = async (req, res) => {
     }
 
     // 2. Assign room
-    const RoomModel = require('../models/Room');
     let assignedRoomId = roomId;
     let assignedBedNumber = bedNumber;
 
     if (roomId) {
-      const selectedRoom = await RoomModel.findById(roomId);
+      const selectedRoom = await Room.findById(roomId);
       if (!selectedRoom) {
         return res.status(404).json({ message: 'Selected room not found' });
       }
@@ -222,7 +222,7 @@ exports.approveApplication = async (req, res) => {
       assignedRoomId = selectedRoom._id;
       assignedBedNumber = bedNumber || selectedRoom.currentOccupancy + 1;
     } else {
-      const selectedRoom = await RoomModel.findOne({ status: 'available', $expr: { $lt: ['$currentOccupancy', '$capacity'] } });
+      const selectedRoom = await Room.findOne({ status: 'available', $expr: { $lt: ['$currentOccupancy', '$capacity'] } });
       if (!selectedRoom) {
         return res.status(400).json({ message: 'No available rooms' });
       }
@@ -255,7 +255,6 @@ exports.approveApplication = async (req, res) => {
     await newStudent.save();
 
     // 6. Update room occupancy
-    const Room = require('../models/Room');
     const updatedRoom = await Room.findByIdAndUpdate(
       assignedRoomId,
       { $inc: { currentOccupancy: 1 } },

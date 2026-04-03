@@ -15,17 +15,26 @@ const Notification = require('../src/models/Notification');
 const Payment = require('../src/models/Payment');
 const mongoose = require('mongoose');
 
-jest.mock('../src/config/firebase', () => ({
-  auth: () => ({
+jest.mock('../src/config/firebase', () => {
+  const mockAuth = {
     verifyIdToken: jest.fn(async (token) => {
       if (token === 'invalid_token') throw new Error('Invalid token');
       return {
         uid: 'test_firebase_uid_' + token,
         email: 'test@example.com'
       };
-    })
-  })
-}));
+    }),
+    deleteUser: jest.fn(async () => true)
+  };
+
+  return {
+    auth: jest.fn(() => mockAuth),
+    initializeApp: jest.fn(),
+    credential: {
+      cert: jest.fn()
+    }
+  };
+});
 
 describe('University Housing System - API Tests', () => {
   let adminToken = 'valid_admin_token';
@@ -34,20 +43,33 @@ describe('University Housing System - API Tests', () => {
   let applicationId, studentId, roomId, buildingId, mealId, bookingId;
 
   beforeAll(async () => {
+    // Set test database URI
+    process.env.MONGODB_URI = process.env.MONGODB_TEST_URI || 'mongodb://localhost:27017/university-housing-system-test';
+    
+    // Connect to MongoDB
+    if (!mongoose.connection.readyState) {
+      await mongoose.connect(process.env.MONGODB_URI);
+    }
+
+    // Clear collections
     await User.deleteMany({});
     await Application.deleteMany({});
     await Student.deleteMany({});
     await Room.deleteMany({});
     await Building.deleteMany({});
-  });
+  }, 15000);
 
   afterAll(async () => {
+    // Clear collections
     await User.deleteMany({});
     await Application.deleteMany({});
     await Student.deleteMany({});
     await Room.deleteMany({});
     await Building.deleteMany({});
-  });
+    
+    // Disconnect from MongoDB
+    await mongoose.disconnect();
+  }, 15000);
 
   describe('Core API Functionality', () => {
     test('Health Check - GET /', async () => {

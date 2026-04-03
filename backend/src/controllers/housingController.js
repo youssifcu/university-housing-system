@@ -12,18 +12,17 @@ exports.getAllRooms = async (req, res) => {
 
     let rooms;
     if (isAdmin) {
-      // Admins see everything + the building details + the names of students inside
+      // Admins see everything + the building details
       rooms = await Room.find()
-        .populate('buildingId', 'name buildingNumber')
-        .populate('students', 'fullName email'); 
+        .populate('buildingId', 'name buildingNumber'); 
     } else {
       // Students only see rooms that have at least one empty bed
-      // and haven't been manually disabled by an admin
+      // and are available
       rooms = await Room.find({ 
-        isAvailable: true,
-        $expr: { $lt: ["$occupiedSlots", "$capacity"] } 
+        status: 'available',
+        $expr: { $lt: ["$currentOccupancy", "$capacity"] } 
       })
-      .select('roomNumber capacity occupiedSlots buildingId')
+      .select('roomNumber capacity currentOccupancy buildingId')
       .populate('buildingId', 'name');
     }
 
@@ -80,7 +79,7 @@ exports.assignStudent = async (req, res) => {
         if (!student) return res.status(404).json({ message: "Student not found" });
 
         // 2. Check if the room is already full
-        if (room.occupiedSlots >= room.capacity) {
+        if (room.currentOccupancy >= room.capacity) {
             return res.status(400).json({ message: "Room is already at full capacity" });
         }
 
@@ -90,12 +89,11 @@ exports.assignStudent = async (req, res) => {
         }
 
         // 4. Update the Room record
-        room.students.push(studentId);
-        room.occupiedSlots += 1;
+        room.currentOccupancy += 1;
         
-        // If the room just reached capacity, mark as unavailable
-        if (room.occupiedSlots === room.capacity) {
-            room.isAvailable = false;
+        // If the room just reached capacity, mark as full
+        if (room.currentOccupancy === room.capacity) {
+            room.status = 'full';
         }
 
         // 5. Update the Student record

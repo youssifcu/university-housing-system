@@ -1,4 +1,5 @@
 const Payment = require('../models/Payment');
+const Student = require('../models/Student');
 
 /**
  * @desc    Get all payments (Admin only)
@@ -19,7 +20,7 @@ exports.getAllPayments = async (req, res) => {
  */
 exports.getMyPayments = async (req, res) => {
   try {
-    const student = await require('../models/Student').findOne({ userId: req.user.mongoId });
+    const student = await Student.findOne({ userId: req.user.mongoId });
     if (!student) return res.status(404).json({ message: "Student not found" });
 
     const payments = await Payment.find({ studentId: student._id }).sort({ paymentDate: -1 });
@@ -35,7 +36,7 @@ exports.getMyPayments = async (req, res) => {
  */
 exports.createPayment = async (req, res) => {
   try {
-    const student = await require('../models/Student').findOne({ userId: req.user.mongoId });
+    const student = await Student.findOne({ userId: req.user.mongoId });
     if (!student) return res.status(404).json({ message: "Student not found" });
 
     const payment = new Payment({

@@ -2,6 +2,14 @@ const app = require('./src/app'); // Import the app logic
 const connectDB = require('./src/config/db');
 require('dotenv').config(); // Important for your MongoDB URI
 
+// Validate required environment variables
+const requiredEnvVars = ['FIREBASE_PROJECT_ID'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar] && envVar !== 'FIREBASE_PROJECT_ID');
+
+if (missingEnvVars.length > 0) {
+  console.warn(`Warning: Some optional environment variables are not set: ${missingEnvVars.join(', ')}`);
+}
+
 // Connect to MongoDB
 connectDB();
 
@@ -10,11 +18,12 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Server is barking on port ${PORT}`);
 });
 
-// Socket.io setup
+// Socket.io setup with secure CORS
 const io = require('socket.io')(server, {
   cors: {
-    origin: "*", // Adjust for production
-    methods: ["GET", "POST"]
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 

@@ -6,10 +6,10 @@ const isAdmin = require('../middlewares/adminMiddleware');
 const upload = require('../config/multer'); // <--- DON'T FORGET THIS LINE
 
 // --- Public/Student Routes ---
-router.post('/', verifyToken, applicationController.submitApplication);
+router.post('/', verifyToken, upload.single('document'), applicationController.submitApplication);
 router.get('/my', verifyToken, applicationController.getMyApplications);
 router.get('/:id', verifyToken, applicationController.getApplicationById);
-router.patch('/:id', verifyToken, applicationController.updateApplication);
+router.patch('/:id', verifyToken, upload.single('document'), applicationController.updateApplication);
 router.delete('/:id', verifyToken, applicationController.deleteApplication);
 
 // --- Admin Only Routes ---

@@ -157,8 +157,48 @@ exports.resetPassword = async (req, res) => {
       message: "Password reset successfully" 
     });
   } catch (error) {
-    console.error("Reset Password Error:", error);
+     console.error("Reset Password Error:", error);
     res.status(500).json({ message: "Invalid or expired token", error: error.message });
   }
 };
+
+/**
+ * @desc    Register a new admin user (Admin only)
+ * @route   POST /api/auth/register-admin
+ * @access  Private (Admin)
+ */
+exports.registerAdmin = async (req, res) => {
+  try {
+    const { firebaseToken, name, email, phone, role } = req.body;
+
+    // Verify Firebase token
+    const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+    const firebaseUID = decodedToken.uid;
+
+    // Check if user already exists
+    let user = await User.findOne({ firebaseUID });
+    if (user) {
+      return res.status(400).json({ message: "User already registered" });
+    }
+
+    // Validate role
+    const validRoles = ['admin', 'student', 'restaurant_supervisor', 'floor_supervisor', 'computer_supervisor'];
+    const assignedRole = validRoles.includes(role) ? role : 'user';
+
+    // Create new user with specified role
+    user = new User({
+      name,
+      email,
+      firebaseUID,
+      phone,
+      role: assignedRole
+    });
+
+    await user.save();
+    res.status(201).json({ message: "Admin user registered successfully", user });
+  } catch (error) {
+    res.status(500).json({ message: "Admin registration failed", error: error.message });
+  }
+};
+
 

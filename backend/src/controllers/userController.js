@@ -21,9 +21,9 @@ exports.deleteUser = async (req, res) => {
         }
 
         // 2. Delete from Firebase Authentication
-        // Assuming 'firebaseUid' is the field name in your User model
+        // Using 'firebaseUID' as defined in User model
         try {
-            await admin.auth().deleteUser(user.firebaseUid);
+            await admin.auth().deleteUser(user.firebaseUID);
         } catch (firebaseError) {
             console.error("Firebase deletion failed:", firebaseError.message);
             // We continue even if Firebase fails (e.g., if user was already deleted there)

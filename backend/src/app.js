@@ -52,6 +52,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/announcements', announcementRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/uploads', express.static('uploads'));
 

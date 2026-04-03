@@ -2,9 +2,10 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
+    const mongoUri = process.env.MONGODB_URI || process.env.MONGODB_TEST_URI || 'mongodb://localhost:27017/university-housing-system';
     
-    await mongoose.connect('mongodb://localhost:27017/university-housing-system');
-    console.log(' MongoDB Connected to Compass Successfully!');
+    await mongoose.connect(mongoUri);
+    console.log(' MongoDB Connected Successfully!');
   } catch (error) {
     console.error(' MongoDB Connection Error:', error.message);
     process.exit(1);

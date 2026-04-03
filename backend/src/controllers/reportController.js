@@ -1,5 +1,6 @@
 const Report = require('../models/Report');
 const Student = require('../models/Student');
+const Notification = require('../models/Notification');
 
 const canManageReports = (role) =>
   role === 'admin' || role === 'floor_supervisor' || role === 'computer_supervisor' || role === 'restaurant_supervisor';
@@ -109,7 +110,6 @@ exports.updateReportStatus = async (req, res) => {
     }
 
     // Save notification record
-    const Notification = require('../models/Notification');
     await Notification.create({
       title: `Report status updated to ${status}`,
       message: `Your maintenance report has been updated to ${status}`,
