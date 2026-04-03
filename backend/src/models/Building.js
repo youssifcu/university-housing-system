@@ -29,6 +29,7 @@ const buildingSchema = new mongoose.Schema({
     type: String,
     trim: true
   }
+});
 
 const Building = mongoose.model('Building', buildingSchema);
 

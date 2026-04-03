@@ -132,6 +132,30 @@ exports.getMealsPreparationStats = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get payment stats
+ * @route   GET /api/stats/payments
+ */
+exports.getPaymentsStats = async (req, res) => {
+  try {
+    const totalPayments = await Payment.countDocuments();
+    const paidPayments = await Payment.countDocuments({ status: 'paid' });
+    const pendingPayments = await Payment.countDocuments({ status: 'pending' });
+    const totalAmount = await Payment.aggregate([
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    
+    res.status(200).json({
+      totalPayments,
+      paidPayments,
+      pendingPayments,
+      totalAmount: totalAmount.length > 0 ? totalAmount[0].total : 0
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
 async function checkOnLeave(studentId) {
   const HousingRequest = require('../models/HousingRequest');
   const leave = await HousingRequest.findOne({
