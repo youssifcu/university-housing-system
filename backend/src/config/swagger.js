@@ -263,6 +263,35 @@ const options = {
           responses: { 200: { description: 'Returns Base64 QR Image' } }
         }
       },
+      '/api/students/me/generate-qr': {
+        post: {
+          summary: 'Generate QR code for currently logged-in student',
+          tags: ['Students'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'QR code generated' }, 404: { description: 'Student not found' } }
+        }
+      },
+      '/api/students/validate-qr': {
+        post: {
+          summary: 'Validate a student QR code',
+          tags: ['Students'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['qrCode'],
+                  properties: {
+                    qrCode: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          responses: { 200: { description: 'Validation result' }, 400: { description: 'Bad Request' }, 404: { description: 'Invalid QR code' } }
+        }
+      },
       '/api/students/{id}': {
         get: {
           summary: 'Get student by ID (Admin only)',
@@ -429,8 +458,6 @@ const options = {
     }
   },
   apis: []
-};
-  apis: [] 
 };
 
 module.exports = swaggerJsdoc(options);

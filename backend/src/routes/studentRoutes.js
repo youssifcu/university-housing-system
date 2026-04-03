@@ -7,6 +7,8 @@ const isAdmin = require('../middlewares/adminMiddleware');
 // Student Personal Routes
 router.get('/me', verifyToken, studentController.getMyProfile);
 router.get('/me/qr', verifyToken, studentController.getMyQRCode);
+router.post('/me/generate-qr', verifyToken, studentController.generateMyQRCode);
+router.post('/validate-qr', verifyToken, studentController.validateQRCode);
 
 // Admin Management Routes
 router.get('/', verifyToken, isAdmin, studentController.getAllStudents);

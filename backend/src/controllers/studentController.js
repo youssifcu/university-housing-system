@@ -63,6 +63,37 @@ exports.getMyQRCode = async (req, res) => {
   }
 };
 
+// POST /api/students/me/generate-qr (Logged-in Student)
+exports.generateMyQRCode = async (req, res) => {
+  try {
+    const student = await Student.findOne({ userId: req.user.mongoId });
+    if (!student) return res.status(404).json({ message: "Student not found" });
+
+    const qrString = `STU-${student.universityId || student.nationalId || student._id}-${Date.now().toString(36)}-${Math.floor(Math.random() * 100000)}`;
+    student.qrCode = qrString;
+    await student.save();
+
+    res.status(200).json({ qrCode: student.qrCode });
+  } catch (error) {
+    res.status(500).json({ message: "Error generating QR", error: error.message });
+  }
+};
+
+// POST /api/students/validate-qr (Admin or student)
+exports.validateQRCode = async (req, res) => {
+  try {
+    const { qrCode } = req.body;
+    if (!qrCode) return res.status(400).json({ message: "qrCode is required" });
+
+    const student = await Student.findOne({ qrCode });
+    if (!student) return res.status(404).json({ valid: false, message: "QR code not valid" });
+
+    res.status(200).json({ valid: true, student: { id: student._id, fullName: student.fullName, universityId: student.universityId, roomId: student.roomId } });
+  } catch (error) {
+    res.status(500).json({ message: "Error validating QR", error: error.message });
+  }
+};
+
 // PATCH /api/students/:id (Admin only)
 exports.updateStudent = async (req, res) => {
   try {
