@@ -20,10 +20,15 @@ const buildingSchema = new mongoose.Schema({
   description: {
     type: String,
     trim: true
+  },
+  supervisorName: {
+    type: String,
+    trim: true
+  },
+  supervisorPhone: {
+    type: String,
+    trim: true
   }
-}, {
-  timestamps: true
-});
 
 const Building = mongoose.model('Building', buildingSchema);
 

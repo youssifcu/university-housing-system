@@ -275,6 +275,12 @@ exports.scanMeal = async (req, res) => {
       studentName = user ? user.name : 'Unknown';
     }
 
+    // Emit real-time event
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('meal:served', { bookingId: booking._id, studentId: student._id });
+    }
+
     return res.status(200).json({ message: 'Meal served', studentName: studentName || 'Unknown' });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to serve meal', error: error.message });

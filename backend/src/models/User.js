@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  roles: {
+  role: {
     type: String,
     enum: [
       'user', 
@@ -33,15 +33,6 @@ const userSchema = new mongoose.Schema({
       'admin'
     ],
     default: 'user'
-  },
-  profilePicture: {
-    type: String,
-    default: '' // URL to profile image
-  },
-  status: {
-    type: String,
-    enum: ['active', 'inactive', 'pending', 'suspended'], // Standard account statuses
-    default: 'active'
   }
 }, {
   timestamps: true // This automatically handles the 'createdAt' field

@@ -22,6 +22,9 @@ const reportSchema = new mongoose.Schema({
     required: [true, 'Please provide a description of the issue'],
     trim: true
   },
+  imageUrl: {
+    type: String
+  },
   severity: {
     type: String,
     enum: ['low', 'medium', 'high'],

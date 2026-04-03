@@ -17,6 +17,12 @@ exports.createAnnouncement = async (req, res) => {
       createdBy: req.user.mongoId
     });
 
+    // Emit real-time event
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('announcement:new', { announcementId: announcement._id, targetRole });
+    }
+
     return res.status(201).json({ id: announcement._id });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to create announcement', error: error.message });

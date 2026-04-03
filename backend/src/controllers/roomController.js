@@ -83,6 +83,7 @@ exports.updateRoomStatus = async (req, res) => {
 // PATCH /api/rooms/:id/assign
 exports.assignStudent = async (req, res) => {
   try {
+    const { studentId, bedNumber } = req.body;
     const room = await Room.findById(req.params.id);
     if (!room) return res.status(404).json({ message: 'Room not found' });
     
@@ -90,7 +91,17 @@ exports.assignStudent = async (req, res) => {
       return res.status(400).json({ message: 'Room is full' });
     }
 
+    const student = await require('../models/Student').findById(studentId);
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    student.roomId = room._id;
+    student.bedNumber = bedNumber;
+    await student.save();
+
     room.currentOccupancy += 1;
+    if (room.currentOccupancy >= room.capacity) {
+      room.status = 'full';
+    }
     await room.save();
     
     res.status(200).json({ message: 'Student assigned' });
@@ -102,14 +113,27 @@ exports.assignStudent = async (req, res) => {
 // PATCH /api/rooms/:id/remove-student
 exports.removeStudent = async (req, res) => {
   try {
+    const { studentId } = req.body;
     const room = await Room.findById(req.params.id);
     if (!room) return res.status(404).json({ message: 'Room not found' });
 
-    if (room.currentOccupancy > 0) {
-      room.currentOccupancy -= 1;
+    const student = await require('../models/Student').findById(studentId);
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    if (student.roomId.toString() !== room._id.toString()) {
+      return res.status(400).json({ message: 'Student not in this room' });
+    }
+
+    student.roomId = null;
+    student.bedNumber = null;
+    await student.save();
+
+    room.currentOccupancy = Math.max(0, room.currentOccupancy - 1);
+    if (room.currentOccupancy < room.capacity) {
+      room.status = 'available';
     }
     await room.save();
-
+    
     res.status(200).json({ message: 'Student removed' });
   } catch (error) {
     res.status(400).json({ message: error.message });

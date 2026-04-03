@@ -3,19 +3,14 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const verifyFirebaseToken = require('../middlewares/verifyFirebaseToken');
 
-// Public Login: No middleware needed here because we check the body's firebaseUID
+// Public routes
+router.post('/register', authController.registerUser);
 router.post('/login', authController.loginUser);
-
-// Protected Registration: Needs token to get UID/Email safely
-router.post('/register', verifyFirebaseToken, authController.registerUser);
-
-// Protected Profile: Needs token to identify who is asking
-router.get('/profile', verifyFirebaseToken, authController.getProfile);
-
-// Change Password Route
-router.patch('/password', verifyFirebaseToken, authController.changePassword);
-
-// Forget Password
 router.post('/forgot-password', authController.forgotPassword);
+router.patch('/reset-password/:token', authController.resetPassword);
+
+// Protected routes
+router.get('/profile', verifyFirebaseToken, authController.getProfile);
+router.patch('/password', verifyFirebaseToken, authController.changePassword);
 
 module.exports = router;

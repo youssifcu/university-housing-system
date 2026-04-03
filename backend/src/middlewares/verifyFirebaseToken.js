@@ -18,9 +18,8 @@ const verifyFirebaseToken = async (req, res, next) => {
     
     req.user = {
       ...decodedToken,
-      // Pass the MongoDB _id as well, it's very useful for your controllers
       mongoId: userDoc ? userDoc._id : null,
-      role: userDoc ? userDoc.roles : 'user' // Note: your model used 'roles' (plural)
+      role: userDoc ? userDoc.role : 'user'
     };
     
     next();

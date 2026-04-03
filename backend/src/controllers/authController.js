@@ -2,60 +2,60 @@ const User = require('../models/User');
 const admin = require('../config/firebase'); 
 
 /**
- * @desc    Login user by verifying their Firebase UID in the database
- * @route   POST /api/auth/login
- */
-exports.loginUser = async (req, res) => {
-  try {
-    const { firebaseUID } = req.body;
-
-    // Search for the user in the database
-    let user = await User.findOne({ firebaseUID });
-
-    if (!user) {
-      // If user is not found, reject the login instead of creating a new record
-      return res.status(404).json({ 
-        message: "This account does not exist. Please register first." 
-      });
-    }
-
-    res.status(200).json({ message: "Login successful", user });
-  } catch (error) {
-    res.status(500).json({ message: "Server Error", error: error.message });
-  }
-};
-
-/**
- * @desc    Register a new user using Firebase token data and additional body info
+ * @desc    Register a new user
  * @route   POST /api/auth/register
  */
 exports.registerUser = async (req, res) => {
   try {
-    // Data extracted from the verified Firebase token (100% Secure)
-    const { uid, email, name } = req.user; 
-    // Additional data from the request body
-    const { universityID, phoneNumber, faculty } = req.body;
+    const { firebaseToken, name, email, phone } = req.body;
 
-    // Check if the user is already registered in our database
-    let user = await User.findOne({ firebaseUID: uid });
+    // Verify Firebase token
+    const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+    const firebaseUID = decodedToken.uid;
+
+    // Check if user already exists
+    let user = await User.findOne({ firebaseUID });
     if (user) {
-      return res.status(400).json({ message: "You are already registered in the system" });
+      return res.status(400).json({ message: "User already registered" });
     }
 
-    // Create and save the new user record
+    // Create new user
     user = new User({
-      firebaseUID: uid,
-      email,
       name,
-      universityID,
-      phoneNumber,
-      faculty
+      email,
+      firebaseUID,
+      phone,
+      role: 'user'
     });
 
     await user.save();
-    res.status(201).json({ message: "Account created successfully", user });
+    res.status(201).json({ message: "User registered successfully", user });
   } catch (error) {
     res.status(500).json({ message: "Registration failed", error: error.message });
+  }
+};
+
+/**
+ * @desc    Login user
+ * @route   POST /api/auth/login
+ */
+exports.loginUser = async (req, res) => {
+  try {
+    const { firebaseToken } = req.body;
+
+    // Verify Firebase token
+    const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+    const firebaseUID = decodedToken.uid;
+
+    // Find user
+    const user = await User.findOne({ firebaseUID });
+    if (!user) {
+      return res.status(404).json({ message: "User not found. Please register first." });
+    }
+
+    res.status(200).json({ message: "Login successful", user });
+  } catch (error) {
+    res.status(500).json({ message: "Login failed", error: error.message });
   }
 };
 
@@ -65,42 +65,24 @@ exports.registerUser = async (req, res) => {
  */
 exports.getProfile = async (req, res) => {
   try {
-    // req.user.mongoId was attached by the verifyFirebaseToken middleware
     const user = await User.findById(req.user.mongoId);
-
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-
-    res.status(200).json({
-      success: true,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.roles, // Ensure this matches 'roles' in your schema
-        phoneNumber: user.phone,
-        profilePicture: user.profilePicture
-      }
-    });
+    res.status(200).json({ user });
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
 
-
-
-// ... (loginUser, registerUser, getProfile go here)
-
 /**
- * @desc    Change current user password
+ * @desc    Change password
  * @route   PATCH /api/auth/password
  */
 exports.changePassword = async (req, res) => {
   try {
     const { newPassword } = req.body;
     
-    // This 'uid' comes from the decoded Firebase token in your middleware
     const uid = req.user.uid; 
 
     if (!newPassword || newPassword.length < 6) {
@@ -109,7 +91,6 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    // This updates the password directly in Firebase Authentication
     await admin.auth().updateUser(uid, {
       password: newPassword
     });
@@ -140,11 +121,8 @@ exports.forgotPassword = async (req, res) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    // Generate the reset link via Firebase Admin
-    // Note: In a production app, you'd send this link via an email service (NodeMailer/SendGrid)
     const link = await admin.auth().generatePasswordResetLink(email);
 
-    // For now, we return success. In a real scenario, you'd send the 'link' to the user's email.
     console.log(`Password reset link for ${email}: ${link}`);
 
     res.status(200).json({ 
@@ -153,8 +131,34 @@ exports.forgotPassword = async (req, res) => {
     });
   } catch (error) {
     console.error("Forgot Password Error:", error);
-    // We often return 200 even if email doesn't exist for security (preventing email harvesting)
     res.status(500).json({ message: "Error processing request", error: error.message });
+  }
+};
+
+/**
+ * @desc    Reset password
+ * @route   PATCH /api/auth/reset-password/:token
+ */
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: "New password must be at least 6 characters long." });
+    }
+
+    // Verify the reset token and update password
+    const email = await admin.auth().verifyPasswordResetCode(token);
+    await admin.auth().confirmPasswordReset(token, newPassword);
+
+    res.status(200).json({ 
+      success: true,
+      message: "Password reset successfully" 
+    });
+  } catch (error) {
+    console.error("Reset Password Error:", error);
+    res.status(500).json({ message: "Invalid or expired token", error: error.message });
   }
 };
 

@@ -17,10 +17,7 @@ const announcementSchema = new mongoose.Schema({
     default: 'low'
   },
   targetRole: {
-    type: String,
-    // Using the roles we defined in the User model
-    enum: ['all', 'user', 'student', 'restaurant_supervisor', 'floor_supervisor', 'computer_supervisor', 'admin'],
-    default: 'all'
+    type: String
   },
   status: {
     type: String,

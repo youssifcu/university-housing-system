@@ -64,6 +64,21 @@ exports.scanAttendance = async (req, res) => {
       return res.status(404).json({ message: 'Student not found for QR code' });
     }
 
+    // Check if on leave
+    if (student.housingStatus === 'suspended') {
+      const HousingRequest = require('../models/HousingRequest');
+      const leave = await HousingRequest.findOne({
+        studentId: student._id,
+        type: 'vacate',
+        status: 'approved',
+        startDate: { $lte: new Date() },
+        endDate: { $gte: new Date() }
+      });
+      if (leave) {
+        return res.status(200).json({ message: 'Student on leave, attendance not required' });
+      }
+    }
+
     const building = await Building.findById(buildingId);
     if (!building) return res.status(404).json({ message: 'Building not found' });
 

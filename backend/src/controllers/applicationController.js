@@ -10,9 +10,6 @@ const crypto = require('crypto'); // Built-in Node tool to generate QR strings
 exports.submitApplication = async (req, res) => {
   try {
     const userId = req.user.mongoId;
-    if (!req.file) {
-      return res.status(400).json({ message: 'Please upload the required PDF document' });
-    }
 
     // 1. Check if user already has a pending or approved application
     const existingApp = await Application.findOne({ userId });
@@ -26,9 +23,6 @@ exports.submitApplication = async (req, res) => {
     const newApplication = new Application({
       ...req.body,
       userId: userId,
-      documentData: req.file.buffer,
-      documentName: req.file.originalname,
-      documentMimeType: req.file.mimetype,
       status: 'pending' // Default status
     });
 
@@ -38,7 +32,7 @@ exports.submitApplication = async (req, res) => {
       message: "Application submitted successfully",
       id: savedApplication._id,
       status: savedApplication.status,
-      submittedAt: savedApplication.createdAt
+      submittedAt: savedApplication.submittedAt
     });
   } catch (error) {
     console.error("Application Submission Error:", error);
@@ -200,6 +194,7 @@ exports.updateApplication = async (req, res) => {
 exports.approveApplication = async (req, res) => {
   try {
     const { id } = req.params;
+    const { roomId, bedNumber } = req.body;
 
     // 1. Find the application
     const application = await Application.findById(id);
@@ -211,26 +206,71 @@ exports.approveApplication = async (req, res) => {
       return res.status(400).json({ message: "Application is already approved" });
     }
 
-    // 2. Update Application status
+    // 2. Assign room
+    const RoomModel = require('../models/Room');
+    let assignedRoomId = roomId;
+    let assignedBedNumber = bedNumber;
+
+    if (roomId) {
+      const selectedRoom = await RoomModel.findById(roomId);
+      if (!selectedRoom) {
+        return res.status(404).json({ message: 'Selected room not found' });
+      }
+      if (selectedRoom.currentOccupancy >= selectedRoom.capacity) {
+        return res.status(400).json({ message: 'Selected room is already full' });
+      }
+      assignedRoomId = selectedRoom._id;
+      assignedBedNumber = bedNumber || selectedRoom.currentOccupancy + 1;
+    } else {
+      const selectedRoom = await RoomModel.findOne({ status: 'available', $expr: { $lt: ['$currentOccupancy', '$capacity'] } });
+      if (!selectedRoom) {
+        return res.status(400).json({ message: 'No available rooms' });
+      }
+      assignedRoomId = selectedRoom._id;
+      assignedBedNumber = selectedRoom.currentOccupancy + 1;
+    }
+
+    // 3. Update Application status
     application.status = 'approved';
+    application.reviewedBy = req.user.mongoId;
+    application.reviewedAt = new Date();
     await application.save();
 
-    // 3. Create a unique QR Code string
-    // This string can be converted to a QR image on the frontend
+    // 4. Create a unique QR Code string
     const qrCodeString = `STU-${application.nationalId}-${crypto.randomBytes(4).toString('hex')}`;
 
-    // 4. Map Application data to the Student model
+    // 5. Create Student record
     const newStudent = new Student({
       userId: application.userId,
-      fullName: application.fullName,
+      applicationId: application._id,
       nationalId: application.nationalId,
-      college: application.college,
+      universityId: application.shuonId,
+      faculty: application.college,
       academicYear: application.academicYear,
-      qrCode: qrCodeString,
-      status: 'active'
+      roomId: assignedRoomId,
+      bedNumber: assignedBedNumber,
+      qrCode: qrCodeString
     });
 
     await newStudent.save();
+
+    // 6. Update room occupancy
+    const Room = require('../models/Room');
+    const updatedRoom = await Room.findByIdAndUpdate(
+      assignedRoomId,
+      { $inc: { currentOccupancy: 1 } },
+      { new: true }
+    );
+
+    if (updatedRoom.currentOccupancy >= updatedRoom.capacity) {
+      await Room.findByIdAndUpdate(assignedRoomId, { status: 'full' });
+    }
+
+    // Emit real-time event
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('application:status-updated', { applicationId: id, status: 'approved' });
+    }
 
     res.status(200).json({
       message: "Application approved",
@@ -270,9 +310,17 @@ exports.rejectApplication = async (req, res) => {
 
     // Update the application
     application.status = 'rejected';
-    application.rejectionReason = rejectionReason; // Save the reason for the student to see
+    application.rejectionReason = rejectionReason;
+    application.reviewedBy = req.user.mongoId;
+    application.reviewedAt = new Date();
     
     await application.save();
+
+    // Emit real-time event
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('application:status-updated', { applicationId: id, status: 'rejected' });
+    }
 
     res.status(200).json({
       message: "Application rejected"

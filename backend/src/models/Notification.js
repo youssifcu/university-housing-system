@@ -17,18 +17,12 @@ const notificationSchema = new mongoose.Schema({
     ref: 'User'
   },
   targetRole: {
-    type: String,
-    enum: ['all', 'user', 'student', 'restaurant_supervisor', 'floor_supervisor', 'computer_supervisor', 'admin'],
-    default: 'all'
+    type: String
   },
   type: {
     type: String,
     enum: ['announcement', 'application', 'meal', 'system'],
     required: true
-  },
-  isRead: {
-    type: Boolean,
-    default: false
   }
 }, {
   timestamps: true // Handles createdAt (Creation timestamp)

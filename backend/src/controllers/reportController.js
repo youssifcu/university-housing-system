@@ -7,7 +7,7 @@ const canManageReports = (role) =>
 // POST /api/reports
 exports.createReport = async (req, res) => {
   try {
-    const { type, description, severity } = req.body;
+    const { type, description, severity, imageUrl } = req.body;
 
     if (!type || !description) {
       return res.status(400).json({ message: 'type and description are required' });
@@ -22,6 +22,7 @@ exports.createReport = async (req, res) => {
       type,
       description,
       severity,
+      imageUrl,
       studentId: student._id,
       reportedBy: req.user.mongoId,
       status: 'open'
@@ -105,6 +106,28 @@ exports.updateReportStatus = async (req, res) => {
     );
     if (!updated) {
       return res.status(404).json({ message: 'Report not found' });
+    }
+
+    // Save notification record
+    const Notification = require('../models/Notification');
+    await Notification.create({
+      title: `Report status updated to ${status}`,
+      message: `Your maintenance report has been updated to ${status}`,
+      targetUser: updated.studentId,
+      targetRole: 'student',
+      type: 'system'
+    });
+
+    // Emit Socket.io event
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('notification:new', {
+        targetUser: updated.studentId,
+        targetRole: 'student',
+        type: 'system',
+        reportId: updated._id,
+        status
+      });
     }
 
     return res.status(200).json({ message: 'Report status updated' });

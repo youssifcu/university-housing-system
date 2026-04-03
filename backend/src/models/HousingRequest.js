@@ -25,6 +25,12 @@ const housingRequestSchema = new mongoose.Schema({
     required: [true, 'A reason for the request is required'],
     trim: true
   },
+  startDate: {
+    type: Date
+  },
+  endDate: {
+    type: Date
+  },
   status: {
     type: String,
     enum: ['pending', 'approved', 'rejected'],
