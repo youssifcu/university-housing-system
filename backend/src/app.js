@@ -32,7 +32,14 @@ app.use((req, res, next) => {
 });
 
 // --- Swagger Documentation Route ---
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    customSiteTitle: 'University Housing API Docs'
+  })
+);
 
 // Root Health Check Route
 app.get('/', (req, res) => {

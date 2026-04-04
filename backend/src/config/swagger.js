@@ -8,7 +8,23 @@ const options = {
       version: '1.0.0',
       description: 'Complete API Documentation for Cairo University Housing System',
     },
-    servers: [{ url: 'http://localhost:5000' }],
+    servers: [{ url: 'http://localhost:5000', description: 'Local API' }],
+    tags: [
+      { name: 'Auth', description: 'Firebase token verification' },
+      { name: 'Applications', description: 'Housing applications' },
+      { name: 'Buildings', description: 'Buildings' },
+      { name: 'Rooms', description: 'Rooms and assignments' },
+      { name: 'Students', description: 'Student profiles and QR' },
+      { name: 'Housing Requests', description: 'Transfer and vacate requests' },
+      { name: 'Meals', description: 'Menu, bookings, and meal scan' },
+      { name: 'Attendance', description: 'Attendance recording and scan' },
+      { name: 'Reports', description: 'Issue reports' },
+      { name: 'Payments', description: 'Payments' },
+      { name: 'Stats', description: 'Admin statistics' },
+      { name: 'Announcements', description: 'Announcements' },
+      { name: 'Notifications', description: 'Push-style notifications' },
+      { name: 'User', description: 'User administration' }
+    ],
     components: {
       securitySchemes: {
         bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }
@@ -76,6 +92,7 @@ const options = {
         get: {
           summary: 'Get specific application',
           tags: ['Applications'],
+          security: [{ bearerAuth: [] }],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { 200: { description: 'Success' } }
         },
@@ -118,6 +135,7 @@ const options = {
         get: {
           summary: 'Get all buildings',
           tags: ['Buildings'],
+          security: [{ bearerAuth: [] }],
           responses: { 200: { description: 'Success' } }
         },
         post: {
@@ -131,6 +149,7 @@ const options = {
         get: {
           summary: 'Get building by ID',
           tags: ['Buildings'],
+          security: [{ bearerAuth: [] }],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { 200: { description: 'Success' } }
         },
@@ -173,6 +192,7 @@ const options = {
         get: {
           summary: 'Get all rooms in a specific building',
           tags: ['Rooms'],
+          security: [{ bearerAuth: [] }],
           parameters: [{ name: 'buildingId', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { 200: { description: 'Success' } }
         }
@@ -247,12 +267,6 @@ const options = {
           tags: ['Students'],
           security: [{ bearerAuth: [] }],
           responses: { 200: { description: 'Success' } }
-        },
-        patch: {
-          summary: 'Update my profile',
-          tags: ['Students'],
-          security: [{ bearerAuth: [] }],
-          responses: { 200: { description: 'Profile updated' } }
         }
       },
       '/api/students/me/qr': {
@@ -294,27 +308,56 @@ const options = {
       },
       '/api/students/{id}': {
         get: {
-          summary: 'Get student by ID (Admin only)',
+          summary: 'Get student by ID (admin)',
           tags: ['Students'],
           security: [{ bearerAuth: [] }],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { 200: { description: 'Success' } }
+        },
+        patch: {
+          summary: 'Update student by ID (admin)',
+          tags: ['Students'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: { type: 'object', additionalProperties: true, description: 'Fields to update on the student record' }
+              }
+            }
+          },
+          responses: { 200: { description: 'Updated' } }
         }
       },
 
       // --- HOUSING REQUESTS ---
       '/api/housing-requests': {
         post: {
-          summary: 'Submit a housing request',
+          summary: 'Submit a housing request (student)',
           tags: ['Housing Requests'],
           security: [{ bearerAuth: [] }],
           requestBody: {
-            content: { 'application/json': { schema: { type: 'object', properties: { type: { type: 'string', enum: ['transfer', 'vacate'] }, fromRoomId: { type: 'string' }, toRoomId: { type: 'string' }, reason: { type: 'string' } } } } }
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['type'],
+                  properties: {
+                    type: { type: 'string', enum: ['transfer', 'vacate'] },
+                    fromRoomId: { type: 'string' },
+                    toRoomId: { type: 'string' },
+                    reason: { type: 'string' },
+                    startDate: { type: 'string', format: 'date-time', description: 'Required when type is vacate' },
+                    endDate: { type: 'string', format: 'date-time', description: 'Required when type is vacate' }
+                  }
+                }
+              }
+            }
           },
           responses: { 201: { description: 'Success' } }
         },
         get: {
-          summary: 'Get all housing requests (Admin only)',
+          summary: 'List housing requests (supervisor or admin)',
           tags: ['Housing Requests'],
           security: [{ bearerAuth: [] }],
           responses: { 200: { description: 'Success' } }
@@ -322,32 +365,33 @@ const options = {
       },
       '/api/housing-requests/{id}': {
         get: {
-          summary: 'Get a specific housing request details',
+          summary: 'Get a specific housing request',
           tags: ['Housing Requests'],
           security: [{ bearerAuth: [] }],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { 200: { description: 'Success' } }
         }
       },
-      '/api/housing-requests/{id}/approve': {
+      '/api/housing-requests/{id}/status': {
         patch: {
-          summary: 'Approve a housing request (Admin only)',
-          tags: ['Housing Requests'],
-          security: [{ bearerAuth: [] }],
-          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-          responses: { 200: { description: 'Request approved' } }
-        }
-      },
-      '/api/housing-requests/{id}/reject': {
-        patch: {
-          summary: 'Reject a housing request (Admin only)',
+          summary: 'Update housing request status (supervisor or admin)',
           tags: ['Housing Requests'],
           security: [{ bearerAuth: [] }],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           requestBody: {
-            content: { 'application/json': { schema: { type: 'object', properties: { reason: { type: 'string' } } } } }
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['status'],
+                  properties: {
+                    status: { type: 'string', description: 'e.g. pending, approved, rejected' }
+                  }
+                }
+              }
+            }
           },
-          responses: { 200: { description: 'Request rejected' } }
+          responses: { 200: { description: 'Status updated' } }
         }
       },
 
@@ -362,9 +406,9 @@ const options = {
                 schema: {
                   type: 'object',
                   properties: {
-                    firebaseUID: { type: 'string' }
+                    firebaseToken: { type: 'string', description: 'Firebase ID token from client SDK' }
                   },
-                  required: ['firebaseUID']
+                  required: ['firebaseToken']
                 }
               }
             }
@@ -374,7 +418,30 @@ const options = {
       },
       '/api/auth/register': {
         post: {
-          summary: 'Register user',
+          summary: 'Register user (public — send Firebase ID token in body)',
+          tags: ['Auth'],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    firebaseToken: { type: 'string', description: 'Firebase ID token' },
+                    name: { type: 'string' },
+                    email: { type: 'string' },
+                    phone: { type: 'string' }
+                  },
+                  required: ['firebaseToken', 'name', 'email', 'phone']
+                }
+              }
+            }
+          },
+          responses: { 201: { description: 'Account created' }, 400: { description: 'Already registered' }, 500: { description: 'Server error' } }
+        }
+      },
+      '/api/auth/register-admin': {
+        post: {
+          summary: 'Register a user with a specific role (admin only)',
           tags: ['Auth'],
           security: [{ bearerAuth: [] }],
           requestBody: {
@@ -383,16 +450,22 @@ const options = {
                 schema: {
                   type: 'object',
                   properties: {
-                    universityID: { type: 'string' },
-                    phoneNumber: { type: 'string' },
-                    faculty: { type: 'string' }
+                    firebaseToken: { type: 'string' },
+                    name: { type: 'string' },
+                    email: { type: 'string' },
+                    phone: { type: 'string' },
+                    role: {
+                      type: 'string',
+                      enum: ['admin', 'student', 'restaurant_supervisor', 'floor_supervisor', 'computer_supervisor', 'user'],
+                      description: 'Defaults to user if invalid'
+                    }
                   },
-                  required: ['universityID', 'phoneNumber', 'faculty']
+                  required: ['firebaseToken', 'name', 'email', 'phone']
                 }
               }
             }
           },
-          responses: { 201: { description: 'Account created' }, 400: { description: 'Already registered' }, 500: { description: 'Server error' } }
+          responses: { 201: { description: 'User created' }, 400: { description: 'Already registered' }, 500: { description: 'Server error' } }
         }
       },
       '/api/auth/profile': {
@@ -442,6 +515,476 @@ const options = {
             }
           },
           responses: { 200: { description: 'Reset link sent' }, 400: { description: 'Bad request' }, 500: { description: 'Server error' } }
+        }
+      },
+      '/api/auth/reset-password/{token}': {
+        patch: {
+          summary: 'Complete password reset (oobCode-style token from email link)',
+          tags: ['Auth'],
+          parameters: [{ name: 'token', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: { newPassword: { type: 'string', minLength: 6 } },
+                  required: ['newPassword']
+                }
+              }
+            }
+          },
+          responses: { 200: { description: 'Password reset' }, 500: { description: 'Invalid or expired token' } }
+        }
+      },
+
+      // --- MEALS ---
+      '/api/meals/menu/today': {
+        get: {
+          summary: "Today's meal menu",
+          tags: ['Meals'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'List of meals' } }
+        }
+      },
+      '/api/meals/menu/week': {
+        get: {
+          summary: 'Weekly meal menu',
+          tags: ['Meals'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'List of meals' } }
+        }
+      },
+      '/api/meals': {
+        post: {
+          summary: 'Create meal (admin or restaurant_supervisor)',
+          tags: ['Meals'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['name', 'mealType', 'price', 'date'],
+                  properties: {
+                    name: { type: 'string' },
+                    mealType: { type: 'string' },
+                    price: { type: 'number' },
+                    date: { type: 'string', format: 'date-time' }
+                  }
+                }
+              }
+            }
+          },
+          responses: { 201: { description: 'Created' }, 403: { description: 'Forbidden' } }
+        }
+      },
+      '/api/meals/{id}': {
+        put: {
+          summary: 'Update meal (admin or restaurant_supervisor)',
+          tags: ['Meals'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            content: { 'application/json': { schema: { type: 'object', additionalProperties: true } } }
+          },
+          responses: { 200: { description: 'Updated' }, 403: { description: 'Forbidden' } }
+        },
+        delete: {
+          summary: 'Delete meal (admin or restaurant_supervisor)',
+          tags: ['Meals'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Deleted' }, 403: { description: 'Forbidden' } }
+        }
+      },
+      '/api/meals/book': {
+        post: {
+          summary: 'Book a meal (student)',
+          tags: ['Meals'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['mealId', 'date'],
+                  properties: {
+                    mealId: { type: 'string' },
+                    date: { type: 'string', format: 'date-time' }
+                  }
+                }
+              }
+            }
+          },
+          responses: { 201: { description: 'Booked' }, 403: { description: 'Student only' }, 409: { description: 'Already booked' } }
+        }
+      },
+      '/api/meals/book/{id}': {
+        delete: {
+          summary: 'Cancel a booking',
+          tags: ['Meals'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'Booking ID' }],
+          responses: { 200: { description: 'Cancelled' }, 403: { description: 'Forbidden' } }
+        }
+      },
+      '/api/meals/bookings/my': {
+        get: {
+          summary: 'My meal bookings (student)',
+          tags: ['Meals'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Bookings' }, 403: { description: 'Student only' } }
+        }
+      },
+      '/api/meals/scan': {
+        post: {
+          summary: 'Mark meal served via QR (admin or restaurant_supervisor)',
+          tags: ['Meals'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['qrCode', 'mealId'],
+                  properties: { qrCode: { type: 'string' }, mealId: { type: 'string' } }
+                }
+              }
+            }
+          },
+          responses: { 200: { description: 'Meal served' }, 403: { description: 'Forbidden' } }
+        }
+      },
+
+      // --- ATTENDANCE ---
+      '/api/attendance': {
+        post: {
+          summary: 'Record attendance (supervisor roles)',
+          tags: ['Attendance'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['studentId', 'buildingId', 'date', 'status'],
+                  properties: {
+                    studentId: { type: 'string' },
+                    buildingId: { type: 'string' },
+                    date: { type: 'string', format: 'date-time' },
+                    status: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          responses: { 201: { description: 'Recorded' }, 403: { description: 'Forbidden' }, 409: { description: 'Duplicate' } }
+        }
+      },
+      '/api/attendance/scan': {
+        post: {
+          summary: 'Record attendance via QR scan',
+          tags: ['Attendance'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['qrCode', 'buildingId'],
+                  properties: { qrCode: { type: 'string' }, buildingId: { type: 'string' } }
+                }
+              }
+            }
+          },
+          responses: { 200: { description: 'OK' }, 403: { description: 'Forbidden' } }
+        }
+      },
+      '/api/attendance/student/{id}': {
+        get: {
+          summary: 'Attendance by student',
+          tags: ['Attendance'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Success' } }
+        }
+      },
+      '/api/attendance/building/{id}': {
+        get: {
+          summary: 'Attendance by building',
+          tags: ['Attendance'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Success' } }
+        }
+      },
+      '/api/attendance/{id}': {
+        patch: {
+          summary: 'Update an attendance record',
+          tags: ['Attendance'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            content: { 'application/json': { schema: { type: 'object', additionalProperties: true } } }
+          },
+          responses: { 200: { description: 'Updated' } }
+        }
+      },
+
+      // --- REPORTS ---
+      '/api/reports': {
+        post: {
+          summary: 'Create report',
+          tags: ['Reports'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    type: { type: 'string' },
+                    description: { type: 'string' },
+                    severity: { type: 'string' },
+                    imageUrl: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          responses: { 201: { description: 'Created' } }
+        },
+        get: {
+          summary: 'List reports',
+          tags: ['Reports'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Success' } }
+        }
+      },
+      '/api/reports/{id}': {
+        get: {
+          summary: 'Get report by ID',
+          tags: ['Reports'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Success' } }
+        },
+        delete: {
+          summary: 'Delete report',
+          tags: ['Reports'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Deleted' } }
+        }
+      },
+      '/api/reports/{id}/status': {
+        patch: {
+          summary: 'Update report status',
+          tags: ['Reports'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: { type: 'object', required: ['status'], properties: { status: { type: 'string' } } }
+              }
+            }
+          },
+          responses: { 200: { description: 'Updated' } }
+        }
+      },
+
+      // --- PAYMENTS ---
+      '/api/payments/my': {
+        get: {
+          summary: 'My payments (student)',
+          tags: ['Payments'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Success' } }
+        }
+      },
+      '/api/payments': {
+        post: {
+          summary: 'Create payment (student)',
+          tags: ['Payments'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: { 'application/json': { schema: { type: 'object', additionalProperties: true } } }
+          },
+          responses: { 201: { description: 'Created' } }
+        },
+        get: {
+          summary: 'All payments (admin)',
+          tags: ['Payments'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Success' } }
+        }
+      },
+      '/api/payments/{id}': {
+        get: {
+          summary: 'Get payment by ID (admin)',
+          tags: ['Payments'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Success' } }
+        },
+        put: {
+          summary: 'Update payment (admin)',
+          tags: ['Payments'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            content: { 'application/json': { schema: { type: 'object', additionalProperties: true } } }
+          },
+          responses: { 200: { description: 'Updated' } }
+        },
+        delete: {
+          summary: 'Delete payment (admin)',
+          tags: ['Payments'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Deleted' } }
+        }
+      },
+
+      // --- STATS ---
+      '/api/stats/students-by-college': {
+        get: {
+          summary: 'Students by college (admin)',
+          tags: ['Stats'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Success' } }
+        }
+      },
+      '/api/stats/students-by-grade': {
+        get: {
+          summary: 'Students by grade (admin)',
+          tags: ['Stats'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Success' } }
+        }
+      },
+      '/api/stats/rooms': {
+        get: {
+          summary: 'Room statistics (admin)',
+          tags: ['Stats'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Success' } }
+        }
+      },
+      '/api/stats/buildings-availability': {
+        get: {
+          summary: 'Building availability (admin)',
+          tags: ['Stats'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Success' } }
+        }
+      },
+      '/api/stats/meals': {
+        get: {
+          summary: 'Meal statistics (admin)',
+          tags: ['Stats'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Success' } }
+        }
+      },
+      '/api/stats/meals/preparation': {
+        get: {
+          summary: 'Meal preparation stats (admin)',
+          tags: ['Stats'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Success' } }
+        }
+      },
+      '/api/stats/payments': {
+        get: {
+          summary: 'Payment statistics (admin)',
+          tags: ['Stats'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Success' } }
+        }
+      },
+
+      // --- ANNOUNCEMENTS ---
+      '/api/announcements': {
+        post: {
+          summary: 'Create announcement (admin)',
+          tags: ['Announcements'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: { 'application/json': { schema: { type: 'object', additionalProperties: true } } }
+          },
+          responses: { 201: { description: 'Created' } }
+        },
+        get: {
+          summary: 'List announcements',
+          tags: ['Announcements'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Success' } }
+        }
+      },
+      '/api/announcements/{id}': {
+        get: {
+          summary: 'Get announcement by ID',
+          tags: ['Announcements'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Success' } }
+        },
+        put: {
+          summary: 'Update announcement (admin)',
+          tags: ['Announcements'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            content: { 'application/json': { schema: { type: 'object', additionalProperties: true } } }
+          },
+          responses: { 200: { description: 'Updated' } }
+        },
+        delete: {
+          summary: 'Delete announcement (admin)',
+          tags: ['Announcements'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Deleted' } }
+        }
+      },
+      '/api/announcements/{id}/status': {
+        patch: {
+          summary: 'Update announcement status (admin)',
+          tags: ['Announcements'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            content: { 'application/json': { schema: { type: 'object', additionalProperties: true } } }
+          },
+          responses: { 200: { description: 'Updated' } }
+        }
+      },
+
+      // --- NOTIFICATIONS ---
+      '/api/notifications': {
+        post: {
+          summary: 'Create notification (admin)',
+          tags: ['Notifications'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    title: { type: 'string' },
+                    message: { type: 'string' },
+                    targetUser: { type: 'string' },
+                    targetRole: { type: 'string' },
+                    type: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          responses: { 201: { description: 'Created' } }
         }
       },
 
