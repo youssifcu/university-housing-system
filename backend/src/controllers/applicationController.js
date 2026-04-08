@@ -2,7 +2,7 @@ const Student = require('../models/Student');
 const Application = require('../models/Application');
 const Building = require('../models/Building');
 const Room = require('../models/Room');
-const crypto = require('crypto'); // Built-in Node tool to generate QR strings
+const crypto = require('crypto'); 
 
 /**
  * @desc    Submit a new housing application
@@ -180,128 +180,131 @@ exports.updateApplication = async (req, res) => {
 };
 
 
+const findSuitableRoom = async (application) => {
+    let buildingName = 'Block A';
+    
+    if (application.gradePercentage >= 90) {
+        buildingName = 'Block A';
+    } else if (application.gradePercentage >= 75) {
+        buildingName = 'Block A';
+    }
+
+    const targetBuilding = await Building.findOne({ 
+        name: buildingName,
+        gender: application.gender
+    });
+
+    if (!targetBuilding) {
+        console.error(`❌ Error in findSuitableRoom: Target building (${buildingName}) not found`);
+        throw new Error(`Target building (${buildingName}) not found`);
+    }
+
+    const selectedRoom = await Room.findOne({
+        buildingId: targetBuilding._id,
+        status: 'available',
+        $expr: { $lt: ['$currentOccupancy', '$capacity'] }
+    }).sort({ roomNumber: 1 });
+
+    if (!selectedRoom) {
+        console.error(`❌ Error in findSuitableRoom: No available rooms in ${buildingName}`);
+        throw new Error(`No available rooms in ${buildingName}`);
+    }
+
+    return selectedRoom;
+};
+
+const updateRoomOccupancy = async (roomId) => {
+    try {
+        const updatedRoom = await Room.findByIdAndUpdate(
+            roomId,
+            { $inc: { currentOccupancy: 1 } },
+            { new: true }
+        );
+
+        if (updatedRoom.currentOccupancy >= updatedRoom.capacity) {
+            await Room.findByIdAndUpdate(roomId, { status: 'full' });
+        }
+        return updatedRoom;
+    } catch (error) {
+        console.error(`❌ Error in updateRoomOccupancy for RoomID ${roomId}:`, error.message);
+        throw error;
+    }
+};
+
+const createStudentRecord = async (application, roomId, bedNumber) => {
+    try {
+        const qrCodeString = `STU-${application.nationalId}-${crypto.randomBytes(4).toString('hex')}`;
+        
+        const newStudent = new Student({
+            userId: application.userId,
+            applicationId: application._id,
+            nationalId: application.nationalId,
+            universityId: application.shuonId,
+            faculty: application.college,
+            academicYear: application.academicYear,
+            roomId: roomId,
+            bedNumber: bedNumber,
+            qrCode: qrCodeString
+        });
+
+        return await newStudent.save();
+    } catch (error) {
+        console.error(`❌ Error in createStudentRecord for ApplicationID ${application._id}:`, error.message);
+        throw error;
+    }
+};
+
+
 /**
  * @desc    Approve application and auto-create a Student record (Admin only)
  * @route   PATCH /api/applications/:id/approve
  */
+
+
 exports.approveApplication = async (req, res) => {
-  try {
-    const { id } = req.params;
-   
+    try {
+        const { id } = req.params;
 
-    // 1. Find the application
-    const application = await Application.findById(id);
-    if (!application) {
-      return res.status(404).json({ message: "Application not found" });
+        const application = await Application.findById(id);
+        if (!application) {
+            console.error(`❌ Approval Failed: Application ${id} not found`);
+            return res.status(404).json({ message: "Application not found" });
+        }
+        
+        if (application.status === 'approved') {
+            console.error(`❌ Approval Failed: Application ${id} is already approved`);
+            return res.status(400).json({ message: "Application is already approved" });
+        }
+
+        const selectedRoom = await findSuitableRoom(application);
+        const assignedRoomId = selectedRoom._id;
+        const assignedBedNumber = selectedRoom.currentOccupancy + 1;
+
+        application.status = 'approved';
+        // application.reviewedBy = req.user.mongoId;
+        application.reviewedAt = new Date();
+        await application.save();
+
+        const newStudent = await createStudentRecord(application, assignedRoomId, assignedBedNumber);
+        await updateRoomOccupancy(assignedRoomId);
+
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('application:status-updated', { applicationId: id, status: 'approved' });
+        }
+
+        res.status(200).json({
+            message: "Application approved",
+            studentId: newStudent._id
+        });
+
+    } catch (error) {
+        console.error("❌ Main Approval Controller Error:", error.message);
+        res.status(error.message.includes('not found') ? 404 : 400).json({ 
+            message: error.message || "Failed to approve application" 
+        });
     }
-
-    if (application.status === 'approved') {
-      return res.status(400).json({ message: "Application is already approved" });
-    }
-    let buildingName = '';
-    if (application.gradePercentage >= 90) {
-      buildingName = 'Block A';
-    } else if (application.gradePercentage >= 75) {
-      buildingName = 'Block A';
-    } else {
-      buildingName = 'Block A'; 
-    }
-
-    const targetBuilding = await Building.findOne({ 
-      name: buildingName,
-      gender: application.gender
-    });
-
-    if (!targetBuilding) {
-      return res.status(404).json({ message: `Target building (${buildingName}) not found` });
-    }
-
-    const selectedRoom = await Room.findOne({
-      buildingId: targetBuilding._id,
-      status: 'available',
-      $expr: { $lt: ['$currentOccupancy', '$capacity'] }
-    }).sort({ roomNumber: 1 });
-
-    if (!selectedRoom) {
-      return res.status(400).json({ message: `No available rooms in ${targetBuilding}` });
-    }
-
-    const assignedRoomId = selectedRoom._id;
-    let assignedBedNumber = selectedRoom.currentOccupancy + 1;
-
-    // 2. Assign room
-   
-
-    if (assignedRoomId) {
-      const selectedRoom = await Room.findById(assignedRoomId);
-      if (!selectedRoom) {
-        return res.status(404).json({ message: 'Selected room not found' });
-      }
-      if (selectedRoom.currentOccupancy >= selectedRoom.capacity) {
-        return res.status(400).json({ message: 'Selected room is already full' });
-      }
-      assignedRoomId = selectedRoom._id;
-      assignedBedNumber = bedNumber || selectedRoom.currentOccupancy + 1;
-    } else {
-      const selectedRoom = await Room.findOne({ status: 'available', $expr: { $lt: ['$currentOccupancy', '$capacity'] } });
-      if (!selectedRoom) {
-        return res.status(400).json({ message: 'No available rooms' });
-      }
-      assignedRoomId = selectedRoom._id;
-      assignedBedNumber = selectedRoom.currentOccupancy + 1;
-    }
-
-    // 3. Update Application status
-    application.status = 'approved';
-    application.reviewedBy = req.user.mongoId;
-    application.reviewedAt = new Date();
-    await application.save();
-
-    // 4. Create a unique QR Code string
-    const qrCodeString = `STU-${application.nationalId}-${crypto.randomBytes(4).toString('hex')}`;
-
-    // 5. Create Student record
-    const newStudent = new Student({
-      userId: application.userId,
-      applicationId: application._id,
-      nationalId: application.nationalId,
-      universityId: application.shuonId,
-      faculty: application.college,
-      academicYear: application.academicYear,
-      roomId: assignedRoomId,
-      bedNumber: assignedBedNumber,
-      qrCode: qrCodeString
-    });
-
-    await newStudent.save();
-
-    // 6. Update room occupancy
-    const updatedRoom = await Room.findByIdAndUpdate(
-      assignedRoomId,
-      { $inc: { currentOccupancy: 1 } },
-      { new: true }
-    );
-
-    if (updatedRoom.currentOccupancy >= updatedRoom.capacity) {
-      await Room.findByIdAndUpdate(assignedRoomId, { status: 'full' });
-    }
-
-    // Emit real-time event
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('application:status-updated', { applicationId: id, status: 'approved' });
-    }
-
-    res.status(200).json({
-      message: "Application approved",
-      studentId: newStudent._id
-    });
-  } catch (error) {
-    console.error("Approval Error:", error);
-    res.status(500).json({ message: "Failed to approve application", error: error.message });
-  }
 };
-
 /**
  * @desc    Reject an application with a reason (Admin only)
  * @route   PATCH /api/applications/:id/reject
