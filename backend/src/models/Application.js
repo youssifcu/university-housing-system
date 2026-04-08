@@ -52,7 +52,6 @@ const applicationSchema = new mongoose.Schema({
   hasSpecialNeeds: { type: Boolean, default: false },
   familyAbroad: { type: Boolean, default: false },
   hasMedicalCondition: { type: Boolean, default: false },
-  medicalReport: { type: String }, // URL to uploaded file
 
   // Administrative Fields
   status: {
@@ -66,7 +65,17 @@ const applicationSchema = new mongoose.Schema({
   },
   rejectionReason: { type: String },
   submittedAt: { type: Date, default: Date.now },
-  reviewedAt: { type: Date } 
+  reviewedAt: { type: Date } , 
+  
+  documentUrl: {
+    data: Buffer,
+    contentType: String
+  },
+  medicalReport: {
+    data: Buffer,
+    contentType: String
+  }
+
   
 }, {
   timestamps: true // Adds createdAt and updatedAt

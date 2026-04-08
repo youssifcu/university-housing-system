@@ -13,6 +13,7 @@ router.patch('/reset-password/:token', authController.resetPassword);
 // Protected routes
 router.get('/profile', verifyFirebaseToken, authController.getProfile);
 router.patch('/password', verifyFirebaseToken, authController.changePassword);
+router.post('/update-profile', verifyFirebaseToken, authController.updateProfile);
 
 // Admin only routes
 router.post('/register-admin', verifyFirebaseToken, isAdmin, authController.registerAdmin);

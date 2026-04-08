@@ -34,8 +34,18 @@ const userSchema = new mongoose.Schema({
     ],
     default: 'user'
   }
+  ,
+  profilePicture: {
+    type: String,
+    default: '' 
+  },
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'pending', 'suspended'], // Standard account statuses
+    default: 'active'
+  }
 }, {
-  timestamps: true // This automatically handles the 'createdAt' field
+  timestamps: true 
 });
 
 const User = mongoose.model('User', userSchema);

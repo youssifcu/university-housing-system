@@ -44,7 +44,7 @@ describe('University Housing System - API Tests', () => {
 
   beforeAll(async () => {
     // Set test database URI
-    process.env.MONGODB_URI = process.env.MONGODB_TEST_URI || 'mongodb://localhost:27017/university-housing-system-test';
+    process.env.MONGODB_URI = process.env.MONGODB_TEST_URI || 'mongodb://localhost:27017/university-housing-system';
     
     // Connect to MongoDB
     if (!mongoose.connection.readyState) {

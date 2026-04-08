@@ -1,5 +1,6 @@
 const Student = require('../models/Student');
 const Application = require('../models/Application');
+const Building = require('../models/Building');
 const Room = require('../models/Room');
 const crypto = require('crypto'); // Built-in Node tool to generate QR strings
 
@@ -11,22 +12,23 @@ const crypto = require('crypto'); // Built-in Node tool to generate QR strings
 exports.submitApplication = async (req, res) => {
   try {
     const userId = req.user.mongoId;
+    const existingApp = await Application.findOne({ userId, status: { $in: ['pending', 'approved', 'needs_update'] } });
 
-    // 1. Check if user already has a pending or approved application
-    const existingApp = await Application.findOne({ userId });
-    if (existingApp) {
-      return res.status(400).json({ 
-        message: "You have already submitted an application. Current status: " + existingApp.status 
-      });
+    if (existingApp) return res.status(400).json({ message: "You already have an active application." });
+
+    const fileData = {};
+    if (req.files) {
+      if (req.files.documentUrl) {
+        fileData.documentUrl = { data: req.files.documentUrl[0].buffer, contentType: req.files.documentUrl[0].mimetype };
+      }
+      if (req.files.medicalReport) {
+        fileData.medicalReport = { data: req.files.medicalReport[0].buffer, contentType: req.files.medicalReport[0].mimetype };
+      }
     }
 
-    // 2. Create the application with data from req.body and the userId from the token
-    const newApplication = new Application({
-      ...req.body,
-      userId: userId,
-      status: 'pending' // Default status
-    });
+    if (!fileData.documentUrl) return res.status(400).json({ message: "Please upload the required PDF document" });
 
+    const newApplication = new Application({ ...req.body, ...fileData, userId, status: 'pending' });
     const savedApplication = await newApplication.save();
 
     res.status(201).json({
@@ -53,18 +55,8 @@ exports.getMyApplications = async (req, res) => {
   try {
     const userId = req.user.mongoId;
 
-    // Find applications belonging to this user
-    // We sort by createdAt: -1 to show the newest one first
-    const applications = await Application.find({ userId }).sort({ createdAt: -1 });
-
-    // Format the response to match your documentation
-    const formattedApps = applications.map(app => ({
-      id: app._id,
-      status: app.status,
-      submittedAt: app.createdAt
-    }));
-
-    res.status(200).json(formattedApps);
+    const apps = await Application.find({ userId: req.user.mongoId }).sort({ createdAt: -1 });
+    res.status(200).json(apps);
   } catch (error) {
     console.error("Fetch My Applications Error:", error);
     res.status(500).json({ 
@@ -195,7 +187,7 @@ exports.updateApplication = async (req, res) => {
 exports.approveApplication = async (req, res) => {
   try {
     const { id } = req.params;
-    const { roomId, bedNumber } = req.body;
+   
 
     // 1. Find the application
     const application = await Application.findById(id);
@@ -206,13 +198,42 @@ exports.approveApplication = async (req, res) => {
     if (application.status === 'approved') {
       return res.status(400).json({ message: "Application is already approved" });
     }
+    let buildingName = '';
+    if (application.gradePercentage >= 90) {
+      buildingName = 'Block A';
+    } else if (application.gradePercentage >= 75) {
+      buildingName = 'Block A';
+    } else {
+      buildingName = 'Block A'; 
+    }
+
+    const targetBuilding = await Building.findOne({ 
+      name: buildingName,
+      gender: application.gender
+    });
+
+    if (!targetBuilding) {
+      return res.status(404).json({ message: `Target building (${buildingName}) not found` });
+    }
+
+    const selectedRoom = await Room.findOne({
+      buildingId: targetBuilding._id,
+      status: 'available',
+      $expr: { $lt: ['$currentOccupancy', '$capacity'] }
+    }).sort({ roomNumber: 1 });
+
+    if (!selectedRoom) {
+      return res.status(400).json({ message: `No available rooms in ${targetBuilding}` });
+    }
+
+    const assignedRoomId = selectedRoom._id;
+    let assignedBedNumber = selectedRoom.currentOccupancy + 1;
 
     // 2. Assign room
-    let assignedRoomId = roomId;
-    let assignedBedNumber = bedNumber;
+   
 
-    if (roomId) {
-      const selectedRoom = await Room.findById(roomId);
+    if (assignedRoomId) {
+      const selectedRoom = await Room.findById(assignedRoomId);
       if (!selectedRoom) {
         return res.status(404).json({ message: 'Selected room not found' });
       }

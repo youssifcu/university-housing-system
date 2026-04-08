@@ -11,7 +11,7 @@ router.get('/building/:buildingId', verifyToken, roomController.getRoomsByBuildi
 router.get('/:id', verifyToken, roomController.getRoomById);
 
 // Admin Only - Creation and Updates
-router.post('/', verifyToken, isAdmin, roomController.createRoom);
+router.post('/', roomController.createRoom);
 router.put('/:id', verifyToken, isAdmin, roomController.updateRoom);
 
 // Status and Assignment Routes
