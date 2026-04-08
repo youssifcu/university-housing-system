@@ -11,7 +11,7 @@ const roomSchema = new mongoose.Schema({
     required: [true, 'Floor number is required']
   },
   roomNumber: {
-    type: String, // String allows for labels like "101A"
+    type: String, 
     required: [true, 'Room number/label is required'],
     trim: true
   },
@@ -20,11 +20,10 @@ const roomSchema = new mongoose.Schema({
     required: [true, 'Maximum occupancy is required'],
     min: [1, 'Capacity cannot be less than 1']
   },
-  currentOccupancy: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
+  currentOccupants: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   status: {
     type: String,
     enum: ['available', 'full', 'maintenance'],
@@ -34,7 +33,6 @@ const roomSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Prevent duplicate room numbers within the same building
 roomSchema.index({ buildingId: 1, roomNumber: 1 }, { unique: true });
 
 const Room = mongoose.model('Room', roomSchema);

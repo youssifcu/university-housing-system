@@ -1,38 +1,26 @@
 const mongoose = require('mongoose');
 
-const attendanceSchema = new mongoose.Schema({
-  studentId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Student',
-    required: [true, 'Attendance must be linked to a student']
-  },
-  buildingId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Building',
-    required: [true, 'Building reference is required']
-  },
-  date: {
-    type: Date,
-    required: true,
-    default: Date.now
-  },
-  status: {
+const AttendanceSchema = new mongoose.Schema({
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  recordedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  
+  attendanceType: {
     type: String,
-    enum: ['present', 'absent'],
+    enum: ['morning', 'evening', 'meal'],
     required: true
   },
-  recordedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Refers to the Floor Supervisor or Admin
-    required: true
-  }
-}, {
-  timestamps: true
+  
+  scannedQRCode: { type: String },
+  status: { type: String, enum: ['present', 'absent', 'excused'], default: 'present' },
+  
+  timestamp: { type: Date, default: Date.now },
+  date: { type: Date, required: true },
+  
+  notes: { type: String },
+  wasOnLeave: { type: Boolean, default: false }
 });
 
-// Compound index to ensure only one attendance record per student per day
-attendanceSchema.index({ studentId: 1, date: 1 }, { unique: true });
+AttendanceSchema.index({ studentId: 1, date: 1 });
+AttendanceSchema.index({ date: 1, attendanceType: 1 });
 
-const Attendance = mongoose.model('Attendance', attendanceSchema);
-
-module.exports = Attendance;
+module.exports = mongoose.model('Attendance', AttendanceSchema);

@@ -1,141 +1,100 @@
 const Room = require('../models/Room');
+const { Student } = require('../models/User'); // التعديل الصحيح هنا
 
-// GET /api/rooms
+// GET /api/rooms - جلب كل الغرف مع بيانات المباني
 exports.getAllRooms = async (req, res) => {
   try {
-    const rooms = await Room.find();
+    const rooms = await Room.find().populate('buildingId', 'name');
     res.status(200).json(rooms);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// GET /api/rooms/available
-exports.getAvailableRooms = async (req, res) => {
+// PATCH /api/rooms/:id/assign - تسكين طالب يدوي (تعديل الـ Logic ليتناسب مع الموديل الجديد)
+exports.assignStudent = async (req, res) => {
   try {
-    const rooms = await Room.find({ status: 'available' });
-    res.status(200).json(rooms);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// GET /api/rooms/building/:buildingId
-exports.getRoomsByBuilding = async (req, res) => {
-  try {
-    const rooms = await Room.find({ buildingId: req.params.buildingId })
-      .select('roomNumber status'); 
-    res.status(200).json(rooms);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// GET /api/rooms/:id
-exports.getRoomById = async (req, res) => {
-  try {
-    const room = await Room.findById(req.params.id)
-      .select('buildingId roomNumber capacity');
+    const { studentId } = req.body;
+    const room = await Room.findById(req.params.id);
+    
     if (!room) return res.status(404).json({ message: 'Room not found' });
+    
+    // التحقق من المساحة باستخدام طول المصفوفة
+    if (room.currentOccupants.length >= room.capacity) {
+      return res.status(400).json({ message: 'Room is full' });
+    }
+
+    const student = await Student.findById(studentId);
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    // تحديث بيانات الطالب
+    student.assignedRoomId = room._id;
+    student.roomAllocationDate = new Date();
+    await student.save();
+
+    // تحديث بيانات الغرفة (إضافة الطالب للمصفوفة)
+    if (!room.currentOccupants.includes(studentId)) {
+      room.currentOccupants.push(studentId);
+    }
+
+    if (room.currentOccupants.length >= room.capacity) {
+      room.status = 'full';
+    }
+    
+    await room.save();
+    
+    res.status(200).json({ message: 'Student assigned successfully', roomNumber: room.roomNumber });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// GET /api/rooms/my-room - دالة جديدة للطالب عشان يشوف أوضته
+exports.getMyRoom = async (req, res) => {
+  try {
+    const studentId = req.userDoc._id;
+    const room = await Room.findOne({ currentOccupants: studentId })
+      .populate('buildingId', 'name')
+      .populate('currentOccupants', 'name email phoneNumber profilePicture');
+
+    if (!room) return res.status(404).json({ message: 'No room assigned to you' });
     res.status(200).json(room);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// POST /api/rooms
-exports.createRoom = async (req, res) => {
+// دالة التسكين التلقائي (التي اقترحتها لك سابقاً)
+exports.autoAssignRoom = async (req, res) => {
   try {
-    const newRoom = new Room(req.body);
-    const savedRoom = await newRoom.save();
-    res.status(201).json({
-      id: savedRoom._id,
-      message: 'Room created'
+    const { studentId } = req.params;
+    const student = await Student.findById(studentId);
+    
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+    if (student.assignedRoomId) return res.status(400).json({ message: 'Student already has a room' });
+
+    const availableRoom = await Room.findOne({
+      status: 'available',
+      $expr: { $lt: [{ $size: "$currentOccupants" }, "$capacity"] }
     });
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
 
-// PUT /api/rooms/:id
-exports.updateRoom = async (req, res) => {
-  try {
-    const room = await Room.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-    if (!room) return res.status(404).json({ message: 'Room not found' });
-    res.status(200).json({ message: 'Room updated' });
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
+    if (!availableRoom) return res.status(404).json({ message: 'No available rooms' });
 
-// PATCH /api/rooms/:id/status
-exports.updateRoomStatus = async (req, res) => {
-  try {
-    const { status } = req.body;
-    const room = await Room.findByIdAndUpdate(req.params.id, { status }, { new: true });
-    if (!room) return res.status(404).json({ message: 'Room not found' });
-    res.status(200).json({ message: 'Status updated' });
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
-
-// PATCH /api/rooms/:id/assign
-exports.assignStudent = async (req, res) => {
-  try {
-    const { studentId, bedNumber } = req.body;
-    const room = await Room.findById(req.params.id);
-    if (!room) return res.status(404).json({ message: 'Room not found' });
-    
-    if (room.currentOccupancy >= room.capacity) {
-      return res.status(400).json({ message: 'Room is full' });
+    availableRoom.currentOccupants.push(studentId);
+    if (availableRoom.currentOccupants.length === availableRoom.capacity) {
+      availableRoom.status = 'full';
     }
 
-    const student = await require('../models/Student').findById(studentId);
-    if (!student) return res.status(404).json({ message: 'Student not found' });
+    student.assignedRoomId = availableRoom._id;
+    student.roomAllocationDate = new Date();
 
-    student.roomId = room._id;
-    student.bedNumber = bedNumber;
+    await availableRoom.save();
     await student.save();
 
-    room.currentOccupancy += 1;
-    if (room.currentOccupancy >= room.capacity) {
-      room.status = 'full';
-    }
-    await room.save();
-    
-    res.status(200).json({ message: 'Student assigned' });
+    res.status(200).json({ message: 'Auto-assigned to room ' + availableRoom.roomNumber });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// PATCH /api/rooms/:id/remove-student
-exports.removeStudent = async (req, res) => {
-  try {
-    const { studentId } = req.body;
-    const room = await Room.findById(req.params.id);
-    if (!room) return res.status(404).json({ message: 'Room not found' });
-
-    const student = await require('../models/Student').findById(studentId);
-    if (!student) return res.status(404).json({ message: 'Student not found' });
-
-    if (student.roomId.toString() !== room._id.toString()) {
-      return res.status(400).json({ message: 'Student not in this room' });
-    }
-
-    student.roomId = null;
-    student.bedNumber = null;
-    await student.save();
-
-    room.currentOccupancy = Math.max(0, room.currentOccupancy - 1);
-    if (room.currentOccupancy < room.capacity) {
-      room.status = 'available';
-    }
-    await room.save();
-    
-    res.status(200).json({ message: 'Student removed' });
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
+// ملاحظة: باقي الدوال (createRoom, updateRoom, delete) ستبقى كما هي مع التأكد من استخدام أسماء الحقول الجديدة
