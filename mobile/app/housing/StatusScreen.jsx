@@ -1,11 +1,22 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, SafeAreaView, TouchableOpacity, RefreshControl, Alert } from "react-native";
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, SafeAreaView, TouchableOpacity, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { auth } from "../../config/firebase";
 import BACKEND_URL from "../../config/backend";
 
-const COLORS = { PRIMARY: "#1A237E", BG: "#F8FAFC", WHITE: "#FFFFFF", BORDER: "#E2E8F0", TEXT_MAIN: "#1E293B", TEXT_SUB: "#64748B", PENDING: "#F59E0B", SUCCESS: "#10B981", REJECTED: "#EF4444", ACTION: "#3B82F6" };
+const COLORS = { 
+  PRIMARY: "#1A237E", 
+  BG: "#F8FAFC", 
+  WHITE: "#FFFFFF", 
+  BORDER: "#E2E8F0", 
+  TEXT_MAIN: "#1E293B", 
+  TEXT_SUB: "#64748B", 
+  PENDING: "#F59E0B", 
+  SUCCESS: "#10B981", 
+  REJECTED: "#EF4444", 
+  ACTION: "#3B82F6" 
+};
 
 export default function ApplicationStatusScreen() {
   const router = useRouter();
@@ -16,11 +27,16 @@ export default function ApplicationStatusScreen() {
   const fetchApplications = async () => {
     try {
       const token = await auth.currentUser?.getIdToken();
-      const res = await fetch(`${BACKEND_URL}/api/housing/user-applications`, {
-        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      const res = await fetch(`${BACKEND_URL}/api/applications/my`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`, 
+          'Accept': 'application/json' 
+        }
       });
       const data = await res.json();
-      if (res.ok) setApplications(data);
+      if (res.ok) {
+        setApplications(data);
+      }
     } catch (error) {
       console.log(error);
     } finally {
@@ -33,43 +49,83 @@ export default function ApplicationStatusScreen() {
 
   const getStatusDetails = (status) => {
     switch (status?.toLowerCase()) {
-      case "accepted": return { label: "Accepted", color: COLORS.SUCCESS, icon: "check-circle" };
-      case "rejected": return { label: "Rejected", color: COLORS.REJECTED, icon: "close-circle" };
-      case "needs_update": return { label: "Needs Update", color: COLORS.ACTION, icon: "pencil-circle" };
-      default: return { label: "Under Review", color: COLORS.PENDING, icon: "clock-outline" };
+      case "approved":
+      case "accepted": 
+        return { label: "Accepted", color: COLORS.SUCCESS, icon: "check-circle" };
+      case "rejected": 
+        return { label: "Rejected", color: COLORS.REJECTED, icon: "close-circle" };
+      case "needs_update": 
+        return { label: "Needs Update", color: COLORS.ACTION, icon: "pencil-circle" };
+      default: 
+        return { label: "Under Review", color: COLORS.PENDING, icon: "clock-outline" };
     }
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.PRIMARY} />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}><MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.TEXT_MAIN} /></TouchableOpacity>
-        <Text style={styles.headerTitle}>Application Status</Text>
+        <TouchableOpacity onPress={() => router.back()}>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.TEXT_MAIN} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>My Applications</Text>
       </View>
+
       <FlatList
         data={applications}
         keyExtractor={(item) => item._id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchApplications(); }} />}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={() => { setRefreshing(true); fetchApplications(); }} 
+          />
+        }
         renderItem={({ item }) => {
           const status = getStatusDetails(item.status);
+          const canEdit = item.status === "pending" || item.status === "needs_update";
+
           return (
             <View style={styles.card}>
               <View style={styles.cardHeader}>
-                <View style={[styles.iconBox, { backgroundColor: status.color + "15" }]}><MaterialCommunityIcons name={status.icon} size={24} color={status.color} /></View>
+                <View style={[styles.iconBox, { backgroundColor: status.color + "15" }]}>
+                  <MaterialCommunityIcons name={status.icon} size={24} color={status.color} />
+                </View>
                 <View style={styles.headerInfo}>
-                  <Text style={styles.facultyText}>{item.faculty}</Text>
+                  <Text style={styles.facultyText}>{item.college || "Housing App"}</Text>
                   <Text style={styles.dateText}>{new Date(item.createdAt).toLocaleDateString()}</Text>
                 </View>
-                <View style={[styles.badge, { backgroundColor: status.color }]}><Text style={styles.badgeText}>{status.label}</Text></View>
+                <View style={[styles.badge, { backgroundColor: status.color }]}>
+                  <Text style={styles.badgeText}>{status.label}</Text>
+                </View>
               </View>
-              <View style={styles.divider} />
-              {(item.status === "needs_update" || item.status === "rejected") && (
-                <TouchableOpacity style={styles.editButton} onPress={() => router.push({ pathname: "/housing/HousingApplyScreen", params: { initialData: JSON.stringify(item) } })}>
-                  <Text style={styles.editButtonText}>Modify & Re-submit</Text>
-                </TouchableOpacity>
-              )}
+
               {item.rejectionReason && (
-                <View style={styles.rejectionBox}><Text style={styles.rejectionText}>Note: {item.rejectionReason}</Text></View>
+                <View style={styles.rejectionBox}>
+                  <Text style={styles.rejectionText}>Note: {item.rejectionReason}</Text>
+                </View>
+              )}
+
+              {canEdit && (
+                <>
+                  <View style={styles.divider} />
+                  <TouchableOpacity 
+                    style={styles.editButton} 
+                    onPress={() => router.push({ 
+                      pathname: "/housing/HousingApplyScreen", 
+                      params: { initialData: JSON.stringify(item) } 
+                    })}
+                  >
+                    <MaterialCommunityIcons name="pencil" size={18} color={COLORS.WHITE} />
+                    <Text style={styles.editButtonText}>Modify Application</Text>
+                  </TouchableOpacity>
+                </>
               )}
             </View>
           );
@@ -92,7 +148,7 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   badgeText: { color: COLORS.WHITE, fontSize: 10, fontWeight: "800" },
   divider: { height: 1, backgroundColor: COLORS.BORDER, marginVertical: 15 },
-  editButton: { backgroundColor: COLORS.ACTION, padding: 12, borderRadius: 10, alignItems: "center" },
+  editButton: { backgroundColor: COLORS.ACTION, padding: 12, borderRadius: 10, flexDirection: 'row', justifyContent: 'center', alignItems: "center", gap: 8 },
   editButtonText: { color: COLORS.WHITE, fontWeight: "700" },
   rejectionBox: { marginTop: 15, padding: 12, backgroundColor: "#F1F5F9", borderRadius: 8 },
   rejectionText: { fontSize: 12, color: COLORS.REJECTED }

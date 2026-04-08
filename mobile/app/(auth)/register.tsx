@@ -1,41 +1,52 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  KeyboardAvoidingView,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  Platform,
-  Alert,
-  ActivityIndicator,
-  StatusBar
+  View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView,
+  TouchableOpacity, TextInput, ScrollView, Platform, Alert, ActivityIndicator, Image
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from "../../firebaseConfig";
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { createUserWithEmailAndPassword, deleteUser, updateProfile } from 'firebase/auth';
+import { auth } from '../../config/firebase';
+import BACKEND_URL from '../../config/backend';
 
 const DEEP_BLUE = '#1A237E';
-const SLATE_GRAY = '#475569';
 const SOFT_WHITE = '#F8FAFC';
 const BORDER_COLOR = '#E2E8F0';
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const [fullName, setFullName] = useState('');
-  const [studentId, setStudentId] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [imageUri, setImageUri] = useState(null);
+  const [imageBase64, setImageBase64] = useState('');
+  const [form, setForm] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    fullName: '',
+    phoneNumber: ''
+  });
+
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.6,
+      base64: true,
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+      setImageBase64(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    }
+  };
 
   const handleRegister = async () => {
-    if (!fullName || !studentId || !email || !password) {
-      Alert.alert('Error', 'Please fill all fields');
+    const { email, password, confirmPassword, fullName, phoneNumber } = form;
+
+    if (!email || !password || !fullName || !confirmPassword) {
+      Alert.alert('Error', 'Required fields are missing');
       return;
     }
 
@@ -44,17 +55,42 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (!agreeToTerms) {
-      Alert.alert('Error', 'You must agree to terms');
-      return;
-    }
+    setLoading(true);
+    let firebaseUser = null;
 
     try {
-      setLoading(true);
-      await createUserWithEmailAndPassword(auth, email, password);
-      Alert.alert('Success', 'Account Created');
-      router.replace('/(auth)/login');
-    } catch (error) {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      firebaseUser = userCredential.user;
+
+      await updateProfile(firebaseUser, { displayName: fullName });
+
+      const idToken = await firebaseUser.getIdToken();
+
+      const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          name: fullName,
+          uid: firebaseUser.uid, 
+          email: firebaseUser.email,
+          phoneNumber: phoneNumber,
+          profilePicture: imageBase64
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        router.replace('/(student)');
+      } else {
+        if (firebaseUser) await deleteUser(firebaseUser);
+        throw new Error(data.message || 'Server error');
+      }
+
+    } catch (error : any) {
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
@@ -63,64 +99,61 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-        style={{ flex: 1 }}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-             <View style={styles.backArrow} />
-          </TouchableOpacity>
-
-          <View style={styles.headerSection}>
-            <View style={styles.logoCircle}>
-              <View style={styles.logoHat} />
-              <View style={styles.logoBody} />
-            </View>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Dorm Management System</Text>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
+              {imageUri ? (
+                <Image source={{ uri: imageUri }} style={styles.profileImage} />
+              ) : (
+                <View style={styles.imagePlaceholder}>
+                  <MaterialCommunityIcons name="camera-plus" size={40} color={DEEP_BLUE} />
+                  <Text style={styles.imageText}>Photo</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.title}>New Account</Text>
           </View>
 
-          <View style={styles.formSection}>
-            <Text style={styles.label}>Full Name</Text>
-            <TextInput style={styles.input} placeholder="John Doe" value={fullName} onChangeText={setFullName} />
+          <View style={styles.form}>
+            <TextInput
+              style={styles.input}
+              value={form.fullName}
+              onChangeText={(v) => setForm({...form, fullName: v})}
+              placeholder="Full Name"
+            />
+            <TextInput
+              style={styles.input}
+              value={form.email}
+              onChangeText={(v) => setForm({...form, email: v})}
+              placeholder="Email"
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={styles.input}
+              value={form.password}
+              onChangeText={(v) => setForm({...form, password: v})}
+              placeholder="Password"
+              secureTextEntry
+            />
+            <TextInput
+              style={styles.input}
+              value={form.confirmPassword}
+              onChangeText={(v) => setForm({...form, confirmPassword: v})}
+              placeholder="Confirm Password"
+              secureTextEntry
+            />
+            <TextInput
+              style={styles.input}
+              value={form.phoneNumber}
+              onChangeText={(v) => setForm({...form, phoneNumber: v})}
+              placeholder="Phone Number"
+              keyboardType="phone-pad"
+            />
 
-            <Text style={styles.label}>Student ID</Text>
-            <TextInput style={styles.input} placeholder="123456" keyboardType="numeric" value={studentId} onChangeText={setStudentId} />
-
-            <Text style={styles.label}>University Email</Text>
-            <TextInput style={styles.input} placeholder="name@university.edu" autoCapitalize="none" value={email} onChangeText={setEmail} />
-
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordWrapper}>
-              <TextInput style={styles.flexInput} secureTextEntry={!showPassword} placeholder="********" value={password} onChangeText={setPassword} />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Text style={styles.eyeText}>{showPassword ? 'Hide' : 'Show'}</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.label}>Confirm Password</Text>
-            <TextInput style={styles.input} secureTextEntry placeholder="********" value={confirmPassword} onChangeText={setConfirmPassword} />
-
-            <TouchableOpacity style={styles.termsContainer} onPress={() => setAgreeToTerms(!agreeToTerms)}>
-              <View style={[styles.customCheckbox, agreeToTerms && styles.checkboxActive]}>
-                {agreeToTerms && <View style={styles.checkMark} />}
-              </View>
-              <Text style={styles.termsText}>I agree to the Terms & Conditions</Text>
+            <TouchableOpacity style={styles.btn} onPress={handleRegister} disabled={loading}>
+              {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Register</Text>}
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.registerButton} onPress={handleRegister} disabled={loading}>
-              {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.registerButtonText}>Register Now</Text>}
-            </TouchableOpacity>
-
-            <View style={styles.footerLinkContainer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-                <Text style={styles.loginLink}>Sign In</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -130,60 +163,15 @@ export default function RegisterScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: SOFT_WHITE },
-  scrollContent: { padding: 25 },
-  backButton: { width: 40, height: 40, justifyContent: 'center' },
-  backArrow: {
-    width: 12,
-    height: 12,
-    borderLeftWidth: 3,
-    borderBottomWidth: 3,
-    borderColor: DEEP_BLUE,
-    transform: [{ rotate: '45deg' }],
-  },
-  headerSection: { alignItems: 'center', marginBottom: 40 },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 25,
-    backgroundColor: DEEP_BLUE,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    shadowColor: DEEP_BLUE,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  logoHat: { width: 30, height: 15, backgroundColor: '#FFF', borderTopLeftRadius: 2, borderTopRightRadius: 2, marginBottom: 2 },
-  logoBody: { width: 34, height: 6, backgroundColor: '#FFF', borderRadius: 10 },
-  title: { fontSize: 28, fontWeight: '800', color: DEEP_BLUE, letterSpacing: -0.5 },
-  subtitle: { fontSize: 15, color: SLATE_GRAY, marginTop: 5 },
-  formSection: { marginTop: 10 },
-  label: { fontSize: 11, fontWeight: '700', color: DEEP_BLUE, marginBottom: 8, marginTop: 18, textTransform: 'uppercase', opacity: 0.6 },
-  input: { backgroundColor: '#FFF', borderRadius: 12, borderWidth: 1.5, borderColor: BORDER_COLOR, paddingHorizontal: 15, height: 52, fontSize: 16 },
-  passwordWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 12, borderWidth: 1.5, borderColor: BORDER_COLOR, paddingHorizontal: 15 },
-  flexInput: { flex: 1, height: 52, fontSize: 16 },
-  eyeText: { color: DEEP_BLUE, fontSize: 12, fontWeight: 'bold', padding: 5 },
-  termsContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 25 },
-  customCheckbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: DEEP_BLUE, marginRight: 12, justifyContent: 'center', alignItems: 'center' },
-  checkboxActive: { backgroundColor: DEEP_BLUE },
-  checkMark: { width: 10, height: 5, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: '#FFF', transform: [{ rotate: '-45deg' }], marginTop: -2 },
-  termsText: { color: SLATE_GRAY, fontSize: 14, fontWeight: '500' },
-  registerButton: { 
-    backgroundColor: DEEP_BLUE, 
-    borderRadius: 15, 
-    height: 56, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    shadowColor: DEEP_BLUE,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
-    marginBottom: 25
-  },
-  registerButtonText: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
-  footerLinkContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
-  footerText: { color: SLATE_GRAY, fontSize: 15 },
-  loginLink: { color: DEEP_BLUE, fontSize: 15, fontWeight: '800' }
+  scroll: { padding: 25, flexGrow: 1, justifyContent: 'center' },
+  header: { alignItems: 'center', marginBottom: 20 },
+  imagePicker: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#FFF', borderWidth: 1, borderColor: BORDER_COLOR, justifyContent: 'center', alignSelf: 'center', overflow: 'hidden', marginBottom: 10 },
+  profileImage: { width: '100%', height: '100%' },
+  imagePlaceholder: { alignItems: 'center', justifyContent: 'center', flex: 1 },
+  imageText: { fontSize: 10, color: DEEP_BLUE, fontWeight: 'bold' },
+  title: { fontSize: 24, fontWeight: 'bold', color: DEEP_BLUE },
+  form: { width: '100%' },
+  input: { backgroundColor: '#FFF', borderRadius: 10, borderWidth: 1, borderColor: BORDER_COLOR, paddingHorizontal: 15, height: 50, marginBottom: 15 },
+  btn: { backgroundColor: DEEP_BLUE, borderRadius: 12, height: 55, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
+  btnText: { color: '#FFF', fontSize: 18, fontWeight: 'bold' }
 });

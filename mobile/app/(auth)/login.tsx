@@ -13,10 +13,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { auth }  from '../../config/firebase';
+import { signInWithEmailAndPassword, getIdToken } from 'firebase/auth';
+import BACKEND_URL from '../../config/backend';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../firebaseConfig";
+
 
 const COLORS = {
   DEEP_BLUE: '#1A237E',
@@ -33,7 +35,6 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
@@ -56,37 +57,55 @@ export default function LoginScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogin = async () => {
-    if (!validateForm()) return;
+  const handleLogin = () => {
+  if (!validateForm()) return;
+  if (!auth) {
+    Alert.alert('Error', 'Firebase configuration missing');
+    return;
+  }
 
-    try {
-      setLoading(true);
+  setLoading(true);
+  signInWithEmailAndPassword(auth, email.trim(), password)
+    .then(async (credential) => {
+      const user = credential.user;
+      const idToken = await user.getIdToken();
 
-      await signInWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password
-      );
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}` 
+          },
+          body: JSON.stringify({ 
+            firebaseUID: user.uid 
+          })
+        });
 
-      router.replace('/(tabs)');
+        const data = await response.json();
 
-    } catch (error: any) {
-
-      if (error.code === "auth/user-not-found") {
-        Alert.alert("Error", "Account does not exist");
-      } else if (error.code === "auth/wrong-password") {
-        Alert.alert("Error", "Incorrect password");
-      } else if (error.code === "auth/invalid-email") {
-        Alert.alert("Error", "Invalid email format");
-      } else {
-        Alert.alert("Login Failed", error.message);
+        if (response.ok) {
+          setLoading(false);
+          const userRole = data.user.roles || data.user.role;
+          
+          if (userRole === 'floor_admin') {
+            router.replace('/(manager)');
+          } else {
+            router.replace('/(student)');
+          }
+        } else {
+          throw new Error(data.message || 'Login failed');
+        }
+      } catch (err : any) {
+        setLoading(false);
+        Alert.alert('Error', err.message);
       }
-
-    } finally {
+    })
+    .catch((err) => {
       setLoading(false);
-    }
-  };
-
+      Alert.alert('Login Error', err.message);
+    });
+};
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -108,7 +127,6 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.formSection}>
-
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Student Email</Text>
               <View style={[styles.inputContainer, errors.email && styles.inputError]}>
@@ -153,6 +171,13 @@ export default function LoginScreen() {
               {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
             </View>
 
+            <View style={styles.row}>
+            
+              <TouchableOpacity onPress={() => router.push('/forgot-password')}>
+                <Text style={[styles.smallText, { color: COLORS.DEEP_BLUE, fontWeight: '700' }]}>Forgot Password?</Text>
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity 
               style={[styles.mainButton, loading && { opacity: 0.7 }]} 
               onPress={handleLogin}
@@ -161,17 +186,22 @@ export default function LoginScreen() {
               {loading ? (
                 <ActivityIndicator color={COLORS.WHITE} />
               ) : (
-                <Text style={styles.buttonText}>Login</Text>
+                <Text style={styles.buttonText}>Login to Dashboard</Text>
               )}
             </TouchableOpacity>
 
-            <View style={styles.registerContainer}>
-              <Text style={styles.registerText}>I don’t have an account </Text>
-              <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-                <Text style={styles.registerLink}>Register</Text>
-              </TouchableOpacity>
+            <View style={styles.divider}>
+              <View style={styles.line} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.line} />
             </View>
 
+            <TouchableOpacity 
+              style={styles.secondaryButton}
+              onPress={() => router.push('/register')}
+            >
+              <Text style={styles.secondaryButtonText}>Create New Student Account</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -197,11 +227,11 @@ const styles = StyleSheet.create({
       android: { elevation: 5 },
     }),
   },
-  title: { fontSize: 28, fontWeight: '800', color: COLORS.DEEP_BLUE },
+  title: { fontSize: 28, fontWeight: '800', color: COLORS.DEEP_BLUE, letterSpacing: 0.5 },
   subtitle: { fontSize: 16, color: COLORS.SLATE_GRAY, marginTop: 5 },
   formSection: { width: '100%' },
   inputGroup: { marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: '700', color: COLORS.DEEP_BLUE, marginBottom: 8 },
+  label: { fontSize: 14, fontWeight: '700', color: COLORS.DEEP_BLUE, marginBottom: 8, marginLeft: 4 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -215,16 +245,33 @@ const styles = StyleSheet.create({
   inputError: { borderColor: COLORS.ERROR_COLOR },
   icon: { marginRight: 10 },
   input: { flex: 1, fontSize: 16, color: COLORS.DEEP_BLUE },
-  errorText: { color: COLORS.ERROR_COLOR, fontSize: 12, marginTop: 5 },
+  errorText: { color: COLORS.ERROR_COLOR, fontSize: 12, marginTop: 5, marginLeft: 5 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center' },
+  smallText: { fontSize: 14, color: COLORS.SLATE_GRAY, marginLeft: 8 },
   mainButton: {
     backgroundColor: COLORS.DEEP_BLUE,
     height: 55,
     borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: COLORS.DEEP_BLUE,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
   },
   buttonText: { color: COLORS.WHITE, fontSize: 18, fontWeight: '700' },
-  registerContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
-  registerText: { color: COLORS.SLATE_GRAY, fontSize: 14 },
-  registerLink: { color: COLORS.DEEP_BLUE, fontSize: 14, fontWeight: '700' },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 25 },
+  line: { flex: 1, height: 1, backgroundColor: COLORS.BORDER_COLOR },
+  dividerText: { marginHorizontal: 10, color: COLORS.SLATE_GRAY, fontWeight: '600' },
+  secondaryButton: {
+    height: 55,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.DEEP_BLUE,
+  },
+  secondaryButtonText: { color: COLORS.DEEP_BLUE, fontSize: 16, fontWeight: '700' },
 });
