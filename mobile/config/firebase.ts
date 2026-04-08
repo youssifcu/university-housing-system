@@ -1,7 +1,6 @@
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth'; 
-
 const firebaseConfig = {
   apiKey: "AIzaSyA8S0tEeRAoMNpY7z6hTVNARwhCXTgh_uo",
   authDomain: "university-housing-syste-1b09f.firebaseapp.com",
@@ -11,7 +10,6 @@ const firebaseConfig = {
   appId: "1:975365542180:web:ba399ed734c731804ea3b1",
   measurementId: "G-E91W036L9P"
 };
-
 let app: FirebaseApp;
 let auth: Auth;
 

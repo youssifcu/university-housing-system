@@ -17,7 +17,7 @@ const BORDER_COLOR = '#E2E8F0';
 export default function RegisterScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [imageUri, setImageUri] = useState(null);
+const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState('');
   const [form, setForm] = useState({
     email: '',
