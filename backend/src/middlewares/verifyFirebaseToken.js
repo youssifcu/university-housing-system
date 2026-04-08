@@ -13,14 +13,16 @@ const verifyFirebaseToken = async (req, res, next) => {
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
     
-    // FIX: Match the field name from your User model (firebaseUID)
-    const userDoc = await User.findOne({ firebaseUID: decodedToken.uid });
+    const userDoc = await User.findOne({ firebaseUid: decodedToken.uid });
     
-    req.user = {
-      ...decodedToken,
-      mongoId: userDoc ? userDoc._id : null,
-      role: userDoc ? userDoc.role : 'user'
-    };
+    if (userDoc) {
+      req.user = decodedToken;
+      req.userRole = userDoc.role;
+      req.userDoc = userDoc;
+    } else {
+      req.user = decodedToken;
+      req.userRole = 'guest';
+    }
     
     next();
   } catch (error) {
