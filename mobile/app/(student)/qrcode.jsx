@@ -85,7 +85,7 @@ export default function QRCodeScreen() {
     );
   }
 
-  if (!isAccepted && !error) {
+  if (!isAccepted ) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.simpleContainer}>
