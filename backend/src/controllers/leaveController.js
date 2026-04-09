@@ -69,6 +69,37 @@ exports.approveLeave = async (req, res) => {
   }
 };
 
+exports.endLeave = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const student = await Student.findByIdAndUpdate(
+      studentId,
+      {
+        $set: {
+          'leaveStatus.isOnLeave': false,
+          'leaveStatus.leaveStartDate': null,
+          'leaveStatus.leaveEndDate': null,
+          'leaveStatus.leaveReason': '',
+          'leaveStatus.approvedBy': null
+        }
+      },
+      { new: true }
+    );
+
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    return res.status(200).json({
+      message: 'Leave ended successfully',
+      studentId: student._id
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to end leave', error: error.message });
+  }
+};
+
 exports.getAttendanceReport = async (req, res) => {
   try {
     const studentId = req.params.studentId || req.userDoc._id; // لو طالب بيشوف لنفسه
