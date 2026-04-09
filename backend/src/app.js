@@ -24,10 +24,6 @@ const mainRoutes = require('./routes/mainRoutes');
 const app = express();
 
 app.use(cors());
-<<<<<<< HEAD
-
-=======
->>>>>>> a0ec18d75d0d0cc6eec586a2e9aec51ed9757a53
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
