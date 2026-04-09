@@ -15,6 +15,6 @@ router.get('/profile', verifyFirebaseToken, checkStudentApproval, authController
 router.patch('/password', verifyFirebaseToken, authController.changePassword);
 router.post('/update-profile', verifyFirebaseToken, authController.updateProfile);
 
-\router.post('/register-admin', verifyFirebaseToken, isAdmin, authController.registerAdmin);
+router.post('/register-admin', verifyFirebaseToken, isAdmin, authController.registerAdmin);
 
 module.exports = router;
