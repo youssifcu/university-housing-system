@@ -55,7 +55,14 @@ exports.getRoomById = async (req, res) => {
 // ================= CREATE ROOM =================
 exports.createRoom = async (req, res) => {
   try {
-    const room = new Room(req.body);
+    const { roomNumber, capacity, buildingId } = req.body;
+
+    const room = new Room({
+      roomNumber,
+      capacity,
+      buildingId
+    });
+
     await room.save();
 
     res.status(201).json(room);
@@ -67,9 +74,11 @@ exports.createRoom = async (req, res) => {
 // ================= UPDATE ROOM =================
 exports.updateRoom = async (req, res) => {
   try {
+    const { roomNumber, capacity, buildingId, status } = req.body;
+
     const room = await Room.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      { roomNumber, capacity, buildingId, status },
       { new: true }
     );
 
@@ -86,11 +95,13 @@ exports.updateRoomStatus = async (req, res) => {
   try {
     const { status } = req.body;
 
-    const room = await Room.findById(req.params.id);
-    if (!room) return res.status(404).json({ message: 'Room not found' });
+    const room = await Room.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    );
 
-    room.status = status;
-    await room.save();
+    if (!room) return res.status(404).json({ message: 'Room not found' });
 
     res.status(200).json({ message: 'Status updated', room });
   } catch (error) {
@@ -102,8 +113,8 @@ exports.updateRoomStatus = async (req, res) => {
 exports.assignStudent = async (req, res) => {
   try {
     const { studentId } = req.body;
-    const room = await Room.findById(req.params.id);
 
+    const room = await Room.findById(req.params.id);
     if (!room) return res.status(404).json({ message: 'Room not found' });
 
     if (room.currentOccupants.length >= room.capacity) {
@@ -113,15 +124,19 @@ exports.assignStudent = async (req, res) => {
     const student = await Student.findById(studentId);
     if (!student) return res.status(404).json({ message: 'Student not found' });
 
-    student.assignedRoomId = room._id;
-    student.roomAllocationDate = new Date();
-
-    if (!room.currentOccupants.includes(studentId)) {
+    // منع التكرار (fix ObjectId vs string)
+    if (!room.currentOccupants.some(id => id.toString() === studentId)) {
       room.currentOccupants.push(studentId);
     }
 
+    student.assignedRoomId = room._id;
+    student.roomAllocationDate = new Date();
+
+    // تحديث الحالة
     if (room.currentOccupants.length >= room.capacity) {
       room.status = 'full';
+    } else {
+      room.status = 'partially_full';
     }
 
     await student.save();
@@ -132,7 +147,6 @@ exports.assignStudent = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
-
 // ================= AUTO ASSIGN =================
 exports.autoAssignRoom = async (req, res) => {
   try {
@@ -140,6 +154,7 @@ exports.autoAssignRoom = async (req, res) => {
 
     const student = await Student.findById(studentId);
     if (!student) return res.status(404).json({ message: 'Student not found' });
+
     if (student.assignedRoomId) {
       return res.status(400).json({ message: 'Already assigned' });
     }
@@ -151,11 +166,14 @@ exports.autoAssignRoom = async (req, res) => {
     if (!room) return res.status(404).json({ message: 'No available rooms' });
 
     room.currentOccupants.push(studentId);
+
     student.assignedRoomId = room._id;
     student.roomAllocationDate = new Date();
 
     if (room.currentOccupants.length >= room.capacity) {
       room.status = 'full';
+    } else {
+      room.status = 'partially_full';
     }
 
     await room.save();
@@ -186,7 +204,12 @@ exports.removeStudent = async (req, res) => {
       await student.save();
     }
 
-    room.status = 'available';
+    // تحديث الحالة بشكل صحيح
+    if (room.currentOccupants.length === 0) {
+      room.status = 'available';
+    } else if (room.currentOccupants.length < room.capacity) {
+      room.status = 'partially_full';
+    }
 
     await room.save();
 
