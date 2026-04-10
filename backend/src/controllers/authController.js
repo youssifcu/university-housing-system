@@ -22,15 +22,14 @@ exports.registerUser = async (req, res) => {
     }
 
     // 2. إنشاء مستخدم جديد (Student بصفتها الـ Role الافتراضي)
-    // ملاحظة: studentId إجباري في الـ Schema الخاصة بك
     const user = new Student({
       firebaseUid: uid,
       email: email.toLowerCase(),
       name: name,
       phoneNumber: phoneNumber,
       profilePicture: profilePicture || '',
-      role: 'student', // القيمة المفتاحية للـ discriminator
-      studentId: studentId || `STU-${Date.now()}`, // توليد ID مؤقت لو لم يرسل
+      role: 'student',
+      studentId: studentId || `STU-${Date.now()}`,
       universityYear: universityYear || 1,
       faculty: faculty || ''
     });
@@ -58,9 +57,8 @@ exports.registerUser = async (req, res) => {
  */
 exports.loginUser = async (req, res) => {
   try {
-    const { firebaseUID } = req.body; // تأكد أن الاسم مطابق لما يرسله الفرونت إند
+    const { firebaseUID } = req.body;
 
-    // البحث عن المستخدم باستخدام firebaseUid (مطابق للـ Schema)
     const user = await User.findOne({ firebaseUid: firebaseUID });
 
     if (!user) {
@@ -70,7 +68,6 @@ exports.loginUser = async (req, res) => {
       });
     }
 
-    // تحديث تاريخ آخر تسجيل دخول
     user.lastLogin = new Date();
     await user.save();
 
@@ -90,7 +87,6 @@ exports.loginUser = async (req, res) => {
  */
 exports.getProfile = async (req, res) => {
   try {
-    // req.user.mongoId يجب أن يتم تمريره من الـ middleware الخاص بالتوكن
     const user = await User.findById(req.user.mongoId);
 
     if (!user) {
@@ -146,6 +142,7 @@ exports.updateProfile = async (req, res) => {
 
 /**
  * @desc    Change Password via Firebase Admin
+ * @route   PATCH /api/auth/password
  */
 exports.changePassword = async (req, res) => {
   try {
@@ -165,7 +162,8 @@ exports.changePassword = async (req, res) => {
 };
 
 /**
- * @desc    Forgot Password - Send link
+ * @desc    Forgot Password - Send reset link
+ * @route   POST /api/auth/forgot-password
  */
 exports.forgotPassword = async (req, res) => {
   try {
@@ -179,6 +177,8 @@ exports.forgotPassword = async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
+};
+
 /**
  * @desc    Reset password using token from email link
  * @route   PATCH /api/auth/reset-password/:token
@@ -195,16 +195,7 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // استخدم Firebase SDK لتطبيق إعادة التعيين بواسطة token
-    // ملاحظة: admin.auth().verifyPasswordResetCode متوفر فقط في Admin SDK
-    // ولكن الطريقة الأسهل: استخدام Firebase client SDK في الفرونت إند.
-    // بدلاً من ذلك، يمكنك استخدام verifyIdToken لكن هذا غير مناسب.
-    // الحل الصحيح: استخدام Firebase Admin SDK لإعادة التعيين عبر الكود.
-    
-    // بما أن Firebase Admin لا يوفر مباشرة verifyPasswordResetCode،
-    // يمكنك استخدام REST API أو إرسال المهمة للفرونت إند.
-    // إليك طريقة بديلة: التحقق من صحة التوكن باستخدام Firebase Auth REST API:
-    
+    // استخدام REST API الخاص بـ Firebase Auth لإعادة التعيين
     const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=${process.env.FIREBASE_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -235,5 +226,4 @@ exports.resetPassword = async (req, res) => {
       error: error.message 
     });
   }
-};
 };
