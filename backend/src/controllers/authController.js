@@ -9,7 +9,6 @@ exports.registerUser = async (req, res) => {
   try {
     const { name, phoneNumber, profilePicture, uid, email, studentId, universityYear, faculty } = req.body;
 
-    // 1. التأكد من عدم وجود المستخدم مسبقاً
     const existingUser = await User.findOne({ 
       $or: [{ firebaseUid: uid }, { email: email.toLowerCase() }] 
     });
@@ -21,7 +20,6 @@ exports.registerUser = async (req, res) => {
       });
     }
 
-    // 2. إنشاء مستخدم جديد (Student بصفتها الـ Role الافتراضي)
     const user = new Student({
       firebaseUid: uid,
       email: email.toLowerCase(),
@@ -195,7 +193,6 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // استخدام REST API الخاص بـ Firebase Auth لإعادة التعيين
     const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=${process.env.FIREBASE_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -225,5 +222,91 @@ exports.resetPassword = async (req, res) => {
       message: "Server error during password reset",
       error: error.message 
     });
+  }
+};
+
+/**
+ * @desc    Register a new admin (ComputerAdmin, FloorAdmin, MealAdmin, SupervisorAdmin)
+ * @route   POST /api/auth/register-admin
+ * @access  Private (Admin only)
+ */
+exports.registerAdmin = async (req, res) => {
+  try {
+    const { email, password, name, phoneNumber, profilePicture, role, ...roleSpecificData } = req.body;
+
+    const allowedRoles = ['computer_admin', 'floor_admin', 'meal_admin', 'supervisor_admin'];
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ success: false, message: "Invalid admin role" });
+    }
+
+    // Check if user already exists in MongoDB
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: "Email already registered" });
+    }
+
+    // Create user in Firebase Authentication
+    let firebaseUser;
+    try {
+      firebaseUser = await admin.auth().createUser({
+        email: email.toLowerCase(),
+        password: password,
+        displayName: name,
+      });
+    } catch (firebaseError) {
+      return res.status(400).json({ success: false, message: firebaseError.message });
+    }
+
+    // Create admin user in MongoDB based on role
+    let adminUser;
+    const baseData = {
+      firebaseUid: firebaseUser.uid,
+      email: email.toLowerCase(),
+      name,
+      phoneNumber,
+      profilePicture: profilePicture || '',
+      role: role,
+    };
+
+    switch (role) {
+      case 'computer_admin':
+        adminUser = new ComputerAdmin({
+          ...baseData,
+          computerLabId: roleSpecificData.computerLabId,
+        });
+        break;
+      case 'floor_admin':
+        adminUser = new FloorAdmin({
+          ...baseData,
+          floorNumber: roleSpecificData.floorNumber,
+          buildingName: roleSpecificData.buildingName,
+        });
+        break;
+      case 'meal_admin':
+        adminUser = new MealAdmin({
+          ...baseData,
+          mealType: roleSpecificData.mealType,
+        });
+        break;
+      case 'supervisor_admin':
+        adminUser = new SupervisorAdmin({
+          ...baseData,
+          supervisorDepartment: roleSpecificData.supervisorDepartment,
+        });
+        break;
+      default:
+        return res.status(400).json({ success: false, message: "Invalid role" });
+    }
+
+    await adminUser.save();
+
+    res.status(201).json({
+      success: true,
+      message: `${role} created successfully`,
+      user: adminUser
+    });
+  } catch (error) {
+    console.error("Admin registration error:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
