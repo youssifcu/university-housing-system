@@ -179,4 +179,61 @@ exports.forgotPassword = async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
+/**
+ * @desc    Reset password using token from email link
+ * @route   PATCH /api/auth/reset-password/:token
+ */
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Password must be at least 6 characters." 
+      });
+    }
+
+    // استخدم Firebase SDK لتطبيق إعادة التعيين بواسطة token
+    // ملاحظة: admin.auth().verifyPasswordResetCode متوفر فقط في Admin SDK
+    // ولكن الطريقة الأسهل: استخدام Firebase client SDK في الفرونت إند.
+    // بدلاً من ذلك، يمكنك استخدام verifyIdToken لكن هذا غير مناسب.
+    // الحل الصحيح: استخدام Firebase Admin SDK لإعادة التعيين عبر الكود.
+    
+    // بما أن Firebase Admin لا يوفر مباشرة verifyPasswordResetCode،
+    // يمكنك استخدام REST API أو إرسال المهمة للفرونت إند.
+    // إليك طريقة بديلة: التحقق من صحة التوكن باستخدام Firebase Auth REST API:
+    
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=${process.env.FIREBASE_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        oobCode: token,
+        newPassword: newPassword
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(400).json({
+        success: false,
+        message: data.error?.message || "Invalid or expired reset token"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Password has been reset successfully"
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error during password reset",
+      error: error.message 
+    });
+  }
+};
 };
