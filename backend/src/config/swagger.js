@@ -1,5 +1,37 @@
 const swaggerJsdoc = require('swagger-jsdoc');
 
+const trimTrailingSlash = (url) => (url ? String(url).replace(/\/$/, '') : null);
+
+/**
+ * OpenAPI `servers[].url` must be absolute (https://host) or a path like `/`.
+ * A bare hostname (e.g. from env without scheme) is resolved relative to /api-docs/ and breaks requests.
+ */
+const ensureAbsoluteServerUrl = (url) => {
+  if (url == null || url === '') return null;
+  const u = String(url).trim();
+  if (u === '/') return '/';
+  const noTrail = trimTrailingSlash(u) || u;
+  if (/^https?:\/\//i.test(noTrail)) return noTrail;
+  if (noTrail.startsWith('/')) return noTrail;
+  return `https://${noTrail}`;
+};
+
+// Never use localhost in `servers` — hosted Swagger must call the deployed API (Railway).
+// Priority: explicit base URL → Railway-provided vars → same-origin (relative `/`).
+const swaggerServerUrlRaw =
+  trimTrailingSlash(process.env.SWAGGER_SERVER_URL) ||
+  trimTrailingSlash(process.env.PUBLIC_API_URL) ||
+  trimTrailingSlash(process.env.RAILWAY_STATIC_URL) ||
+  (process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${trimTrailingSlash(process.env.RAILWAY_PUBLIC_DOMAIN)}`
+    : null);
+
+const swaggerServerUrl = swaggerServerUrlRaw ? ensureAbsoluteServerUrl(swaggerServerUrlRaw) : null;
+
+const swaggerServers = swaggerServerUrl
+  ? [{ url: swaggerServerUrl, description: 'Railway API' }]
+  : [{ url: '/', description: 'Same host as Swagger UI (set SWAGGER_SERVER_URL for a fixed Railway base)' }];
+
 const options = {
   definition: {
     openapi: '3.0.0',
@@ -8,7 +40,7 @@ const options = {
       version: '1.0.0',
       description: 'Complete API Documentation for Cairo University Housing System',
     },
-    servers: [{ url: 'http://localhost:5000' }],
+    servers: swaggerServers,
     components: {
       securitySchemes: {
         bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }
