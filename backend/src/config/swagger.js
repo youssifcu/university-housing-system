@@ -504,6 +504,185 @@ const options = {
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { 200: { description: 'Deleted successfully' }, 401: { description: 'Unauthorized' }, 403: { description: 'Forbidden' }, 404: { description: 'Not found' }, 500: { description: 'Server error' } }
         }
+      },
+
+      // --- V2 REQUESTS ---
+      '/api/v2/requests/submit': {
+        post: {
+          summary: 'Submit a service request (Student only)',
+          tags: ['V2 Requests'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { type: 'object' }
+              }
+            }
+          },
+          responses: { 201: { description: 'Request submitted' }, 400: { description: 'Bad request' }, 401: { description: 'Unauthorized' } }
+        }
+      },
+      '/api/v2/requests': {
+        get: {
+          summary: 'Get all requests for admin',
+          tags: ['V2 Requests'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Success' }, 401: { description: 'Unauthorized' }, 403: { description: 'Forbidden' } }
+        }
+      },
+      '/api/v2/requests/{requestId}': {
+        get: {
+          summary: 'Get request details',
+          tags: ['V2 Requests'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'requestId', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Success' }, 404: { description: 'Request not found' } }
+        }
+      },
+      '/api/v2/requests/{requestId}/assign': {
+        patch: {
+          summary: 'Assign request to current admin',
+          tags: ['V2 Requests'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'requestId', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Request assigned' }, 403: { description: 'Forbidden' }, 404: { description: 'Request not found' } }
+        }
+      },
+      '/api/v2/requests/{requestId}/message': {
+        patch: {
+          summary: 'Add message to a request',
+          tags: ['V2 Requests'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'requestId', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    message: { type: 'string' }
+                  },
+                  required: ['message']
+                }
+              }
+            }
+          },
+          responses: { 200: { description: 'Message added' }, 400: { description: 'Bad request' }, 404: { description: 'Request not found' } }
+        }
+      },
+      '/api/v2/requests/{requestId}/respond': {
+        patch: {
+          summary: 'Respond to request (Admin only)',
+          tags: ['V2 Requests'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'requestId', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { type: 'object' }
+              }
+            }
+          },
+          responses: { 200: { description: 'Response submitted' }, 403: { description: 'Forbidden' }, 404: { description: 'Request not found' } }
+        }
+      },
+
+      // --- V2 QR / ATTENDANCE / MEALS ---
+      '/api/v2/qr-codes/generate': {
+        post: {
+          summary: 'Generate student QR codes',
+          tags: ['V2 QR'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'QR codes generated' }, 401: { description: 'Unauthorized' }, 403: { description: 'Forbidden' } }
+        }
+      },
+      '/api/v2/qr-codes': {
+        get: {
+          summary: 'Get current student QR codes',
+          tags: ['V2 QR'],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: 'Success' }, 401: { description: 'Unauthorized' }, 403: { description: 'Forbidden' } }
+        }
+      },
+      '/api/v2/attendance/scan': {
+        post: {
+          summary: 'Scan attendance QR (Floor Supervisor only)',
+          tags: ['V2 Attendance'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { type: 'object' }
+              }
+            }
+          },
+          responses: { 200: { description: 'Attendance recorded' }, 401: { description: 'Unauthorized' }, 403: { description: 'Forbidden' } }
+        }
+      },
+      '/api/v2/meals/scan': {
+        post: {
+          summary: 'Scan meal QR (Meal Admin only)',
+          tags: ['V2 Meals'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { type: 'object' }
+              }
+            }
+          },
+          responses: { 200: { description: 'Meal recorded' }, 401: { description: 'Unauthorized' }, 403: { description: 'Forbidden' } }
+        }
+      },
+
+      // --- V2 LEAVE ---
+      '/api/v2/leave/request': {
+        post: {
+          summary: 'Submit leave request',
+          tags: ['V2 Leave'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { type: 'object' }
+              }
+            }
+          },
+          responses: { 201: { description: 'Leave requested' }, 400: { description: 'Bad request' } }
+        }
+      },
+      '/api/v2/leave/{requestId}/approve': {
+        patch: {
+          summary: 'Approve leave request (Supervisor only)',
+          tags: ['V2 Leave'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'requestId', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Leave approved' }, 403: { description: 'Forbidden' }, 404: { description: 'Request not found' } }
+        }
+      },
+      '/api/v2/leave/{studentId}/end': {
+        patch: {
+          summary: 'End student leave (Supervisor only)',
+          tags: ['V2 Leave'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'studentId', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Leave ended' }, 403: { description: 'Forbidden' }, 404: { description: 'Student not found' } }
+        }
+      },
+      '/api/v2/attendance/{studentId}/report': {
+        get: {
+          summary: 'Get attendance report by student',
+          tags: ['V2 Attendance'],
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'studentId', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Success' }, 404: { description: 'Student not found' } }
+        }
       }
     }
   },
