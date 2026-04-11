@@ -1,136 +1,253 @@
+const mongoose = require('mongoose');
 const Report = require('../models/Report');
-const { User, Student } = require('../models/User');
+const { User } = require('../models/User');
 const Notification = require('../models/Notification');
 
-// دالة مساعدة للتحقق من صلاحية الإدارة
-const canManageReports = (role) => [
-  'admin', 
-  'floor_admin', 
-  'supervisor'
-].includes(role);
+// ==========================================
+// Helpers للتنسيق الموحد
+// ==========================================
+const sendSuccess = (res, statusCode, message, data = null) => {
+    return res.status(statusCode).json({
+        success: true,
+        message,
+        ...(data && { data })
+    });
+};
 
-// ================= تقديم بلاغ/شكوى جديدة (Student Only) =================
+const sendError = (res, statusCode, message, errorDetails = null) => {
+    const response = { success: false, message };
+    if (errorDetails && process.env.NODE_ENV === 'development') {
+        response.error = errorDetails;
+    }
+    return res.status(statusCode).json(response);
+};
+
+// القيم المسموحة
+const ALLOWED_REPORT_TYPES = ['maintenance', 'complaint', 'emergency', 'other'];
+const ALLOWED_SEVERITIES = ['low', 'medium', 'high', 'critical'];
+const ALLOWED_STATUSES = ['open', 'in_progress', 'resolved', 'closed'];
+
+// التحقق من صلاحيات الإدارة
+const canManageReports = (role) => ['admin', 'floor_admin', 'supervisor'].includes(role);
+
+// ==========================================
+// POST /api/reports (Student)
+// ==========================================
 exports.createReport = async (req, res) => {
-  try {
-    const { type, description, severity, imageUrl } = req.body;
+    try {
+        const { type, description, severity, imageUrl } = req.body;
+        const studentId = req.userDoc._id;
 
-    if (!type || !description) {
-      return res.status(400).json({ success: false, message: 'Type and description are required' });
+        // التحقق من الحقول المطلوبة
+        if (!type || !description?.trim()) {
+            return sendError(res, 400, 'Type and description are required');
+        }
+
+        if (!ALLOWED_REPORT_TYPES.includes(type)) {
+            return sendError(res, 400, `Invalid report type. Allowed: ${ALLOWED_REPORT_TYPES.join(', ')}`);
+        }
+
+        if (severity && !ALLOWED_SEVERITIES.includes(severity)) {
+            return sendError(res, 400, `Invalid severity. Allowed: ${ALLOWED_SEVERITIES.join(', ')}`);
+        }
+
+        const report = await Report.create({
+            type,
+            description: description.trim(),
+            severity: severity || 'low',
+            imageUrl,
+            studentId,
+            reportedBy: studentId,
+            status: 'open'
+        });
+
+        return sendSuccess(res, 201, 'Report submitted successfully', {
+            id: report._id,
+            status: report.status
+        });
+
+    } catch (error) {
+        console.error('Create Report Error:', error);
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(e => e.message);
+            return sendError(res, 400, 'Validation failed', messages);
+        }
+        return sendError(res, 500, 'Failed to submit report', error.message);
     }
-
-    // بما إننا بنستخدم Discriminators، الـ req.userDoc هو الطالب فعلياً
-    const studentId = req.userDoc._id;
-
-    const report = await Report.create({
-      type, // 'maintenance', 'complaint', 'emergency'
-      description,
-      severity: severity || 'low',
-      imageUrl,
-      studentId: studentId,
-      reportedBy: studentId,
-      status: 'open'
-    });
-
-    res.status(201).json({ 
-      success: true, 
-      id: report._id, 
-      status: report.status 
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to submit report', error: error.message });
-  }
 };
 
-// ================= الحصول على كل البلاغات (Admin & Supervisors Only) =================
+// ==========================================
+// GET /api/reports (Admin/Supervisor)
+// ==========================================
 exports.getAllReports = async (req, res) => {
-  try {
-    if (!canManageReports(req.userDoc.role)) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+    try {
+        if (!canManageReports(req.userDoc.role)) {
+            return sendError(res, 403, 'Access denied');
+        }
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+
+        // فلترة
+        const filter = {};
+        if (req.query.type) filter.type = req.query.type;
+        if (req.query.status) filter.status = req.query.status;
+        if (req.query.severity) filter.severity = req.query.severity;
+        if (req.query.studentId) {
+            if (!mongoose.Types.ObjectId.isValid(req.query.studentId)) {
+                return sendError(res, 400, 'Invalid student ID format');
+            }
+            filter.studentId = req.query.studentId;
+        }
+
+        const [reports, total] = await Promise.all([
+            Report.find(filter)
+                .populate('studentId', 'name studentId assignedRoomId')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Report.countDocuments(filter)
+        ]);
+
+        return sendSuccess(res, 200, 'Reports fetched successfully', {
+            reports,
+            pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+        });
+
+    } catch (error) {
+        console.error('Get All Reports Error:', error);
+        return sendError(res, 500, 'Failed to fetch reports', error.message);
     }
-
-    const reports = await Report.find()
-      .populate('studentId', 'name studentId assignedRoomId')
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({ success: true, count: reports.length, reports });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch reports', error: error.message });
-  }
 };
 
-// ================= تفاصيل بلاغ محدد (Owner or Management) =================
+// ==========================================
+// GET /api/reports/:id
+// ==========================================
 exports.getReportById = async (req, res) => {
-  try {
-    const report = await Report.findById(req.params.id)
-      .populate('studentId', 'name studentId')
-      .populate('reportedBy', 'name role');
+    try {
+        const { id } = req.params;
 
-    if (!report) return res.status(404).json({ success: false, message: 'Report not found' });
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendError(res, 400, 'Invalid report ID format');
+        }
 
-    // التأكد من الملكية: لو طالب، لازم يكون هو اللي مقدم البلاغ
-    const isOwner = report.studentId._id.toString() === req.userDoc._id.toString();
-    const isManagement = canManageReports(req.userDoc.role);
+        const report = await Report.findById(id)
+            .populate('studentId', 'name studentId email phoneNumber')
+            .populate('reportedBy', 'name role')
+            .lean();
 
-    if (!isOwner && !isManagement) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+        if (!report) {
+            return sendError(res, 404, 'Report not found');
+        }
+
+        // صلاحيات الوصول
+        const isOwner = report.studentId._id.toString() === req.userDoc._id.toString();
+        const isManagement = canManageReports(req.userDoc.role);
+
+        if (!isOwner && !isManagement) {
+            return sendError(res, 403, 'Access denied');
+        }
+
+        return sendSuccess(res, 200, 'Report fetched successfully', { report });
+
+    } catch (error) {
+        console.error('Get Report By ID Error:', error);
+        return sendError(res, 500, 'Failed to fetch report', error.message);
     }
-
-    res.status(200).json({ success: true, report });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch report', error: error.message });
-  }
 };
 
-// ================= تحديث حالة البلاغ (Admin & Supervisors) =================
+// ==========================================
+// PATCH /api/reports/:id/status (Admin/Supervisor)
+// ==========================================
 exports.updateReportStatus = async (req, res) => {
-  try {
-    if (!canManageReports(req.userDoc.role)) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+    try {
+        if (!canManageReports(req.userDoc.role)) {
+            return sendError(res, 403, 'Access denied');
+        }
+
+        const { id } = req.params;
+        const { status, comment } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendError(res, 400, 'Invalid report ID format');
+        }
+
+        if (!status || !ALLOWED_STATUSES.includes(status)) {
+            return sendError(res, 400, `Invalid status. Allowed: ${ALLOWED_STATUSES.join(', ')}`);
+        }
+
+        const report = await Report.findById(id);
+        if (!report) {
+            return sendError(res, 404, 'Report not found');
+        }
+
+        // تحديث الحقول
+        report.status = status;
+        report.updatedAt = new Date();
+        if (comment) {
+            report.adminComment = comment.trim();
+        }
+
+        await report.save();
+
+        // إنشاء إشعار للطالب
+        await Notification.create({
+            title: `Report #${report._id.toString().slice(-6)} Updated`,
+            message: `Your ${report.type} report status changed to: ${status}`,
+            targetUser: report.studentId,
+            type: 'info'
+        });
+
+        // إرسال تنبيه فوري عبر Socket.io
+        const io = req.app.get('io');
+        if (io) {
+            io.to(report.studentId.toString()).emit('notification:new', {
+                type: 'report_update',
+                reportId: report._id,
+                status
+            });
+        }
+
+        return sendSuccess(res, 200, `Report status updated to ${status}`, {
+            id: report._id,
+            status: report.status
+        });
+
+    } catch (error) {
+        console.error('Update Report Status Error:', error);
+        return sendError(res, 500, 'Failed to update report', error.message);
     }
-
-    const { status } = req.body; // 'open', 'in_progress', 'resolved', 'closed'
-    if (!status) return res.status(400).json({ success: false, message: 'Status is required' });
-
-    const updated = await Report.findByIdAndUpdate(
-      req.params.id,
-      { $set: { status } },
-      { new: true, runValidators: true }
-    );
-
-    if (!updated) return res.status(404).json({ success: false, message: 'Report not found' });
-
-    // إنشاء إشعار للطالب بتحديث حالة بلاغه
-    await Notification.create({
-      title: `Update on your ${updated.type} report`,
-      message: `The status of your report has been changed to: ${status}`,
-      targetUser: updated.studentId,
-      targetRole: 'student',
-      type: 'info'
-    });
-
-    // إرسال تنبيه لحظي عبر Socket.io (لو مفعل)
-    const io = req.app.get('io');
-    if (io) {
-      io.to(updated.studentId.toString()).emit('notification:new', {
-        title: "Report Updated",
-        status: status
-      });
-    }
-
-    res.status(200).json({ success: true, message: `Report status updated to ${status}` });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to update report', error: error.message });
-  }
 };
 
-// ================= عرض بلاغاتي (Student Only - Mobile) =================
+// ==========================================
+// GET /api/reports/me (Student)
+// ==========================================
 exports.getMyReports = async (req, res) => {
-  try {
-    const reports = await Report.find({ studentId: req.userDoc._id })
-      .sort({ createdAt: -1 });
-    
-    res.status(200).json({ success: true, count: reports.length, reports });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+
+        const filter = { studentId: req.userDoc._id };
+
+        const [reports, total] = await Promise.all([
+            Report.find(filter)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Report.countDocuments(filter)
+        ]);
+
+        return sendSuccess(res, 200, 'Your reports fetched successfully', {
+            reports,
+            pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+        });
+
+    } catch (error) {
+        console.error('Get My Reports Error:', error);
+        return sendError(res, 500, 'Failed to fetch your reports', error.message);
+    }
 };
