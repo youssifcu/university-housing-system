@@ -1,102 +1,184 @@
 const { User, Student } = require('../models/User');
 const Application = require('../models/Application');
 
-// ================= التسجيل (الويب - Sprint 1) =================
+// ==========================================
+// Helpers للتنسيق الموحد
+// ==========================================
+const sendSuccess = (res, statusCode, message, data = null) => {
+    return res.status(statusCode).json({
+        success: true,
+        message,
+        ...(data && { data })
+    });
+};
+
+const sendError = (res, statusCode, message, errorDetails = null) => {
+    const response = { success: false, message };
+    if (errorDetails && process.env.NODE_ENV === 'development') {
+        response.error = errorDetails;
+    }
+    return res.status(statusCode).json(response);
+};
+
+// ==========================================
+// POST /api/auth/register
+// ==========================================
 exports.registerUser = async (req, res) => {
-  try {
-    const { 
-      firebaseUid, email, name, phoneNumber, 
-      studentId, nationalId, universityYear, faculty 
-    } = req.body;
+    try {
+        const { 
+            firebaseUid, email, name, phoneNumber, 
+            studentId, nationalId, universityYear, faculty 
+        } = req.body;
 
-    // 1. التأكد من عدم وجود المستخدم مسبقاً
-    const existingUser = await User.findOne({ $or: [{ email }, { firebaseUid }] });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: "User already exists with this email or UID" });
-    }
+        // 1. التحقق من الحقول المطلوبة
+        const requiredFields = ['firebaseUid', 'email', 'name', 'phoneNumber'];
+        const missingFields = requiredFields.filter(field => !req.body[field]);
+        if (missingFields.length > 0) {
+            return sendError(res, 400, `Missing required fields: ${missingFields.join(', ')}`);
+        }
 
-    // 2. إنشاء الطالب باستخدام الـ Discriminator (student)
-    // لاحظ: الـ housingStatus هتكون 'new_applicant' تلقائياً حسب الموديل بتاعك
-    const newStudent = new Student({
-      firebaseUid,
-      email,
-      name,
-      phoneNumber,
-      role: 'student', // مهمة جداً عشان الـ Discriminator يشتغل
-      studentId,
-      nationalId,
-      universityYear,
-      faculty
-    });
+        // التحقق من صيغة الإيميل بشكل بسيط
+        const emailRegex = /^\S+@\S+\.\S+$/;
+        if (!emailRegex.test(email)) {
+            return sendError(res, 400, 'Invalid email format');
+        }
 
-    await newStudent.save();
+        // 2. التأكد من عدم وجود المستخدم مسبقاً
+        const existingUser = await User.findOne({ 
+            $or: [{ email }, { firebaseUid }] 
+        }).select('_id').lean();
 
-    res.status(201).json({
-      success: true,
-      message: "Registration successful. Please submit your housing application documents.",
-      userId: newStudent._id
-    });
+        if (existingUser) {
+            return sendError(res, 400, 'User already exists with this email or Firebase UID');
+        }
 
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+        // 3. إنشاء الطالب
+        const studentData = {
+            firebaseUid,
+            email,
+            name,
+            phoneNumber,
+            role: 'student',
+            ...(studentId && { studentId }),
+            ...(nationalId && { nationalId }),
+            ...(universityYear && { universityYear }),
+            ...(faculty && { faculty })
+        };
 
-// ================= تسجيل الدخول (الموبايل والويب) =================
-exports.loginUser = async (req, res) => {
-  try {
-    const { firebaseUid } = req.body;
+        const newStudent = new Student(studentData);
+        await newStudent.save();
 
-    const user = await User.findOne({ firebaseUid });
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found. Please register first." });
-    }
-
-    // --- منطق الـ Sprint 1: منع الطالب من الدخول لو لسه مخدش Approved ---
-    if (user.role === 'student') {
-      if (user.housingStatus === 'new_applicant') {
-        return res.status(403).json({
-          success: false,
-          message: "Login denied: Your application is still pending approval from the admin."
+        return sendSuccess(res, 201, 'Registration successful. Please submit your housing application.', {
+            userId: newStudent._id
         });
-      }
-      
-      if (user.housingStatus === 'banned') {
-        return res.status(403).json({ success: false, message: "This account has been banned." });
-      }
+
+    } catch (error) {
+        console.error('Register Error:', error);
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(e => e.message);
+            return sendError(res, 400, 'Validation failed', messages);
+        }
+        if (error.code === 11000) {
+            const field = Object.keys(error.keyPattern)[0];
+            return sendError(res, 400, `${field} already exists`);
+        }
+        return sendError(res, 500, 'Registration failed', error.message);
     }
-
-    // تحديث وقت الدخول
-    user.lastLogin = new Date();
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Login successful",
-      user: {
-        id: user._id,
-        role: user.role,
-        name: user.name,
-        email: user.email,
-        housingStatus: user.role === 'student' ? user.housingStatus : undefined
-      }
-    });
-
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
 };
 
-// ================= عرض البروفايل (الموبايل - Sprint 2) =================
-exports.getProfile = async (req, res) => {
-  try {
-    // req.userDoc بييجي من الـ authMiddleware اللي بيعمل verify للـ token
-    const user = await User.findById(req.userDoc._id);
-    
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+// ==========================================
+// POST /api/auth/login
+// ==========================================
+exports.loginUser = async (req, res) => {
+    try {
+        const { firebaseUid } = req.body;
 
-    res.status(200).json({ success: true, data: user });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+        if (!firebaseUid) {
+            return sendError(res, 400, 'Firebase UID is required');
+        }
+
+        // 1. البحث عن المستخدم
+        const user = await User.findOne({ firebaseUid })
+            .select('_id role name email housingStatus lastLogin')
+            .exec();
+
+        if (!user) {
+            return sendError(res, 404, 'User not found. Please register first.');
+        }
+
+        // 2. التحقق من صلاحية الدخول للطلاب
+        if (user.role === 'student') {
+            const blockedStatuses = ['new_applicant', 'banned', 'suspended'];
+            if (blockedStatuses.includes(user.housingStatus)) {
+                const messages = {
+                    'new_applicant': 'Your application is still pending approval.',
+                    'banned': 'This account has been banned.',
+                    'suspended': 'Your account is currently suspended.'
+                };
+                return sendError(res, 403, messages[user.housingStatus] || 'Login denied');
+            }
+        }
+
+        // 3. تحديث آخر دخول
+        user.lastLogin = new Date();
+        await user.save({ validateBeforeSave: false });
+
+        // 4. بناء بيانات المستخدم الآمنة للإرسال
+        const userData = {
+            id: user._id,
+            role: user.role,
+            name: user.name,
+            email: user.email
+        };
+
+        if (user.role === 'student') {
+            userData.housingStatus = user.housingStatus;
+        }
+
+        return sendSuccess(res, 200, 'Login successful', { user: userData });
+
+    } catch (error) {
+        console.error('Login Error:', error);
+        return sendError(res, 500, 'Login failed', error.message);
+    }
+};
+
+// ==========================================
+// GET /api/auth/profile
+// ==========================================
+exports.getProfile = async (req, res) => {
+    try {
+        // req.userDoc موجود من middleware
+        const user = req.userDoc;
+
+        // الحقول الآمنة للإرسال حسب الدور
+        let profileData = {
+            id: user._id,
+            role: user.role,
+            name: user.name,
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            createdAt: user.createdAt
+        };
+
+        if (user.role === 'student') {
+            profileData = {
+                ...profileData,
+                studentId: user.studentId,
+                nationalId: user.nationalId,
+                universityYear: user.universityYear,
+                faculty: user.faculty,
+                housingStatus: user.housingStatus,
+                assignedRoomId: user.assignedRoomId,
+                qrCode: user.qrCode,
+                applicationId: user.applicationId
+            };
+        }
+
+        return sendSuccess(res, 200, 'Profile fetched successfully', { user: profileData });
+
+    } catch (error) {
+        console.error('Get Profile Error:', error);
+        return sendError(res, 500, 'Failed to fetch profile', error.message);
+    }
 };
