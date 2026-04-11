@@ -39,7 +39,7 @@ exports.getAllRooms = async (req, res) => {
             // الطالب يشوف الغرف المتاحة فقط (فيها سرير فاضي)
             filter = {
                 status: { $in: ['available', 'full'] }, // ممكن full لو فيها سرير واحد بس
-                $expr: { $lt: ['$currentOccupancy', '$capacity'] }
+                $where: 'this.currentOccupants.length < this.capacity'
             };
         }
 
@@ -125,6 +125,12 @@ exports.updateRoom = async (req, res) => {
         }
         if (updates.status && !['available', 'full', 'maintenance'].includes(updates.status)) {
             return sendError(res, 400, 'Invalid status value');
+        }
+        if (updates.status === 'full') {
+            const room = await Room.findById(id);
+            if (room.currentOccupants.length < room.capacity) {
+                return sendError(res, 400, 'Cannot mark room as full - has available seats');
+            }
         }
 
         const updatedRoom = await Room.findByIdAndUpdate(

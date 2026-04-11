@@ -269,12 +269,13 @@ exports.getDashboardStats = async (req, res) => {
             Room.countDocuments(),
             Room.countDocuments({ status: 'available' }),
             Application.countDocuments({ status: 'pending' }),
-            MealBooking.countDocuments({ 
-                date: { 
-                    $gte: new Date(new Date().setHours(0,0,0,0)),
-                    $lt: new Date(new Date().setHours(23,59,59,999))
-                }
-            }),
+            (() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                return MealBooking.countDocuments({ date: { $gte: today, $lt: tomorrow } });
+            })(),
             Payment.countDocuments({ status: 'pending' })
         ]);
 

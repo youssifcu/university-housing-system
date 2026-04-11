@@ -115,6 +115,10 @@ exports.createPayment = async (req, res) => {
             return sendError(res, 400, `Invalid payment method. Allowed: ${ALLOWED_METHODS.join(', ')}`);
         }
 
+        if (req.userDoc.housingStatus !== 'active') {
+            return sendError(res, 403, 'Only active housing students can create payments');
+        }
+
         const paymentData = {
             studentId,
             amount,

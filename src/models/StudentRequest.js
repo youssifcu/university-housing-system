@@ -28,6 +28,18 @@ const studentRequestSchema = new mongoose.Schema(
             trim: true,
             maxlength: [1000, 'Description cannot exceed 1000 characters']
         },
+        startDate: {
+            type: Date,
+            required: function() {
+                return this.requestType === 'leave_request';
+            }
+        },
+        endDate: {
+            type: Date,
+            required: function() {
+                return this.requestType === 'leave_request';
+            }
+        },
         priority: {
             type: String,
             enum: {

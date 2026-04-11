@@ -96,7 +96,20 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
 // ==========================================
 // 3. Swagger Documentation
 // ==========================================
+// Serve complete swagger JSON
+const swaggerJson = require('../swagger-complete.json');
+app.get('/api-docs/swagger.json', (req, res) => {
+    res.json(swaggerJson);
+});
+
+// Serve Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    swaggerUrl: '/api-docs/swagger.json'
+}));
+
+// Alternative Swagger UI route using complete spec
+app.use('/api-docs-complete', swaggerUi.serve, swaggerUi.setup(swaggerJson, {
     customCss: '.swagger-ui .topbar { display: none }'
 }));
 

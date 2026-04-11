@@ -6,6 +6,7 @@ const {
     isFloorAdmin,
     isMealAdmin,
     isAdminOrSupervisor,
+    isAdminOrSupervisorOrFloorAdmin,
     checkStudentApproval
 } = require('./authMiddleware');
 
@@ -17,5 +18,7 @@ module.exports = {
     isFloorAdmin,
     isMealAdmin,
     isAdminOrSupervisor,
+    isAdminOrSupervisorOrFloorAdmin,
     checkStudentApproval
 };
+

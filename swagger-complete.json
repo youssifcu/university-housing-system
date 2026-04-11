@@ -1,0 +1,1924 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "🏢 University Housing System API",
+    "version": "2.0.0",
+    "description": "Complete API documentation for University Housing System with all endpoints",
+    "contact": {
+      "name": "Development Team",
+      "email": "support@housing.edu.eg"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Local Development"
+    },
+    {
+      "url": "https://api.housing.edu.eg",
+      "description": "Production"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Authentication & User Profile"
+    },
+    {
+      "name": "Applications",
+      "description": "Housing Application Management"
+    },
+    {
+      "name": "Users",
+      "description": "User Management"
+    },
+    {
+      "name": "Buildings",
+      "description": "Building Management"
+    },
+    {
+      "name": "Rooms",
+      "description": "Room Management"
+    },
+    {
+      "name": "Housing Requests",
+      "description": "Transfer, Leave, Vacate Requests"
+    },
+    {
+      "name": "Meals",
+      "description": "Meal Menu & Booking"
+    },
+    {
+      "name": "Attendance",
+      "description": "Attendance & QR Codes"
+    },
+    {
+      "name": "Reports",
+      "description": "Complaints & Maintenance"
+    },
+    {
+      "name": "Payments",
+      "description": "Payment Management"
+    },
+    {
+      "name": "Stats",
+      "description": "Dashboard & Analytics"
+    },
+    {
+      "name": "Announcements",
+      "description": "System Announcements"
+    },
+    {
+      "name": "Notifications",
+      "description": "User Notifications"
+    },
+    {
+      "name": "QR Codes",
+      "description": "QR Code Generation & Scanning"
+    },
+    {
+      "name": "Students",
+      "description": "Student Profiles"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Firebase ID Token"
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "studentId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["student", "admin", "supervisor", "floor_admin", "meal_admin"]
+          },
+          "phoneNumber": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "string",
+            "enum": ["male", "female"]
+          },
+          "housingStatus": {
+            "type": "string",
+            "enum": ["new_applicant", "active", "suspended", "banned", "graduated"]
+          },
+          "assignedRoomId": {
+            "type": "string"
+          },
+          "faculty": {
+            "type": "string"
+          },
+          "universityYear": {
+            "type": "number"
+          }
+        }
+      },
+      "Application": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "nationalId": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "string",
+            "enum": ["male", "female"]
+          },
+          "college": {
+            "type": "string"
+          },
+          "academicYear": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "approved", "rejected", "needs_update"]
+          }
+        }
+      },
+      "Room": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "roomNumber": {
+            "type": "string"
+          },
+          "buildingId": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "number"
+          },
+          "currentOccupants": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": ["available", "full", "maintenance", "reserved"]
+          },
+          "floorNumber": {
+            "type": "number"
+          },
+          "amenities": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "Building": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "string",
+            "enum": ["male", "female", "mixed"]
+          },
+          "floorCount": {
+            "type": "number"
+          },
+          "roomsPerFloor": {
+            "type": "number"
+          },
+          "location": {
+            "type": "string"
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "pages": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Register New User",
+        "description": "Register a new student account",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "name"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "example": "student@university.edu"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "Password123!"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "Ahmed Mohamed"
+                  },
+                  "phoneNumber": {
+                    "type": "string"
+                  },
+                  "gender": {
+                    "type": "string",
+                    "enum": ["male", "female"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login User",
+        "description": "Login with email and password",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/api/auth/profile": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get User Profile",
+        "description": "Retrieve authenticated user's profile",
+        "responses": {
+          "200": {
+            "description": "Profile retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/SuccessResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/User"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Auth"],
+        "summary": "Update User Profile",
+        "description": "Update authenticated user's profile information",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "phoneNumber": {
+                    "type": "string"
+                  },
+                  "profilePicture": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully"
+          }
+        }
+      }
+    },
+    "/api/auth/password": {
+      "patch": {
+        "tags": ["Auth"],
+        "summary": "Change Password",
+        "description": "Change user's password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["oldPassword", "newPassword"],
+                "properties": {
+                  "oldPassword": {
+                    "type": "string"
+                  },
+                  "newPassword": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed successfully"
+          }
+        }
+      }
+    },
+    "/api/applications": {
+      "post": {
+        "tags": ["Applications"],
+        "summary": "Submit Housing Application",
+        "description": "Submit a new housing application (Student only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["fullName", "nationalId", "gender", "college", "academicYear"],
+                "properties": {
+                  "fullName": {
+                    "type": "string"
+                  },
+                  "nationalId": {
+                    "type": "string"
+                  },
+                  "gender": {
+                    "type": "string",
+                    "enum": ["male", "female"]
+                  },
+                  "college": {
+                    "type": "string"
+                  },
+                  "academicYear": {
+                    "type": "number"
+                  },
+                  "gpa": {
+                    "type": "number"
+                  },
+                  "nationalIdCard": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "personalPhoto": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "medicalReport": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Application submitted successfully"
+          },
+          "400": {
+            "description": "Validation error or active application already exists"
+          }
+        }
+      },
+      "get": {
+        "tags": ["Applications"],
+        "summary": "Get All Applications",
+        "description": "Retrieve all applications (Admin/Supervisor only)",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "default": 20
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "approved", "rejected", "needs_update"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Applications retrieved"
+          }
+        }
+      }
+    },
+    "/api/applications/my": {
+      "get": {
+        "tags": ["Applications"],
+        "summary": "Get My Application",
+        "description": "Get the current user's application",
+        "responses": {
+          "200": {
+            "description": "Application retrieved"
+          }
+        }
+      }
+    },
+    "/api/applications/{id}": {
+      "get": {
+        "tags": ["Applications"],
+        "summary": "Get Application by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Application retrieved"
+          },
+          "404": {
+            "description": "Application not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Applications"],
+        "summary": "Delete Application",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Application deleted"
+          }
+        }
+      }
+    },
+    "/api/applications/{id}/approve": {
+      "patch": {
+        "tags": ["Applications"],
+        "summary": "Approve Application",
+        "description": "Approve a housing application and assign room (Admin only)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "assignedRoomId": {
+                    "type": "string"
+                  },
+                  "adminComment": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Application approved"
+          }
+        }
+      }
+    },
+    "/api/applications/{id}/reject": {
+      "patch": {
+        "tags": ["Applications"],
+        "summary": "Reject Application",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Application rejected"
+          }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get All Users",
+        "description": "List all users with pagination and filtering (Admin only)",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "default": 20
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["student", "admin", "supervisor"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users retrieved"
+          }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get User by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User retrieved"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update User",
+        "description": "Update user information (Admin only)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "phoneNumber": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "housingStatus": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Delete User",
+        "description": "Delete a user and their data (Admin only)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User deleted"
+          }
+        }
+      }
+    },
+    "/api/buildings": {
+      "get": {
+        "tags": ["Buildings"],
+        "summary": "Get All Buildings",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Buildings retrieved"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Buildings"],
+        "summary": "Create Building",
+        "description": "Create a new building (Admin only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "gender"],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "gender": {
+                    "type": "string",
+                    "enum": ["male", "female"]
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "floorCount": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Building created"
+          }
+        }
+      }
+    },
+    "/api/buildings/{id}": {
+      "get": {
+        "tags": ["Buildings"],
+        "summary": "Get Building by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Building retrieved"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Buildings"],
+        "summary": "Update Building",
+        "description": "Update building information (Admin only)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Building updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Buildings"],
+        "summary": "Delete Building",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Building deleted"
+          }
+        }
+      }
+    },
+    "/api/rooms": {
+      "get": {
+        "tags": ["Rooms"],
+        "summary": "Get All Rooms",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "buildingId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rooms retrieved"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Rooms"],
+        "summary": "Create Room",
+        "description": "Create a new room (Admin only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["roomNumber", "buildingId", "capacity"],
+                "properties": {
+                  "roomNumber": {
+                    "type": "string"
+                  },
+                  "buildingId": {
+                    "type": "string"
+                  },
+                  "floorNumber": {
+                    "type": "number"
+                  },
+                  "capacity": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Room created"
+          }
+        }
+      }
+    },
+    "/api/rooms/available": {
+      "get": {
+        "tags": ["Rooms"],
+        "summary": "Get Available Rooms",
+        "description": "Get list of available rooms for assignment",
+        "parameters": [
+          {
+            "name": "buildingId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Available rooms retrieved"
+          }
+        }
+      }
+    },
+    "/api/rooms/{id}": {
+      "get": {
+        "tags": ["Rooms"],
+        "summary": "Get Room by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Room retrieved"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Rooms"],
+        "summary": "Update Room",
+        "description": "Update room information (Admin only)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "capacity": {
+                    "type": "number"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "amenities": {
+                    "type": "array"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Room updated"
+          }
+        }
+      }
+    },
+    "/api/housing-requests": {
+      "post": {
+        "tags": ["Housing Requests"],
+        "summary": "Submit Housing Request",
+        "description": "Submit transfer, leave, vacate, or maintenance request (Student only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["transfer", "leave", "vacate", "maintenance"]
+                  },
+                  "toRoomId": {
+                    "type": "string",
+                    "description": "Required for transfer requests"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Required for leave/vacate requests"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Required for leave/vacate requests"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Request submitted successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      },
+      "get": {
+        "tags": ["Housing Requests"],
+        "summary": "Get All Requests",
+        "description": "Retrieve all housing requests (Admin only)",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Requests retrieved"
+          }
+        }
+      }
+    },
+    "/api/housing-requests/{id}": {
+      "get": {
+        "tags": ["Housing Requests"],
+        "summary": "Get Request by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request retrieved"
+          }
+        }
+      }
+    },
+    "/api/housing-requests/{id}/status": {
+      "patch": {
+        "tags": ["Housing Requests"],
+        "summary": "Update Request Status",
+        "description": "Approve or reject housing request (Admin only)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["approved", "rejected", "cancelled"]
+                  },
+                  "adminComment": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request status updated"
+          }
+        }
+      }
+    },
+    "/api/meals": {
+      "get": {
+        "tags": ["Meals"],
+        "summary": "Get Meals",
+        "description": "Retrieve meal menu for a specific date",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["breakfast", "lunch", "dinner"]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Meals retrieved"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Meals"],
+        "summary": "Create Meal",
+        "description": "Add new meal to menu (Admin/Meal Admin only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "type", "date"],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["breakfast", "lunch", "dinner"]
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "nutritionInfo": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Meal created"
+          }
+        }
+      }
+    },
+    "/api/meals/book": {
+      "post": {
+        "tags": ["Meals"],
+        "summary": "Book Meal",
+        "description": "Book a meal for the current day (Student only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["mealId"],
+                "properties": {
+                  "mealId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Meal booked successfully"
+          }
+        }
+      }
+    },
+    "/api/meals/{id}/cancel": {
+      "post": {
+        "tags": ["Meals"],
+        "summary": "Cancel Meal Booking",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Meal booking cancelled"
+          }
+        }
+      }
+    },
+    "/api/attendance/checkin": {
+      "post": {
+        "tags": ["Attendance"],
+        "summary": "Check In",
+        "description": "Check in using QR code (Student)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["qrData"],
+                "properties": {
+                  "qrData": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Check in successful"
+          }
+        }
+      }
+    },
+    "/api/attendance/checkout": {
+      "post": {
+        "tags": ["Attendance"],
+        "summary": "Check Out",
+        "description": "Check out using QR code (Student)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["qrData"],
+                "properties": {
+                  "qrData": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Check out successful"
+          }
+        }
+      }
+    },
+    "/api/attendance/my": {
+      "get": {
+        "tags": ["Attendance"],
+        "summary": "Get My Attendance",
+        "description": "Get attendance records for current student",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attendance retrieved"
+          }
+        }
+      }
+    },
+    "/api/reports": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Get All Reports",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reports retrieved"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Reports"],
+        "summary": "Submit Report",
+        "description": "Submit a complaint or maintenance report (Student)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["type", "title", "description"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["complaint", "maintenance", "other"]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Report submitted"
+          }
+        }
+      }
+    },
+    "/api/reports/{id}": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Get Report by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Report retrieved"
+          }
+        }
+      }
+    },
+    "/api/payments": {
+      "get": {
+        "tags": ["Payments"],
+        "summary": "Get All Payments",
+        "description": "Get payments list (Admin only)",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payments retrieved"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Create Payment",
+        "description": "Create a new payment (Student only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["amount", "paymentMethod"],
+                "properties": {
+                  "amount": {
+                    "type": "number"
+                  },
+                  "paymentMethod": {
+                    "type": "string",
+                    "enum": ["cash", "card", "bank_transfer", "online"]
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Payment created"
+          }
+        }
+      }
+    },
+    "/api/payments/my": {
+      "get": {
+        "tags": ["Payments"],
+        "summary": "Get My Payments",
+        "description": "Get payments for current student",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payments retrieved"
+          }
+        }
+      }
+    },
+    "/api/payments/{id}": {
+      "get": {
+        "tags": ["Payments"],
+        "summary": "Get Payment by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment retrieved"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Payments"],
+        "summary": "Update Payment",
+        "description": "Update payment status (Admin only)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment updated"
+          }
+        }
+      }
+    },
+    "/api/stats/dashboard": {
+      "get": {
+        "tags": ["Stats"],
+        "summary": "Get Dashboard Stats",
+        "description": "Get quick statistics for dashboard (Admin/Supervisor)",
+        "responses": {
+          "200": {
+            "description": "Dashboard statistics retrieved"
+          }
+        }
+      }
+    },
+    "/api/stats/students-by-college": {
+      "get": {
+        "tags": ["Stats"],
+        "summary": "Get Students by College",
+        "responses": {
+          "200": {
+            "description": "Statistics retrieved"
+          }
+        }
+      }
+    },
+    "/api/stats/students-by-grade": {
+      "get": {
+        "tags": ["Stats"],
+        "summary": "Get Students by Grade",
+        "responses": {
+          "200": {
+            "description": "Statistics retrieved"
+          }
+        }
+      }
+    },
+    "/api/stats/rooms": {
+      "get": {
+        "tags": ["Stats"],
+        "summary": "Get Room Statistics",
+        "responses": {
+          "200": {
+            "description": "Room statistics retrieved"
+          }
+        }
+      }
+    },
+    "/api/stats/buildings-availability": {
+      "get": {
+        "tags": ["Stats"],
+        "summary": "Get Buildings Availability",
+        "responses": {
+          "200": {
+            "description": "Building availability stats retrieved"
+          }
+        }
+      }
+    },
+    "/api/stats/meals": {
+      "get": {
+        "tags": ["Stats"],
+        "summary": "Get Meals Statistics",
+        "responses": {
+          "200": {
+            "description": "Meal statistics retrieved"
+          }
+        }
+      }
+    },
+    "/api/stats/payments": {
+      "get": {
+        "tags": ["Stats"],
+        "summary": "Get Payments Statistics",
+        "responses": {
+          "200": {
+            "description": "Payment statistics retrieved"
+          }
+        }
+      }
+    },
+    "/api/announcements": {
+      "get": {
+        "tags": ["Announcements"],
+        "summary": "Get Announcements",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Announcements retrieved"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Announcements"],
+        "summary": "Create Announcement",
+        "description": "Create announcement (Admin only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "content"],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Announcement created"
+          }
+        }
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Get My Notifications",
+        "responses": {
+          "200": {
+            "description": "Notifications retrieved"
+          }
+        }
+      }
+    },
+    "/api/students/me": {
+      "get": {
+        "tags": ["Students"],
+        "summary": "Get My Student Profile",
+        "responses": {
+          "200": {
+            "description": "Student profile retrieved"
+          }
+        }
+      }
+    },
+    "/api/students/{id}/qr": {
+      "get": {
+        "tags": ["QR Codes"],
+        "summary": "Get Student QR Code",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "QR code retrieved"
+          }
+        }
+      }
+    },
+    "/api/qr/attendance": {
+      "post": {
+        "tags": ["QR Codes"],
+        "summary": "Scan Attendance QR",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "qrData": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "QR scanned successfully"
+          }
+        }
+      }
+    }
+  }
+}

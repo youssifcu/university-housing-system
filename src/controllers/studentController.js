@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
-const Student = require('../models/Student');
 const { User } = require('../models/User');
+const Attendance = require('../models/Attendance');
 const HousingRequest = require('../models/HousingRequest');
 const MealBooking = require('../models/MealBooking');
+const StudentRequest = require('../models/StudentRequest');
 const QRCode = require('qrcode');
 
 // ==========================================
@@ -33,20 +34,19 @@ exports.getAllStudents = async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
 
-        const filter = {};
+        const filter = { role: 'student' };
         if (req.query.housingStatus) filter.housingStatus = req.query.housingStatus;
         if (req.query.faculty) filter.faculty = req.query.faculty;
-        if (req.query.roomId) filter.roomId = req.query.roomId;
+        if (req.query.roomId) filter.assignedRoomId = req.query.roomId;
 
         const [students, total] = await Promise.all([
-            Student.find(filter)
-                .populate('userId', 'name email')
-                .populate('roomId', 'roomNumber floorNumber buildingId')
+            User.find(filter)
+                .populate('assignedRoomId', 'roomNumber floorNumber buildingId')
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit)
                 .lean(),
-            Student.countDocuments(filter)
+            User.countDocuments(filter)
         ]);
 
         return sendSuccess(res, 200, 'Students fetched successfully', {
@@ -69,12 +69,8 @@ exports.getStudentById = async (req, res) => {
             return sendError(res, 400, 'Invalid student ID format');
         }
 
-        const student = await Student.findById(id)
-            .populate('userId', 'name email')
-            .populate({
-                path: 'roomId',
-                populate: { path: 'buildingId', select: 'name gender' }
-            })
+        const student = await User.findOne({ _id: id, role: 'student' })
+            .populate('assignedRoomId', 'roomNumber floorNumber buildingId')
             .lean();
 
         if (!student) {
@@ -93,9 +89,9 @@ exports.getStudentById = async (req, res) => {
 // ==========================================
 exports.getMyProfile = async (req, res) => {
     try {
-        const student = await Student.findOne({ userId: req.userDoc._id })
+        const student = await User.findOne({ _id: req.userDoc._id, role: 'student' })
             .populate({
-                path: 'roomId',
+                path: 'assignedRoomId',
                 populate: {
                     path: 'buildingId',
                     select: 'name supervisorId'
@@ -109,14 +105,14 @@ exports.getMyProfile = async (req, res) => {
 
         // التحقق من انتهاء الإجازة تلقائيًا
         if (student.housingStatus === 'suspended') {
-            const leaveEnded = await HousingRequest.exists({
+            const leaveEnded = await StudentRequest.exists({
                 studentId: student._id,
-                type: 'leave',
+                requestType: 'leave_request',
                 status: 'approved',
                 endDate: { $lt: new Date() }
             });
             if (leaveEnded) {
-                await Student.findByIdAndUpdate(student._id, { housingStatus: 'active' });
+                await User.findByIdAndUpdate(student._id, { housingStatus: 'active' });
                 student.housingStatus = 'active';
             }
         }
@@ -140,8 +136,8 @@ exports.getMyProfile = async (req, res) => {
         // دمج بيانات المبنى والغرفة بشكل واضح
         const responseData = {
             ...student,
-            building: student.roomId?.buildingId || null,
-            room: student.roomId,
+            building: student.assignedRoomId?.buildingId || null,
+            room: student.assignedRoomId,
             mealBalance
         };
 
@@ -157,7 +153,7 @@ exports.getMyProfile = async (req, res) => {
 // ==========================================
 exports.getMyQRCode = async (req, res) => {
     try {
-        const student = await Student.findOne({ userId: req.userDoc._id }).select('qrCode').lean();
+        const student = await User.findOne({ _id: req.userDoc._id, role: 'student' }).select('qrCode').lean();
         if (!student) {
             return sendError(res, 404, 'Student record not found');
         }
@@ -190,7 +186,7 @@ exports.updateStudent = async (req, res) => {
         // الحقول المسموح بتحديثها
         const allowedUpdates = [
             'nationalId', 'universityYear', 'faculty', 'department',
-            'housingStatus', 'roomId', 'leaveStatus'
+            'housingStatus', 'assignedRoomId', 'leaveStatus'
         ];
         const updates = {};
         allowedUpdates.forEach(field => {
@@ -203,8 +199,8 @@ exports.updateStudent = async (req, res) => {
             return sendError(res, 400, 'No valid fields provided for update');
         }
 
-        const student = await Student.findByIdAndUpdate(
-            id,
+        const student = await User.findOneAndUpdate(
+            { _id: id, role: 'student' },
             { $set: updates },
             { new: true, runValidators: true }
         ).lean();
@@ -229,26 +225,26 @@ exports.updateStudent = async (req, res) => {
 // ==========================================
 exports.generateMyQRCode = async (req, res) => {
     try {
-        const student = await Student.findOne({ userId: req.userDoc._id });
+        const student = await User.findOne({ _id: req.userDoc._id, role: 'student' });
         if (!student) {
             return sendError(res, 404, 'Student record not found');
         }
 
-        // إنشاء سلسلة فريدة للـ QR
+        // إنشاء سلسلة فريدة للـ QR لكل نوع
         const uniqueId = student.universityId || student.nationalId || student._id.toString();
         const timestamp = Date.now().toString(36);
-        const random = Math.floor(Math.random() * 100000);
-        const qrString = `STU-${uniqueId}-${timestamp}-${random}`;
+        const attendanceCode = `ATT-${uniqueId}-${timestamp}-${Math.floor(Math.random() * 100000)}`;
+        const mealCode = `MEAL-${uniqueId}-${timestamp}-${Math.floor(Math.random() * 100000)}`;
 
-        student.qrCode = qrString;
+        student.qrCode = {
+            attendanceCode,
+            mealCode,
+            generatedAt: new Date()
+        };
         await student.save();
 
-        // اختياري: توليد صورة QR كـ DataURL وتخزينها
-        const qrImage = await QRCode.toDataURL(qrString);
-
         return sendSuccess(res, 200, 'QR code generated successfully', {
-            qrCode: qrString,
-            qrImage
+            qrCode: student.qrCode
         });
     } catch (error) {
         console.error('Generate QR Code Error:', error);
@@ -266,7 +262,13 @@ exports.validateQRCode = async (req, res) => {
             return sendError(res, 400, 'QR code string is required');
         }
 
-        const student = await Student.findOne({ qrCode: qrCode.trim() })
+        const student = await User.findOne({
+            role: 'student',
+            $or: [
+                { 'qrCode.attendanceCode': qrCode.trim() },
+                { 'qrCode.mealCode': qrCode.trim() }
+            ]
+        })
             .select('_id userId housingStatus')
             .lean();
 
@@ -318,7 +320,7 @@ exports.requestLeave = async (req, res) => {
         const existingRequest = await StudentRequest.findOne({
             studentId,
             requestType: 'leave_request',
-            status: { $in: ['submitted', 'under_review'] }
+            status: { $in: ['submitted', 'in_review'] }
         }).select('_id').lean();
 
         if (existingRequest) {
@@ -333,7 +335,9 @@ exports.requestLeave = async (req, res) => {
             description: leaveReason.trim(),
             requestedAdminRole: 'supervisor',
             priority: 'high',
-            status: 'submitted'
+            status: 'submitted',
+            startDate: start,
+            endDate: end
         });
 
         await leaveRequest.save();
@@ -371,22 +375,20 @@ exports.approveLeave = async (req, res) => {
             return sendError(res, 404, 'Leave request not found');
         }
 
-        if (leaveRequest.status !== 'submitted' && leaveRequest.status !== 'under_review') {
+        if (leaveRequest.status !== 'submitted' && leaveRequest.status !== 'in_review') {
             await session.abortTransaction();
             session.endSession();
             return sendError(res, 400, `Request is already ${leaveRequest.status}`);
         }
 
-        // 2. استخراج التواريخ من العنوان
-        const titleMatch = leaveRequest.title.match(/(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})/);
-        if (!titleMatch) {
+        const startDate = leaveRequest.startDate;
+        const endDate = leaveRequest.endDate;
+
+        if (!startDate || !endDate) {
             await session.abortTransaction();
             session.endSession();
-            return sendError(res, 400, 'Could not parse dates from request title');
+            return sendError(res, 400, 'Leave request is missing start or end date');
         }
-
-        const startDate = new Date(titleMatch[1]);
-        const endDate = new Date(titleMatch[2]);
 
         // 3. تحديث الطالب (إضافة حالة الإجازة)
         const student = await User.findOneAndUpdate(
@@ -493,11 +495,11 @@ exports.endLeave = async (req, res) => {
 exports.getAttendanceReport = async (req, res) => {
     try {
         // تحديد الطالب: إما المحدد في الرابط أو الطالب الحالي
-        const targetStudentId = req.params.studentId || req.userDoc._id;
-        const isAdmin = req.userDoc.role === 'admin';
+        const targetStudentId = req.params.studentId || req.userDoc._id.toString();
+        const isAdminOrSupervisor = ['admin', 'supervisor'].includes(req.userDoc.role);
 
-        // صلاحيات: الأدمن يقدر يشوف أي طالب، الطالب يشوف نفسه فقط
-        if (!isAdmin && targetStudentId !== req.userDoc._id.toString()) {
+        // صلاحيات: الأدمن/المشرف يقدروا يشوفوا أي طالب، الطالب يشوف نفسه فقط
+        if (!isAdminOrSupervisor && targetStudentId !== req.userDoc._id.toString()) {
             return sendError(res, 403, 'You are not authorized to view this report');
         }
 

@@ -35,8 +35,8 @@ exports.submitRequest = async (req, res) => {
         const { type, toRoomId, reason, startDate, endDate } = req.body;
 
         // 1. التحقق من وجود الطالب في غرفة (إلا إذا كان الطلب Maintenance)
-        if (!req.userDoc.assignedRoomId && type !== 'maintenance') {
-            return sendError(res, 400, 'You must be assigned to a room to submit this request');
+        if (!req.userDoc.assignedRoomId) {
+            return sendError(res, 400, 'You must be assigned to a room to submit a request');
         }
 
         // 2. التحقق من صحة نوع الطلب

@@ -52,7 +52,7 @@ exports.requestLeave = async (req, res) => {
         const existingRequest = await StudentRequest.findOne({
             studentId,
             requestType: 'leave_request',
-            status: { $in: ['submitted', 'under_review'] }
+            status: { $in: ['submitted', 'in_review'] }
         }).select('_id').lean();
 
         if (existingRequest) {
@@ -67,7 +67,9 @@ exports.requestLeave = async (req, res) => {
             description: leaveReason.trim(),
             requestedAdminRole: 'supervisor',
             priority: 'high',
-            status: 'submitted'
+            status: 'submitted',
+            startDate: start,
+            endDate: end
         });
 
         await leaveRequest.save();
@@ -105,22 +107,20 @@ exports.approveLeave = async (req, res) => {
             return sendError(res, 404, 'Leave request not found');
         }
 
-        if (leaveRequest.status !== 'submitted' && leaveRequest.status !== 'under_review') {
+        if (leaveRequest.status !== 'submitted' && leaveRequest.status !== 'in_review') {
             await session.abortTransaction();
             session.endSession();
             return sendError(res, 400, `Request is already ${leaveRequest.status}`);
         }
 
-        // 2. استخراج التواريخ من العنوان
-        const titleMatch = leaveRequest.title.match(/(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})/);
-        if (!titleMatch) {
+        const startDate = leaveRequest.startDate;
+        const endDate = leaveRequest.endDate;
+
+        if (!startDate || !endDate) {
             await session.abortTransaction();
             session.endSession();
-            return sendError(res, 400, 'Could not parse dates from request title');
+            return sendError(res, 400, 'Leave request is missing start or end date');
         }
-
-        const startDate = new Date(titleMatch[1]);
-        const endDate = new Date(titleMatch[2]);
 
         // 3. تحديث الطالب (إضافة حالة الإجازة)
         const student = await User.findOneAndUpdate(

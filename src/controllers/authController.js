@@ -31,7 +31,10 @@ exports.registerUser = async (req, res) => {
         } = req.body;
 
         // 1. التحقق من الحقول المطلوبة
-        const requiredFields = ['firebaseUid', 'email', 'name', 'phoneNumber'];
+        const requiredFields = [
+            'firebaseUid', 'email', 'name', 'phoneNumber',
+            'studentId', 'nationalId', 'universityYear', 'faculty'
+        ];
         const missingFields = requiredFields.filter(field => !req.body[field]);
         if (missingFields.length > 0) {
             return sendError(res, 400, `Missing required fields: ${missingFields.join(', ')}`);
@@ -263,9 +266,9 @@ exports.registerAdmin = async (req, res) => {
         }
 
         // التحقق من الدور
-        const validRoles = ['admin', 'supervisor'];
+        const validRoles = ['admin', 'supervisor', 'floor_admin', 'meal_admin', 'security'];
         if (!validRoles.includes(role)) {
-            return sendError(res, 400, 'Invalid role. Must be admin or supervisor');
+            return sendError(res, 400, 'Invalid role. Must be admin, supervisor, floor_admin, meal_admin, or security');
         }
 
         // 2. التأكد من عدم وجود المستخدم مسبقاً

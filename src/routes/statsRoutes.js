@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const statsController = require('../controllers/statsController');
 const verifyToken = require('../middlewares/verifyFirebaseToken');
-const { isAdmin, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
+const { isAdmin, isAdminOrSupervisorOrFloorAdmin } = require('../middlewares/roleMiddleware');
 
 // ==========================================
 // مسارات الإدارة (Admin/Supervisor)
@@ -11,7 +11,7 @@ const { isAdmin, isAdminOrSupervisor } = require('../middlewares/roleMiddleware'
 router.get(
     '/dashboard',
     verifyToken,
-    isAdminOrSupervisor,
+    isAdminOrSupervisorOrFloorAdmin,
     statsController.getDashboardStats
 );
 
@@ -19,7 +19,7 @@ router.get(
 router.get(
     '/students-by-college',
     verifyToken,
-    isAdminOrSupervisor,
+    isAdminOrSupervisorOrFloorAdmin,
     statsController.getStudentsByCollege
 );
 
@@ -27,7 +27,7 @@ router.get(
 router.get(
     '/students-by-grade',
     verifyToken,
-    isAdminOrSupervisor,
+    isAdminOrSupervisorOrFloorAdmin,
     statsController.getStudentsByGrade
 );
 
@@ -35,7 +35,7 @@ router.get(
 router.get(
     '/rooms',
     verifyToken,
-    isAdminOrSupervisor,
+    isAdminOrSupervisorOrFloorAdmin,
     statsController.getRoomsStats
 );
 
@@ -43,7 +43,7 @@ router.get(
 router.get(
     '/buildings-availability',
     verifyToken,
-    isAdminOrSupervisor,
+    isAdminOrSupervisorOrFloorAdmin,
     statsController.getBuildingsAvailability
 );
 
@@ -51,7 +51,7 @@ router.get(
 router.get(
     '/meals',
     verifyToken,
-    isAdminOrSupervisor,
+    isAdminOrSupervisorOrFloorAdmin,
     statsController.getMealsStats
 );
 
@@ -59,7 +59,7 @@ router.get(
 router.get(
     '/meals/preparation',
     verifyToken,
-    isAdminOrSupervisor,
+    isAdminOrSupervisorOrFloorAdmin,
     statsController.getMealsPreparationStats
 );
 

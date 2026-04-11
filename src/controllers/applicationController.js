@@ -55,6 +55,26 @@ exports.submitApplication = async (req, res) => {
             }
         });
 
+        // 2.b إضافة ملفات الطلب إذا تم رفعها
+        if (req.files) {
+            applicationData.documents = applicationData.documents || {};
+
+            const mapFile = (file) => file && file[0] ? {
+                url: file[0].path || file[0].filename,
+                uploadedAt: file[0].uploadedAt || new Date()
+            } : undefined;
+
+            const nationalIdCard = mapFile(req.files.nationalIdCard);
+            const personalPhoto = mapFile(req.files.personalPhoto);
+            const medicalReport = mapFile(req.files.medicalReport);
+            const universityIdCard = mapFile(req.files.universityIdCard);
+
+            if (nationalIdCard) applicationData.documents.nationalIdCard = nationalIdCard;
+            if (personalPhoto) applicationData.documents.personalPhoto = personalPhoto;
+            if (medicalReport) applicationData.documents.medicalReport = medicalReport;
+            if (universityIdCard) applicationData.documents.universityIdCard = universityIdCard;
+        }
+
         // 3. التحقق من وجود الحقول المطلوبة
         const requiredFields = ['fullName', 'nationalId', 'gender', 'academicYear', 'college'];
         const missingFields = requiredFields.filter(field => !applicationData[field]);
@@ -127,6 +147,7 @@ exports.approveApplication = async (req, res) => {
             status: 'available'
         })
         .sort({ floorNumber: 1, roomNumber: 1 })
+        .populate('buildingId', 'name')
         .session(session);
 
         if (!selectedRoom) {
@@ -179,7 +200,7 @@ exports.approveApplication = async (req, res) => {
         return sendSuccess(res, 200, 'Application approved and student assigned', {
             roomNumber: selectedRoom.roomNumber,
             floor: selectedRoom.floorNumber,
-            buildingName: targetBuildings.find(b => b._id.equals(selectedRoom.buildingId))?.name
+            buildingName: selectedRoom.buildingId?.name || null
         });
 
     } catch (error) {

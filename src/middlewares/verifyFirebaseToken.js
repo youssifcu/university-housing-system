@@ -36,10 +36,17 @@ const verifyFirebaseToken = async (req, res, next) => {
             .select('-__v') // Exclude version key
             .lean(); // Returns plain JS object, faster for read-only
 
+        if (!userDoc) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authenticated Firebase user not found in application database. Please register first.'
+            });
+        }
+
         // 4. Attach data to request object
         req.user = decodedToken;                // Full Firebase user object
-        req.userDoc = userDoc;                  // MongoDB user object (null if not found)
-        req.userRole = userDoc?.role || 'unregistered'; // Role string (useful for checks)
+        req.userDoc = userDoc;                  // MongoDB user object
+        req.userRole = userDoc.role;            // Role string (useful for checks)
 
         next();
     } catch (error) {

@@ -1,4 +1,6 @@
+const mongoose = require('mongoose');
 const Attendance = require('../models/Attendance');
+const Room = require('../models/Room');
 const { User } = require('../models/User');
 
 // Helpers للتنسيق الموحد
@@ -66,8 +68,24 @@ exports.scanAttendance = async (req, res) => {
             return sendError(res, 400, 'Attendance already recorded for today');
         }
 
-        // 4. تحديد الـ buildingId: إما المبعوث أو المأخوذ من الغرفة المعينة للطالب
-        const effectiveBuildingId = buildingId || student.assignedRoomId;
+        // 4. تحديد الـ buildingId: إما المرسَل من المشرف أو المأخوذ من الغرفة المعينة للطالب
+        let effectiveBuildingId = null;
+
+        if (buildingId) {
+            if (!mongoose.Types.ObjectId.isValid(buildingId)) {
+                return sendError(res, 400, 'Invalid building ID format');
+            }
+            effectiveBuildingId = buildingId;
+        } else if (student.assignedRoomId) {
+            const room = await Room.findById(student.assignedRoomId)
+                .select('buildingId')
+                .lean();
+            if (!room || !room.buildingId) {
+                return sendError(res, 400, 'Assigned room building could not be determined');
+            }
+            effectiveBuildingId = room.buildingId;
+        }
+
         if (!effectiveBuildingId) {
             return sendError(res, 400, 'Building ID could not be determined. Please provide it.');
         }
