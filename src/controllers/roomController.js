@@ -281,3 +281,209 @@ exports.getMyRoom = async (req, res) => {
         return sendError(res, 500, 'Failed to fetch your room', error.message);
     }
 };
+
+// ==========================================
+// GET /api/rooms/building/:buildingId
+// ==========================================
+exports.getRoomsByBuilding = async (req, res) => {
+    try {
+        const { buildingId } = req.params;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+
+        const [rooms, total] = await Promise.all([
+            Room.find({ buildingId })
+                .populate('buildingId', 'name gender')
+                .populate('currentOccupants', 'name email studentId')
+                .sort({ roomNumber: 1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Room.countDocuments({ buildingId })
+        ]);
+
+        return sendSuccess(res, 200, 'Rooms fetched successfully', {
+            rooms,
+            pagination: {
+                currentPage: page,
+                totalPages: Math.ceil(total / limit),
+                totalRooms: total,
+                hasNext: page * limit < total,
+                hasPrev: page > 1
+            }
+        });
+
+    } catch (error) {
+        console.error('Get Rooms By Building Error:', error);
+        if (error.name === 'CastError') {
+            return sendError(res, 400, 'Invalid building ID');
+        }
+        return sendError(res, 500, 'Failed to fetch rooms', error.message);
+    }
+};
+
+// ==========================================
+// GET /api/rooms/:id
+// ==========================================
+exports.getRoomById = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const room = await Room.findById(id)
+            .populate({
+                path: 'buildingId',
+                populate: { path: 'supervisorId', select: 'name phoneNumber email' }
+            })
+            .populate('currentOccupants', 'name email phoneNumber profilePicture studentId')
+            .lean();
+
+        if (!room) {
+            return sendError(res, 404, 'Room not found');
+        }
+
+        return sendSuccess(res, 200, 'Room details fetched successfully', { room });
+
+    } catch (error) {
+        console.error('Get Room By ID Error:', error);
+        if (error.name === 'CastError') {
+            return sendError(res, 400, 'Invalid room ID');
+        }
+        return sendError(res, 500, 'Failed to fetch room', error.message);
+    }
+};
+
+// ==========================================
+// PUT /api/rooms/:id
+// ==========================================
+exports.updateRoom = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+
+        // الحقول المسموح بتحديثها
+        const allowedFields = ['roomNumber', 'floorNumber', 'capacity', 'facilities', 'monthlyRent'];
+        const filteredUpdates = {};
+
+        for (const field of allowedFields) {
+            if (updates[field] !== undefined) {
+                filteredUpdates[field] = updates[field];
+            }
+        }
+
+        if (Object.keys(filteredUpdates).length === 0) {
+            return sendError(res, 400, 'No valid fields to update');
+        }
+
+        const updatedRoom = await Room.findByIdAndUpdate(
+            id,
+            filteredUpdates,
+            { new: true, runValidators: true }
+        ).populate('buildingId', 'name gender');
+
+        if (!updatedRoom) {
+            return sendError(res, 404, 'Room not found');
+        }
+
+        return sendSuccess(res, 200, 'Room updated successfully', { room: updatedRoom });
+
+    } catch (error) {
+        console.error('Update Room Error:', error);
+        if (error.name === 'CastError') {
+            return sendError(res, 400, 'Invalid room ID');
+        }
+        return sendError(res, 500, 'Failed to update room', error.message);
+    }
+};
+
+// ==========================================
+// PATCH /api/rooms/:id/status
+// ==========================================
+exports.updateRoomStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!status || !['available', 'occupied', 'maintenance', 'reserved'].includes(status)) {
+            return sendError(res, 400, 'Invalid status. Must be: available, occupied, maintenance, or reserved');
+        }
+
+        const updatedRoom = await Room.findByIdAndUpdate(
+            id,
+            { status },
+            { new: true, runValidators: true }
+        ).populate('buildingId', 'name gender');
+
+        if (!updatedRoom) {
+            return sendError(res, 404, 'Room not found');
+        }
+
+        return sendSuccess(res, 200, 'Room status updated successfully', { room: updatedRoom });
+
+    } catch (error) {
+        console.error('Update Room Status Error:', error);
+        if (error.name === 'CastError') {
+            return sendError(res, 400, 'Invalid room ID');
+        }
+        return sendError(res, 500, 'Failed to update room status', error.message);
+    }
+};
+
+// ==========================================
+// POST /api/rooms/auto-assign/:studentId
+// ==========================================
+exports.autoAssignRoom = async (req, res) => {
+    try {
+        const { studentId } = req.params;
+
+        // البحث عن الطالب
+        const student = await User.findOne({ _id: studentId, role: 'student' });
+        if (!student) {
+            return sendError(res, 404, 'Student not found');
+        }
+
+        // التحقق من عدم وجود غرفة مخصصة مسبقاً
+        if (student.assignedRoomId) {
+            return sendError(res, 400, 'Student already has a room assigned');
+        }
+
+        // البحث عن غرفة متاحة مناسبة
+        const availableRoom = await Room.findOne({
+            status: 'available',
+            gender: student.gender || 'mixed', // افتراض mixed إذا لم يحدد
+            currentOccupants: { $size: 0 } // غرفة فارغة
+        }).populate('buildingId', 'name gender');
+
+        if (!availableRoom) {
+            return sendError(res, 404, 'No available rooms found for auto-assignment');
+        }
+
+        // تحديث الغرفة والطالب
+        await Promise.all([
+            Room.findByIdAndUpdate(availableRoom._id, {
+                $push: { currentOccupants: student._id },
+                status: 'occupied'
+            }),
+            User.findByIdAndUpdate(student._id, {
+                assignedRoomId: availableRoom._id,
+                housingStatus: 'assigned'
+            })
+        ]);
+
+        return sendSuccess(res, 200, 'Room auto-assigned successfully', {
+            room: availableRoom,
+            student: {
+                id: student._id,
+                name: student.name,
+                email: student.email
+            }
+        });
+
+    } catch (error) {
+        console.error('Auto Assign Room Error:', error);
+        if (error.name === 'CastError') {
+            return sendError(res, 400, 'Invalid student ID');
+        }
+        return sendError(res, 500, 'Failed to auto-assign room', error.message);
+    }
+};
