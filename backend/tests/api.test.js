@@ -1,294 +1,481 @@
 const request = require('supertest');
 const app = require('../src/app');
-const User = require('../src/models/User');
+const mongoose = require('mongoose');
+const { User } = require('../src/models/User');
 const Application = require('../src/models/Application');
-const Student = require('../src/models/Student');
 const Room = require('../src/models/Room');
 const Building = require('../src/models/Building');
-const Attendance = require('../src/models/Attendance');
 const Meal = require('../src/models/Meal');
-const MealBooking = require('../src/models/MealBooking');
+const Attendance = require('../src/models/Attendance');
 const HousingRequest = require('../src/models/HousingRequest');
 const Report = require('../src/models/Report');
 const Announcement = require('../src/models/Announcement');
 const Notification = require('../src/models/Notification');
 const Payment = require('../src/models/Payment');
-const mongoose = require('mongoose');
 
+// محاكاة Firebase Admin
 jest.mock('../src/config/firebase', () => {
-  const mockAuth = {
-    verifyIdToken: jest.fn(async (token) => {
-      if (token === 'invalid_token') throw new Error('Invalid token');
-      return {
-        uid: 'test_firebase_uid_' + token,
-        email: 'test@example.com'
-      };
-    }),
-    deleteUser: jest.fn(async () => true)
-  };
-
-  return {
-    auth: jest.fn(() => mockAuth),
-    initializeApp: jest.fn(),
-    credential: {
-      cert: jest.fn()
-    }
-  };
+    const mockAuth = {
+        verifyIdToken: jest.fn(async (token) => {
+            // محاكاة أدوار مختلفة حسب التوكن
+            if (token === 'invalid_token') throw new Error('Invalid token');
+            if (token === 'admin_token') {
+                return { uid: 'admin_uid', email: 'admin@test.com' };
+            }
+            if (token === 'student_token') {
+                return { uid: 'student_uid', email: 'student@test.com' };
+            }
+            if (token === 'supervisor_token') {
+                return { uid: 'supervisor_uid', email: 'supervisor@test.com' };
+            }
+            return { uid: 'test_uid', email: 'test@test.com' };
+        }),
+        deleteUser: jest.fn(async () => true)
+    };
+    return {
+        auth: jest.fn(() => mockAuth),
+        initializeApp: jest.fn(),
+        credential: { cert: jest.fn() }
+    };
 });
 
-describe('University Housing System - API Tests', () => {
-  let adminToken = 'valid_admin_token';
-  let studentToken = 'valid_student_token';
-  let supervisorToken = 'valid_supervisor_token';
-  let applicationId, studentId, roomId, buildingId, mealId, bookingId;
+describe('University Housing System - API Tests (v2.0.0)', () => {
+    let adminToken = 'admin_token';
+    let studentToken = 'student_token';
+    let supervisorToken = 'supervisor_token';
+    let applicationId, studentId, buildingId, roomId, mealId, requestId;
 
-  beforeAll(async () => {
-    // Set test database URI
-    process.env.MONGODB_URI = process.env.MONGODB_TEST_URI || 'mongodb://localhost:27017/university-housing-system';
-    
-    // Connect to MongoDB
-    if (!mongoose.connection.readyState) {
-      await mongoose.connect(process.env.MONGODB_URI);
-    }
+    beforeAll(async () => {
+        process.env.MONGODB_URI = process.env.MONGODB_TEST_URI || 'mongodb://localhost:27017/university-housing-test';
 
-    // Clear collections
-    await User.deleteMany({});
-    await Application.deleteMany({});
-    await Student.deleteMany({});
-    await Room.deleteMany({});
-    await Building.deleteMany({});
-  }, 15000);
+        if (mongoose.connection.readyState === 0) {
+            await mongoose.connect(process.env.MONGODB_URI);
+        }
 
-  afterAll(async () => {
-    // Clear collections
-    await User.deleteMany({});
-    await Application.deleteMany({});
-    await Student.deleteMany({});
-    await Room.deleteMany({});
-    await Building.deleteMany({});
-    
-    // Disconnect from MongoDB
-    await mongoose.disconnect();
-  }, 15000);
+        // تنظيف قاعدة البيانات
+        await User.deleteMany({});
+        await Application.deleteMany({});
+        await Room.deleteMany({});
+        await Building.deleteMany({});
+        await Meal.deleteMany({});
+        await Attendance.deleteMany({});
+        await HousingRequest.deleteMany({});
 
-  describe('Core API Functionality', () => {
+        // إنشاء مستخدمين للاختبار
+        // أدمن
+        await new User({
+            firebaseUid: 'admin_uid',
+            name: 'Admin User',
+            email: 'admin@test.com',
+            phoneNumber: '01000000000',
+            role: 'admin',
+            isActive: true
+        }).save();
+
+        // طالب
+        const student = await new User({
+            firebaseUid: 'student_uid',
+            name: 'Test Student',
+            email: 'student@test.com',
+            phoneNumber: '01111111111',
+            role: 'student',
+            housingStatus: 'active',
+            nationalId: '30001011234567',
+            universityYear: 2,
+            faculty: 'Engineering'
+        }).save();
+        studentId = student._id;
+
+        // مشرف
+        await new User({
+            firebaseUid: 'supervisor_uid',
+            name: 'Supervisor User',
+            email: 'supervisor@test.com',
+            phoneNumber: '01222222222',
+            role: 'supervisor',
+            isActive: true
+        }).save();
+
+        // إنشاء مبنى و غرفة للاختبارات
+        const building = await new Building({
+            name: 'Test Building',
+            gender: 'male',
+            floors: 3
+        }).save();
+        buildingId = building._id;
+
+        const room = await new Room({
+            roomNumber: 'T101',
+            buildingId: building._id,
+            floorNumber: 1,
+            capacity: 4,
+            currentOccupants: [],
+            status: 'available'
+        }).save();
+        roomId = room._id;
+
+        // إنشاء وجبة
+        const meal = await new Meal({
+            name: 'Test Breakfast',
+            mealType: 'breakfast',
+            date: new Date(),
+            price: 20
+        }).save();
+        mealId = meal._id;
+    }, 30000);
+
+    afterAll(async () => {
+        await User.deleteMany({});
+        await Application.deleteMany({});
+        await Room.deleteMany({});
+        await Building.deleteMany({});
+        await Meal.deleteMany({});
+        await Attendance.deleteMany({});
+        await HousingRequest.deleteMany({});
+        await mongoose.disconnect();
+    }, 15000);
+
+    // ==================== الصحة العامة ====================
     test('Health Check - GET /', async () => {
-      const res = await request(app).get('/');
-      expect(res.status).toBe(200);
-      expect(res.text).toMatch(/University|Housing|Server/i);
+        const res = await request(app).get('/');
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.message).toMatch(/running/i);
     });
 
-    test('Auth - Register User', async () => {
-      const res = await request(app)
-        .post('/api/auth/register')
-        .send({
-          firebaseToken: adminToken,
-          name: 'Admin User',
-          email: 'admin@test.com',
-          phone: '1234567890'
-        });
+    // ==================== المصادقة ====================
+    test('Auth - Register Student', async () => {
+        const res = await request(app)
+            .post('/api/auth/register')
+            .send({
+                firebaseUid: 'new_student_uid',
+                name: 'New Student',
+                email: 'newstudent@test.com',
+                phoneNumber: '01555555555',
+                studentId: 'STU2024001',
+                nationalId: '30005011234567',
+                universityYear: '1',
+                faculty: 'Science'
+            });
 
-      expect([201, 400, 500]).toContain(res.status);
-      if (res.status === 201) {
-        expect(res.body).toHaveProperty('message');
-      }
+        expect(res.status).toBe(201);
+        expect(res.body.success).toBe(true);
     });
 
-    test('Auth - Login User', async () => {
-      await request(app)
-        .post('/api/auth/register')
-        .send({
-          firebaseToken: studentToken,
-          name: 'Student User',
-          email: 'student@test.com',
-          phone: '9876543210'
-        });
+    test('Auth - Login', async () => {
+        const res = await request(app)
+            .post('/api/auth/login')
+            .send({ firebaseUid: 'student_uid' });
 
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send({
-          firebaseToken: studentToken
-        });
-
-      expect([200, 500]).toContain(res.status);
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data.user.role).toBe('student');
     });
 
+    test('Auth - Get Profile', async () => {
+        const res = await request(app)
+            .get('/api/auth/profile')
+            .set('Authorization', `Bearer ${studentToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data.user).toHaveProperty('email', 'student@test.com');
+    });
+
+    // ==================== الطلبات (Applications) ====================
     test('Applications - Submit Application', async () => {
-      const res = await request(app)
-        .post('/api/applications')
-        .set('Authorization', `Bearer ${studentToken}`)
-        .send({
-          studentType: 'New',
-          nationality: 'Egyptian',
-          nationalId: '30001011234567',
-          shuonId: 'SHU123456',
-          fullName: 'Test Student',
-          dateOfBirth: '2000-01-01',
-          placeOfBirth: 'Cairo',
-          gender: 'male',
-          religion: 'Islam',
-          residenceAddress: '123 Main St',
-          phone: '1234567890',
-          mobile: '9876543210',
-          fatherName: 'Father Name',
-          fatherNationalId: '29001011234567',
-          college: 'Engineering',
-          academicYear: '2023-2024'
-        });
+        const res = await request(app)
+            .post('/api/applications')
+            .set('Authorization', `Bearer ${studentToken}`)
+            .field('studentType', 'new')
+            .field('nationalId', '30001011234567')
+            .field('fullName', 'Test Student App')
+            .field('gender', 'male')
+            .field('dateOfBirth', '2000-01-01')
+            .field('phoneNumber', '01111111111')
+            .field('address', 'Cairo')
+            .field('fatherName', 'Father')
+            .field('fatherNationalId', '29001011234567')
+            .field('college', 'Engineering')
+            .field('academicYear', '2')
+            .attach('documents', Buffer.from('fake pdf'), 'test.pdf');
 
-      expect([201, 400, 500]).toContain(res.status);
-      if (res.status === 201) {
-        applicationId = res.body.id;
-        expect(res.body).toHaveProperty('id');
-      }
+        expect([201, 400]).toContain(res.status);
+        if (res.status === 201) {
+            expect(res.body.success).toBe(true);
+            applicationId = res.body.data.applicationId;
+        }
     });
 
-    test('Buildings - Create Building', async () => {
-      const res = await request(app)
-        .post('/api/buildings')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          name: 'North Building',
-          gender: 'male',
-          floors: 5
-        });
+    test('Applications - Get My Application', async () => {
+        const res = await request(app)
+            .get('/api/applications/my')
+            .set('Authorization', `Bearer ${studentToken}`);
 
-      expect([201, 400, 403, 500]).toContain(res.status);
-      if (res.status === 201) {
-        buildingId = res.body.id;
-      }
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
     });
 
-    test('Rooms - Create Room', async () => {
-      const buildings = await Building.find().limit(1);
-      const testBuildingId = buildingId || (buildings.length > 0 ? buildings[0]._id : new mongoose.Types.ObjectId());
+    test('Applications - Approve Application (Admin)', async () => {
+        // نحتاج applicationId موجود
+        if (!applicationId) {
+            console.warn('Skipping approve test - no applicationId');
+            return;
+        }
+        const res = await request(app)
+            .patch(`/api/applications/${applicationId}/approve`)
+            .set('Authorization', `Bearer ${adminToken}`);
 
-      const res = await request(app)
-        .post('/api/rooms')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          buildingId: testBuildingId,
-          floorNumber: 1,
-          roomNumber: 'R101',
-          capacity: 4,
-          currentOccupancy: 0,
-          status: 'available'
-        });
-
-      expect([201, 400, 403, 500]).toContain(res.status);
-      if (res.status === 201) {
-        roomId = res.body.id;
-      }
+        expect([200, 400]).toContain(res.status);
+        if (res.status === 200) {
+            expect(res.body.success).toBe(true);
+        }
     });
 
-    test('Students - Get My Profile', async () => {
-      const res = await request(app)
-        .get('/api/students/me')
-        .set('Authorization', `Bearer ${studentToken}`);
+    // ==================== المباني والغرف ====================
+    test('Buildings - Get All', async () => {
+        const res = await request(app)
+            .get('/api/buildings')
+            .set('Authorization', `Bearer ${studentToken}`);
 
-      expect([200, 404, 500]).toContain(res.status);
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(Array.isArray(res.body.data.buildings)).toBe(true);
     });
 
-    test('Meals - Get Today Menu', async () => {
-      const res = await request(app)
-        .get('/api/meals/menu/today')
-        .set('Authorization', `Bearer ${studentToken}`);
+    test('Buildings - Create (Admin)', async () => {
+        const res = await request(app)
+            .post('/api/buildings')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({
+                name: 'South Building',
+                gender: 'female',
+                floors: 4,
+                description: 'Test building'
+            });
 
-      expect([200, 500]).toContain(res.status);
-      expect(Array.isArray(res.body)).toBe(true);
+        expect([201, 400]).toContain(res.status);
     });
 
-    test('Reports - Create Report', async () => {
-      const res = await request(app)
-        .post('/api/reports')
-        .set('Authorization', `Bearer ${studentToken}`)
-        .send({
-          type: 'maintenance',
-          description: 'Broken window',
-          severity: 'high'
-        });
+    test('Rooms - Get Available', async () => {
+        const res = await request(app)
+            .get('/api/rooms/available')
+            .set('Authorization', `Bearer ${studentToken}`);
 
-      expect([201, 404, 400, 500]).toContain(res.status);
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
     });
 
-    test('Announcements - Get All Announcements', async () => {
-      const res = await request(app)
-        .get('/api/announcements')
-        .set('Authorization', `Bearer ${studentToken}`);
+    test('Rooms - Get My Room (Student)', async () => {
+        const res = await request(app)
+            .get('/api/rooms/my')
+            .set('Authorization', `Bearer ${studentToken}`);
 
-      expect([200, 500]).toContain(res.status);
-      expect(Array.isArray(res.body) || Array.isArray(res.body.announcements)).toBe(true);
+        expect([200, 404]).toContain(res.status);
     });
 
-    test('Stats - Get Room Stats', async () => {
-      const res = await request(app)
-        .get('/api/stats/rooms')
-        .set('Authorization', `Bearer ${adminToken}`);
+    test('Rooms - Assign Student (Admin)', async () => {
+        const res = await request(app)
+            .patch(`/api/rooms/${roomId}/assign`)
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({ studentId: studentId.toString() });
 
-      expect([200, 403, 500]).toContain(res.status);
-    });
-  });
-
-  describe('Endpoint Coverage Check', () => {
-    test('GET /api/users/* endpoints exist', async () => {
-      const res = await request(app)
-        .delete('/api/users/nonexistent')
-        .set('Authorization', `Bearer ${adminToken}`);
-
-      expect([404, 403, 500]).toContain(res.status);
+        expect([200, 400]).toContain(res.status);
     });
 
-    test('GET /api/students/* endpoints exist', async () => {
-      const res = await request(app)
-        .get('/api/students')
-        .set('Authorization', `Bearer ${adminToken}`);
+    // ==================== الوجبات ====================
+    test('Meals - Get Meals', async () => {
+        const res = await request(app)
+            .get('/api/meals')
+            .set('Authorization', `Bearer ${studentToken}`);
 
-      expect([200, 403, 500]).toContain(res.status);
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
     });
 
-    test('GET /api/rooms/available endpoint exists', async () => {
-      const res = await request(app)
-        .get('/api/rooms/available')
-        .set('Authorization', `Bearer ${studentToken}`);
+    test('Meals - Book Meal', async () => {
+        const res = await request(app)
+            .post('/api/meals/book')
+            .set('Authorization', `Bearer ${studentToken}`)
+            .send({ mealId: mealId.toString() });
 
-      expect([200, 500]).toContain(res.status);
+        expect([201, 400]).toContain(res.status);
     });
 
-    test('GET /api/housing-requests endpoint exists', async () => {
-      const res = await request(app)
-        .get('/api/housing-requests')
-        .set('Authorization', `Bearer ${supervisorToken}`);
+    test('Meals - Scan Meal (Meal Admin)', async () => {
+        // يحتاج مشرف وجبات حقيقي
+        const res = await request(app)
+            .post('/api/meals/scan')
+            .set('Authorization', `Bearer ${supervisorToken}`)
+            .send({
+                qrCodeString: 'MEAL-testcode',
+                mealId: mealId.toString()
+            });
 
-      expect([200, 403, 500]).toContain(res.status);
+        expect([200, 403, 404]).toContain(res.status);
     });
 
-    test('GET /api/attendance endpoints exist', async () => {
-      const res = await request(app)
-        .get('/api/attendance/building/test')
-        .set('Authorization', `Bearer ${adminToken}`);
+    // ==================== الحضور ====================
+    test('Attendance - Scan', async () => {
+        const res = await request(app)
+            .post('/api/attendance/scan')
+            .set('Authorization', `Bearer ${supervisorToken}`)
+            .send({
+                qrCodeString: 'ATT-testcode',
+                buildingId: buildingId.toString()
+            });
 
-      expect([200, 500]).toContain(res.status);
+        expect([200, 201, 403, 404]).toContain(res.status);
     });
 
-    test('GET /api/payments endpoints exist', async () => {
-      const res = await request(app)
-        .get('/api/payments/my')
-        .set('Authorization', `Bearer ${studentToken}`);
+    test('Attendance - My Records', async () => {
+        const res = await request(app)
+            .get('/api/attendance/my')
+            .set('Authorization', `Bearer ${studentToken}`);
 
-      expect([200, 404, 500]).toContain(res.status);
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
     });
 
-    test('GET /api/notifications endpoint exists', async () => {
-      const res = await request(app)
-        .post('/api/notifications')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          title: 'Test',
-          message: 'Test notification',
-          type: 'system'
-        });
+    // ==================== طلبات السكن (نقل/إجازة) ====================
+    test('Housing Requests - Submit', async () => {
+        const res = await request(app)
+            .post('/api/housing-requests')
+            .set('Authorization', `Bearer ${studentToken}`)
+            .send({
+                type: 'maintenance',
+                reason: 'Broken light',
+                fromRoomId: roomId.toString()
+            });
 
-      expect([201, 403, 400, 500]).toContain(res.status);
+        expect(res.status).toBe(201);
+        expect(res.body.success).toBe(true);
+        if (res.body.data) {
+            requestId = res.body.data.id;
+        }
     });
-  });
+
+    test('Housing Requests - Get All (Supervisor)', async () => {
+        const res = await request(app)
+            .get('/api/housing-requests')
+            .set('Authorization', `Bearer ${supervisorToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+    });
+
+    // ==================== البلاغات ====================
+    test('Reports - Create', async () => {
+        const res = await request(app)
+            .post('/api/reports')
+            .set('Authorization', `Bearer ${studentToken}`)
+            .send({
+                type: 'maintenance',
+                description: 'Leaking faucet',
+                severity: 'medium'
+            });
+
+        expect(res.status).toBe(201);
+        expect(res.body.success).toBe(true);
+    });
+
+    test('Reports - Get My Reports', async () => {
+        const res = await request(app)
+            .get('/api/reports/my')
+            .set('Authorization', `Bearer ${studentToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+    });
+
+    // ==================== الإعلانات والإشعارات ====================
+    test('Announcements - Get All', async () => {
+        const res = await request(app)
+            .get('/api/announcements')
+            .set('Authorization', `Bearer ${studentToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+    });
+
+    test('Announcements - Create (Admin)', async () => {
+        const res = await request(app)
+            .post('/api/announcements')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({
+                title: 'Test Announcement',
+                content: 'This is a test',
+                priority: 'medium',
+                targetRole: 'all'
+            });
+
+        expect(res.status).toBe(201);
+    });
+
+    test('Notifications - Get My Notifications', async () => {
+        const res = await request(app)
+            .get('/api/notifications/my')
+            .set('Authorization', `Bearer ${studentToken}`);
+
+        expect(res.status).toBe(200);
+    });
+
+    // ==================== QR Codes ====================
+    test('QR - Generate', async () => {
+        const res = await request(app)
+            .post('/api/qr/generate')
+            .set('Authorization', `Bearer ${studentToken}`);
+
+        expect([200, 201]).toContain(res.status);
+        expect(res.body.success).toBe(true);
+    });
+
+    test('QR - Get My Codes', async () => {
+        const res = await request(app)
+            .get('/api/qr/my')
+            .set('Authorization', `Bearer ${studentToken}`);
+
+        expect(res.status).toBe(200);
+    });
+
+    // ==================== الإحصائيات ====================
+    test('Stats - Dashboard', async () => {
+        const res = await request(app)
+            .get('/api/stats/dashboard')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+    });
+
+    test('Stats - Students by College', async () => {
+        const res = await request(app)
+            .get('/api/stats/students-by-college')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+    });
+
+    // ==================== مسارات V2 ====================
+    test('V2 - Submit Request', async () => {
+        const res = await request(app)
+            .post('/api/v2/requests')
+            .set('Authorization', `Bearer ${studentToken}`)
+            .send({
+                requestType: 'complaint',
+                title: 'Test Complaint',
+                description: 'Noise complaint',
+                priority: 'medium'
+            });
+
+        expect([201, 200]).toContain(res.status);
+    });
+
+    test('V2 - Get Requests (Admin)', async () => {
+        const res = await request(app)
+            .get('/api/v2/requests')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+    });
 });
