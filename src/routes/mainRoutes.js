@@ -145,8 +145,17 @@ router.patch(
 );
 
 // تقرير حضور طالب (للمشرف أو الطالب نفسه)
+
+// Route without the studentId parameter
 router.get(
-    '/attendance/report/:studentId?',
+    '/attendance/report',
+    verifyToken,
+    studentController.getAttendanceReport
+);
+
+// Route with the studentId parameter
+router.get(
+    '/attendance/report/:studentId',
     verifyToken,
     studentController.getAttendanceReport
 );
