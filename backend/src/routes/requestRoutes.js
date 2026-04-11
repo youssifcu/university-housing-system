@@ -1,15 +1,69 @@
 const express = require('express');
 const router = express.Router();
-const requestController = require('../controllers/requestController');
-const verifyFirebaseToken = require('../middlewares/verifyFirebaseToken');
-const { isStudent, isAdmin, checkStudentApproval } = require('../middlewares/authMiddleware');
+const studentRequestController = require('../controllers/studentRequestController');
+const verifyToken = require('../middlewares/verifyFirebaseToken');
+const { isStudent, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
 
-router.post('/submit', verifyFirebaseToken, isStudent, checkStudentApproval, requestController.submitRequest);
+// ==========================================
+// مسارات الطالب (Student Only)
+// ==========================================
+// تقديم طلب جديد
+router.post(
+    '/',
+    verifyToken,
+    isStudent,
+    studentRequestController.submitRequest
+);
 
-router.get('/admin/all', verifyFirebaseToken, isAdmin, requestController.getRequestsForAdmin);
+// عرض طلباتي
+router.get(
+    '/my',
+    verifyToken,
+    isStudent,
+    studentRequestController.getMyRequests
+);
 
-router.patch('/assign/:requestId', verifyFirebaseToken, isAdmin, requestController.assignRequestToSelf);
+// عرض تفاصيل طلب (للطالب - بشروط الملكية داخل الكنترولر)
+router.get(
+    '/:requestId',
+    verifyToken,
+    isStudent,
+    studentRequestController.getRequestDetails
+);
 
-router.post('/message/:requestId', verifyFirebaseToken, requestController.addRequestMessage);
+// إضافة رسالة للطلب (للطالب)
+router.post(
+    '/:requestId/messages',
+    verifyToken,
+    isStudent,
+    studentRequestController.addRequestMessage
+);
+
+// ==========================================
+// مسارات الإدارة (Admin/Supervisor)
+// ==========================================
+// عرض الطلبات المخصصة لدور المشرف/الأدمن
+router.get(
+    '/',
+    verifyToken,
+    isAdminOrSupervisor,
+    studentRequestController.getRequestsForAdmin
+);
+
+// تعيين الطلب للمشرف الحالي
+router.patch(
+    '/:requestId/assign',
+    verifyToken,
+    isAdminOrSupervisor,
+    studentRequestController.assignRequestToSelf
+);
+
+// الرد على الطلب (موافقة/رفض/مراجعة)
+router.patch(
+    '/:requestId/respond',
+    verifyToken,
+    isAdminOrSupervisor,
+    studentRequestController.respondToRequest
+);
 
 module.exports = router;
