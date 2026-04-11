@@ -142,3 +142,176 @@ exports.getMyAttendance = async (req, res) => {
         return sendError(res, 500, 'Failed to fetch attendance records', error.message);
     }
 };
+
+// ==========================================
+// GET /api/attendance/student/:studentId (Admin/Supervisor)
+// ==========================================
+exports.getStudentAttendance = async (req, res) => {
+    try {
+        const { studentId } = req.params;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 30;
+        const skip = (page - 1) * limit;
+
+        // التحقق من صحة الـ studentId
+        if (!studentId) {
+            return sendError(res, 400, 'Student ID is required');
+        }
+
+        // التحقق من وجود الطالب
+        const student = await User.findById(studentId).select('name studentId').lean();
+        if (!student) {
+            return sendError(res, 404, 'Student not found');
+        }
+
+        // فلترة حسب التاريخ إذا كان محدد
+        const filter = { studentId };
+        if (req.query.startDate && req.query.endDate) {
+            const startDate = new Date(req.query.startDate);
+            const endDate = new Date(req.query.endDate);
+            if (!isNaN(startDate) && !isNaN(endDate)) {
+                filter.date = { $gte: startDate, $lte: endDate };
+            }
+        }
+
+        const [records, total] = await Promise.all([
+            Attendance.find(filter)
+                .select('date status buildingId recordedBy')
+                .populate('buildingId', 'name')
+                .populate('recordedBy', 'name')
+                .sort({ date: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Attendance.countDocuments(filter)
+        ]);
+
+        return sendSuccess(res, 200, `Attendance records for ${student.name} fetched successfully`, {
+            student: {
+                id: student._id,
+                name: student.name,
+                studentId: student.studentId
+            },
+            records,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        });
+
+    } catch (error) {
+        console.error('Get Student Attendance Error:', error);
+        return sendError(res, 500, 'Failed to fetch student attendance records', error.message);
+    }
+};
+
+// ==========================================
+// GET /api/attendance/building/:buildingId (Admin/Supervisor)
+// ==========================================
+exports.getAttendanceByBuilding = async (req, res) => {
+    try {
+        const { buildingId } = req.params;
+        const date = req.query.date ? new Date(req.query.date) : new Date();
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const skip = (page - 1) * limit;
+
+        if (!buildingId) {
+            return sendError(res, 400, 'Building ID is required');
+        }
+
+        // تحديد نطاق التاريخ (يوم كامل)
+        const startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const filter = {
+            buildingId,
+            date: { $gte: startOfDay, $lte: endOfDay }
+        };
+
+        const [records, total] = await Promise.all([
+            Attendance.find(filter)
+                .populate('studentId', 'name studentId')
+                .populate('recordedBy', 'name')
+                .sort({ date: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Attendance.countDocuments(filter)
+        ]);
+
+        // إحصائيات سريعة
+        const stats = {
+            totalRecords: total,
+            presentCount: records.filter(r => r.status === 'present').length,
+            absentCount: records.filter(r => r.status === 'absent').length,
+            lateCount: records.filter(r => r.status === 'late').length
+        };
+
+        return sendSuccess(res, 200, 'Building attendance records fetched successfully', {
+            date: date.toISOString().split('T')[0],
+            buildingId,
+            records,
+            stats,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        });
+
+    } catch (error) {
+        console.error('Get Attendance By Building Error:', error);
+        return sendError(res, 500, 'Failed to fetch building attendance records', error.message);
+    }
+};
+
+// ==========================================
+// PATCH /api/attendance/:id (Admin Only)
+// ==========================================
+exports.updateAttendance = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, notes } = req.body;
+
+        if (!id) {
+            return sendError(res, 400, 'Attendance record ID is required');
+        }
+
+        const attendance = await Attendance.findById(id);
+        if (!attendance) {
+            return sendError(res, 404, 'Attendance record not found');
+        }
+
+        // التحقق من صحة الحالة الجديدة
+        const validStatuses = ['present', 'absent', 'late', 'excused'];
+        if (status && !validStatuses.includes(status)) {
+            return sendError(res, 400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+        }
+
+        // تحديث الحقول المسموحة
+        if (status) attendance.status = status;
+        if (notes !== undefined) attendance.notes = notes;
+
+        await attendance.save();
+
+        return sendSuccess(res, 200, 'Attendance record updated successfully', {
+            attendance: {
+                id: attendance._id,
+                studentId: attendance.studentId,
+                date: attendance.date,
+                status: attendance.status,
+                notes: attendance.notes
+            }
+        });
+
+    } catch (error) {
+        console.error('Update Attendance Error:', error);
+        return sendError(res, 500, 'Failed to update attendance record', error.message);
+    }
+};
