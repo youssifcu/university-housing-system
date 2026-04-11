@@ -18,8 +18,8 @@
       "description": "Local Development"
     },
     {
-      "url": "https://api.housing.edu.eg",
-      "description": "Production"
+      "url": "https://university-housing-system-production-64e5.up.railway.app",
+      "description": "Production Server (Railway)"
     }
   ],
   "tags": [
