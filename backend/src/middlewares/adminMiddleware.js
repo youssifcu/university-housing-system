@@ -1,10 +1,20 @@
 const isAdmin = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') {
-        next(); // User is admin, proceed to the controller
+    // استخدام req.userDoc لأن verifyToken يضيفه
+    const user = req.userDoc || req.user;
+    
+    if (!user) {
+        return res.status(401).json({
+            success: false,
+            message: 'Authentication required'
+        });
+    }
+
+    if (user.role === 'admin') {
+        next();
     } else {
-        return res.status(403).json({ 
-            success: false, 
-            message: 'Access Denied: Admin privileges required' 
+        return res.status(403).json({
+            success: false,
+            message: 'Access Denied: Admin privileges required'
         });
     }
 };
