@@ -63,5 +63,6 @@ module.exports = {
     isFloorAdmin,
     isMealAdmin,
     isAdminOrSupervisor,
-    checkStudentApproval
+    checkStudentApproval,
+    isAdminOrSupervisorOrFloorAdmin 
 };
