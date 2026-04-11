@@ -293,3 +293,179 @@ exports.getDashboardStats = async (req, res) => {
         return sendError(res, 500, 'Failed to fetch dashboard stats', error.message);
     }
 };
+
+// ==========================================
+// GET /api/stats/rooms
+// ==========================================
+exports.getRoomsStats = async (req, res) => {
+    try {
+        const stats = await Room.aggregate([
+            {
+                $facet: {
+                    byStatus: [
+                        {
+                            $group: {
+                                _id: '$status',
+                                count: { $sum: 1 },
+                                totalCapacity: { $sum: '$capacity' },
+                                currentOccupancy: { $sum: { $size: '$currentOccupants' } }
+                            }
+                        }
+                    ],
+                    byBuilding: [
+                        {
+                            $group: {
+                                _id: '$buildingId',
+                                roomCount: { $sum: 1 },
+                                totalCapacity: { $sum: '$capacity' },
+                                currentOccupancy: { $sum: { $size: '$currentOccupants' } }
+                            }
+                        },
+                        {
+                            $lookup: {
+                                from: 'buildings',
+                                localField: '_id',
+                                foreignField: '_id',
+                                as: 'buildingInfo'
+                            }
+                        },
+                        { $unwind: { path: '$buildingInfo', preserveNullAndEmptyArrays: true } },
+                        {
+                            $project: {
+                                buildingName: { $ifNull: ['$buildingInfo.name', 'Unknown'] },
+                                roomCount: 1,
+                                totalCapacity: 1,
+                                currentOccupancy: 1,
+                                occupancyRate: {
+                                    $cond: [
+                                        { $eq: ['$totalCapacity', 0] },
+                                        0,
+                                        { $multiply: [{ $divide: ['$currentOccupancy', '$totalCapacity'] }, 100] }
+                                    ]
+                                }
+                            }
+                        },
+                        { $sort: { buildingName: 1 } }
+                    ],
+                    summary: [
+                        {
+                            $group: {
+                                _id: null,
+                                totalRooms: { $sum: 1 },
+                                totalCapacity: { $sum: '$capacity' },
+                                totalOccupancy: { $sum: { $size: '$currentOccupants' } }
+                            }
+                        },
+                        {
+                            $project: {
+                                totalRooms: 1,
+                                totalCapacity: 1,
+                                totalOccupancy: 1,
+                                overallOccupancyRate: {
+                                    $cond: [
+                                        { $eq: ['$totalCapacity', 0] },
+                                        0,
+                                        { $multiply: [{ $divide: ['$totalOccupancy', '$totalCapacity'] }, 100] }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        ]);
+
+        const result = {
+            summary: stats[0].summary[0] || { totalRooms: 0, totalCapacity: 0, totalOccupancy: 0, overallOccupancyRate: 0 },
+            byStatus: stats[0].byStatus,
+            byBuilding: stats[0].byBuilding
+        };
+
+        return sendSuccess(res, 200, 'Room statistics', { stats: result });
+    } catch (error) {
+        console.error('Get Rooms Stats Error:', error);
+        return sendError(res, 500, 'Failed to fetch room stats', error.message);
+    }
+};
+
+// ==========================================
+// GET /api/stats/meals
+// ==========================================
+exports.getMealsStats = async (req, res) => {
+    try {
+        const result = await MealBooking.aggregate([
+            {
+                $facet: {
+                    byDate: [
+                        {
+                            $group: {
+                                _id: {
+                                    $dateToString: { format: '%Y-%m-%d', date: '$date' }
+                                },
+                                totalBookings: { $sum: 1 },
+                                servedCount: { $sum: { $cond: [{ $eq: ['$isServed', true] }, 1, 0] } },
+                                cancelledCount: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } }
+                            }
+                        },
+                        { $sort: { '_id': -1 } },
+                        { $limit: 30 } // Last 30 days
+                    ],
+                    byMealType: [
+                        {
+                            $lookup: {
+                                from: 'meals',
+                                localField: 'mealId',
+                                foreignField: '_id',
+                                as: 'mealInfo'
+                            }
+                        },
+                        { $unwind: { path: '$mealInfo', preserveNullAndEmptyArrays: true } },
+                        {
+                            $group: {
+                                _id: { $ifNull: ['$mealInfo.mealType', 'unknown'] },
+                                totalBookings: { $sum: 1 },
+                                servedCount: { $sum: { $cond: [{ $eq: ['$isServed', true] }, 1, 0] } }
+                            }
+                        },
+                        { $sort: { totalBookings: -1 } }
+                    ],
+                    summary: [
+                        {
+                            $group: {
+                                _id: null,
+                                totalBookings: { $sum: 1 },
+                                totalServed: { $sum: { $cond: [{ $eq: ['$isServed', true] }, 1, 0] } },
+                                totalCancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } }
+                            }
+                        },
+                        {
+                            $project: {
+                                totalBookings: 1,
+                                totalServed: 1,
+                                totalCancelled: 1,
+                                serviceRate: {
+                                    $cond: [
+                                        { $eq: ['$totalBookings', 0] },
+                                        0,
+                                        { $multiply: [{ $divide: ['$totalServed', '$totalBookings'] }, 100] }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        ]);
+
+        const stats = {
+            summary: result[0].summary[0] || { totalBookings: 0, totalServed: 0, totalCancelled: 0, serviceRate: 0 },
+            byDate: result[0].byDate,
+            byMealType: result[0].byMealType
+        };
+
+        return sendSuccess(res, 200, 'Meal statistics', { stats });
+    } catch (error) {
+        console.error('Get Meals Stats Error:', error);
+        return sendError(res, 500, 'Failed to fetch meal stats', error.message);
+    }
+};
