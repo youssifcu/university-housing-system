@@ -2,18 +2,92 @@ const express = require('express');
 const router = express.Router();
 const mealController = require('../controllers/mealController');
 const verifyToken = require('../middlewares/verifyFirebaseToken');
+const { isAdmin, isMealAdmin, isStudent, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
 
-router.get('/menu/today', verifyToken, mealController.getTodayMenu);
-router.get('/menu/week', verifyToken, mealController.getWeeklyMenu);
+// ==========================================
+// مسارات عامة (للمستخدمين المسجلين)
+// ==========================================
+// عرض قائمة الوجبات (مع Pagination وفلترة)
+router.get(
+    '/',
+    verifyToken,
+    mealController.getMeals
+);
 
-router.post('/', verifyToken, mealController.createMeal);
-router.put('/:id', verifyToken, mealController.updateMeal);
-router.delete('/:id', verifyToken, mealController.deleteMeal);
+// عرض وجبات اليوم
+router.get(
+    '/today',
+    verifyToken,
+    mealController.getMeals // مع فلترة التاريخ
+);
 
-router.post('/book', verifyToken, mealController.bookMeal);
-router.delete('/book/:id', verifyToken, mealController.cancelBooking);
-router.get('/bookings/my', verifyToken, mealController.getMyBookings);
+// عرض وجبات الأسبوع (يمكن تنفيذها في الكنترولر)
+router.get(
+    '/week',
+    verifyToken,
+    mealController.getWeeklyMenu // تأكد من وجودها
+);
 
-router.post('/scan', verifyToken, mealController.scanMeal);
+// ==========================================
+// مسارات الطالب (Student Only)
+// ==========================================
+// حجز وجبة
+router.post(
+    '/book',
+    verifyToken,
+    isStudent,
+    mealController.bookMeal
+);
+
+// عرض حجوزاتي
+router.get(
+    '/my-bookings',
+    verifyToken,
+    isStudent,
+    mealController.getMyBookings
+);
+
+// إلغاء حجز
+router.delete(
+    '/book/:bookingId',
+    verifyToken,
+    isStudent,
+    mealController.cancelBooking
+);
+
+// ==========================================
+// مسارات مسؤولي الوجبات (Meal Admin)
+// ==========================================
+// مسح QR لصرف وجبة
+router.post(
+    '/scan',
+    verifyToken,
+    isMealAdmin,
+    mealController.scanMeal
+);
+
+// إنشاء وجبة جديدة (Meal Admin أو Admin)
+router.post(
+    '/',
+    verifyToken,
+    isMealAdmin,
+    mealController.createMeal
+);
+
+// تحديث وجبة
+router.put(
+    '/:id',
+    verifyToken,
+    isMealAdmin,
+    mealController.updateMeal
+);
+
+// حذف وجبة
+router.delete(
+    '/:id',
+    verifyToken,
+    isMealAdmin,
+    mealController.deleteMeal
+);
 
 module.exports = router;
