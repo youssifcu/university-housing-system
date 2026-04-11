@@ -1,155 +1,136 @@
 const Report = require('../models/Report');
-const Student = require('../models/Student');
+const { User, Student } = require('../models/User');
 const Notification = require('../models/Notification');
 
-const canManageReports = (role) =>
-  role === 'admin' || role === 'floor_supervisor' || role === 'computer_supervisor' || role === 'restaurant_supervisor';
+// دالة مساعدة للتحقق من صلاحية الإدارة
+const canManageReports = (role) => [
+  'admin', 
+  'floor_admin', 
+  'supervisor'
+].includes(role);
 
-// POST /api/reports
+// ================= تقديم بلاغ/شكوى جديدة (Student Only) =================
 exports.createReport = async (req, res) => {
   try {
     const { type, description, severity, imageUrl } = req.body;
 
     if (!type || !description) {
-      return res.status(400).json({ message: 'type and description are required' });
+      return res.status(400).json({ success: false, message: 'Type and description are required' });
     }
 
-    const student = await Student.findOne({ userId: req.user.mongoId });
-    if (!student) {
-      return res.status(404).json({ message: 'Student record not found' });
-    }
+    // بما إننا بنستخدم Discriminators، الـ req.userDoc هو الطالب فعلياً
+    const studentId = req.userDoc._id;
 
     const report = await Report.create({
-      type,
+      type, // 'maintenance', 'complaint', 'emergency'
       description,
-      severity,
+      severity: severity || 'low',
       imageUrl,
-      studentId: student._id,
-      reportedBy: req.user.mongoId,
+      studentId: studentId,
+      reportedBy: studentId,
       status: 'open'
     });
 
-    return res.status(201).json({ id: report._id, status: report.status });
-  } catch (error) {
-    return res.status(500).json({ message: 'Failed to submit report', error: error.message });
-  }
-};
-
-// GET /api/reports
-exports.getAllReports = async (req, res) => {
-  try {
-    if (!canManageReports(req.user.role)) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-
-    const reports = await Report.find().sort({ createdAt: -1 });
-    return res.status(200).json(
-      reports.map((report) => ({
-        id: report._id,
-        type: report.type,
-        severity: report.severity,
-        status: report.status
-      }))
-    );
-  } catch (error) {
-    return res.status(500).json({ message: 'Failed to fetch reports', error: error.message });
-  }
-};
-
-// GET /api/reports/:id
-exports.getReportById = async (req, res) => {
-  try {
-    const report = await Report.findById(req.params.id);
-    if (!report) {
-      return res.status(404).json({ message: 'Report not found' });
-    }
-
-    if (canManageReports(req.user.role)) {
-      return res.status(200).json({
-        id: report._id,
-        description: report.description,
-        status: report.status
-      });
-    }
-
-    const student = await Student.findOne({ userId: req.user.mongoId });
-    const isOwner = student && report.studentId.toString() === student._id.toString();
-    if (!isOwner) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-
-    return res.status(200).json({
-      id: report._id,
-      description: report.description,
-      status: report.status
+    res.status(201).json({ 
+      success: true, 
+      id: report._id, 
+      status: report.status 
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to fetch report', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to submit report', error: error.message });
   }
 };
 
-// PATCH /api/reports/:id/status
-exports.updateReportStatus = async (req, res) => {
+// ================= الحصول على كل البلاغات (Admin & Supervisors Only) =================
+exports.getAllReports = async (req, res) => {
   try {
-    if (!canManageReports(req.user.role)) {
-      return res.status(403).json({ message: 'Access denied' });
+    if (!canManageReports(req.userDoc.role)) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
     }
 
-    const { status } = req.body;
-    if (!status) {
-      return res.status(400).json({ message: 'status is required' });
+    const reports = await Report.find()
+      .populate('studentId', 'name studentId assignedRoomId')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, count: reports.length, reports });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch reports', error: error.message });
+  }
+};
+
+// ================= تفاصيل بلاغ محدد (Owner or Management) =================
+exports.getReportById = async (req, res) => {
+  try {
+    const report = await Report.findById(req.params.id)
+      .populate('studentId', 'name studentId')
+      .populate('reportedBy', 'name role');
+
+    if (!report) return res.status(404).json({ success: false, message: 'Report not found' });
+
+    // التأكد من الملكية: لو طالب، لازم يكون هو اللي مقدم البلاغ
+    const isOwner = report.studentId._id.toString() === req.userDoc._id.toString();
+    const isManagement = canManageReports(req.userDoc.role);
+
+    if (!isOwner && !isManagement) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
     }
+
+    res.status(200).json({ success: true, report });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch report', error: error.message });
+  }
+};
+
+// ================= تحديث حالة البلاغ (Admin & Supervisors) =================
+exports.updateReportStatus = async (req, res) => {
+  try {
+    if (!canManageReports(req.userDoc.role)) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    const { status } = req.body; // 'open', 'in_progress', 'resolved', 'closed'
+    if (!status) return res.status(400).json({ success: false, message: 'Status is required' });
 
     const updated = await Report.findByIdAndUpdate(
       req.params.id,
       { $set: { status } },
       { new: true, runValidators: true }
     );
-    if (!updated) {
-      return res.status(404).json({ message: 'Report not found' });
-    }
 
-    // Save notification record
+    if (!updated) return res.status(404).json({ success: false, message: 'Report not found' });
+
+    // إنشاء إشعار للطالب بتحديث حالة بلاغه
     await Notification.create({
-      title: `Report status updated to ${status}`,
-      message: `Your maintenance report has been updated to ${status}`,
+      title: `Update on your ${updated.type} report`,
+      message: `The status of your report has been changed to: ${status}`,
       targetUser: updated.studentId,
       targetRole: 'student',
-      type: 'system'
+      type: 'info'
     });
 
-    // Emit Socket.io event
+    // إرسال تنبيه لحظي عبر Socket.io (لو مفعل)
     const io = req.app.get('io');
     if (io) {
-      io.emit('notification:new', {
-        targetUser: updated.studentId,
-        targetRole: 'student',
-        type: 'system',
-        reportId: updated._id,
-        status
+      io.to(updated.studentId.toString()).emit('notification:new', {
+        title: "Report Updated",
+        status: status
       });
     }
 
-    return res.status(200).json({ message: 'Report status updated' });
+    res.status(200).json({ success: true, message: `Report status updated to ${status}` });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to update report status', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to update report', error: error.message });
   }
 };
 
-// DELETE /api/reports/:id
-exports.deleteReport = async (req, res) => {
+// ================= عرض بلاغاتي (Student Only - Mobile) =================
+exports.getMyReports = async (req, res) => {
   try {
-    if (!canManageReports(req.user.role)) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-
-    const deleted = await Report.findByIdAndDelete(req.params.id);
-    if (!deleted) {
-      return res.status(404).json({ message: 'Report not found' });
-    }
-
-    return res.status(200).json({ message: 'Report deleted' });
+    const reports = await Report.find({ studentId: req.userDoc._id })
+      .sort({ createdAt: -1 });
+    
+    res.status(200).json({ success: true, count: reports.length, reports });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to delete report', error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 };

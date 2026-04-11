@@ -1,114 +1,65 @@
 const Building = require('../models/Building');
+const Room = require('../models/Room');
 
-/**
- * @desc    Get all buildings
- * @route   GET /api/buildings
- * @access  Private (Student/Admin)
- */
+// ================= الحصول على كل المباني =================
 exports.getAllBuildings = async (req, res) => {
   try {
-    // Fetch buildings from the database
-    const buildings = await Building.find();
-
-    // Mapping to match your exact expected response format
+    const buildings = await Building.find().populate('supervisorId', 'name phoneNumber');
+    
     const formattedBuildings = buildings.map(b => ({
       id: b._id,
       name: b.name,
-      gender: b.gender, // e.g., 'male' or 'female'
-      floors: b.floors
+      gender: b.gender,
+      floors: b.floors,
+      supervisor: b.supervisorId ? b.supervisorId.name : 'Not Assigned'
     }));
 
-    res.status(200).json(formattedBuildings);
+    res.status(200).json({ success: true, count: buildings.length, buildings: formattedBuildings });
   } catch (error) {
-    console.error("Fetch Buildings Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Failed to retrieve buildings", 
-      error: error.message 
-    });
+    res.status(500).json({ success: false, message: "Failed to retrieve buildings", error: error.message });
   }
 };
 
-/**
- * @desc    Get a specific building by ID
- * @route   GET /api/buildings/:id
- * @access  Private (Student/Admin)
- */
+// ================= الحصول على مبنى محدد بإحصائياته =================
 exports.getBuildingById = async (req, res) => {
   try {
-    const { id } = req.params;
-    const building = await Building.findById(id);
+    const building = await Building.findById(req.params.id).populate('supervisorId', 'name phoneNumber email');
+    if (!building) return res.status(404).json({ success: false, message: "Building not found" });
 
-    if (!building) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Building not found" 
-      });
-    }
+    // حساب إحصائيات الغرف داخل المبنى لـ Sprint 2
+    const rooms = await Room.find({ buildingId: building._id });
+    const stats = {
+      totalRooms: rooms.length,
+      availableRooms: rooms.filter(r => r.status === 'available').length,
+      fullRooms: rooms.filter(r => r.status === 'full').length,
+      totalCapacity: rooms.reduce((acc, curr) => acc + curr.capacity, 0),
+      currentOccupantsCount: rooms.reduce((acc, curr) => acc + curr.currentOccupants.length, 0)
+    };
 
-    // Matching the expected response format from your image
-    res.status(200).json({
-      id: building._id,
-      name: building.name,
-      gender: building.gender
-    });
+    res.status(200).json({ success: true, building, stats });
   } catch (error) {
-    console.error("Fetch Building Detail Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Server Error", 
-      error: error.message 
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
-/**
- * @desc    Add a new building (Admin only)
- * @route   POST /api/buildings
- * @access  Private (Admin)
- */
+// ================= إضافة مبنى جديد (Admin Only) =================
 exports.createBuilding = async (req, res) => {
   try {
-    const { name, gender, floors } = req.body;
+    const { name, gender, floors, description, supervisorId } = req.body;
 
-    // Basic validation
-    if (!name || !gender || !floors) {
-      return res.status(400).json({ message: "Please provide name, gender, and floor count." });
-    }
+    const existingBuilding = await Building.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
+    if (existingBuilding) return res.status(400).json({ message: "A building with this name already exists." });
 
-    // Check if building already exists
-    const existingBuilding = await Building.findOne({ name });
-    if (existingBuilding) {
-      return res.status(400).json({ message: "A building with this name already exists." });
-    }
-
-    const newBuilding = new Building({
-      name,
-      gender,
-      floors
-    });
-
+    const newBuilding = new Building({ name, gender, floors, description, supervisorId });
     await newBuilding.save();
 
-    res.status(201).json({
-      id: newBuilding._id,
-      message: "Building created"
-    });
+    res.status(201).json({ success: true, message: "Building created successfully", id: newBuilding._id });
   } catch (error) {
-    console.error("Create Building Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Failed to create building", 
-      error: error.message 
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
-/**
- * @desc    Update a building (Admin only)
- * @route   PUT /api/buildings/:id
- * @access  Private (Admin)
- */
+// ================= تحديث بيانات مبنى =================
 exports.updateBuilding = async (req, res) => {
   try {
     const updatedBuilding = await Building.findByIdAndUpdate(
@@ -117,16 +68,10 @@ exports.updateBuilding = async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    if (!updatedBuilding) {
-      return res.status(404).json({ success: false, message: "Building not found" });
-    }
+    if (!updatedBuilding) return res.status(404).json({ success: false, message: "Building not found" });
 
-    res.status(200).json({ 
-      success: true,
-      message: "Building updated successfully",
-      data: updatedBuilding 
-    });
+    res.status(200).json({ success: true, message: "Building updated", data: updatedBuilding });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Update failed", error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 };

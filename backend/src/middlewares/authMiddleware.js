@@ -1,74 +1,42 @@
-const { User } = require('../models/User');
-
 const verifyRole = (allowedRoles) => {
-  return async (req, res, next) => {
-    try {
-      const user = await User.findOne({ firebaseUid: req.user.uid });
-      if (!user) return res.status(401).json({ message: 'User not found' });
-      
-      if (!allowedRoles.includes(user.role)) {
-        return res.status(403).json({ 
-          message: `Access denied. Required roles: ${allowedRoles.join(', ')}` 
-        });
-      }
-      req.userDoc = user;
-      next();
-    } catch (error) {
-      res.status(500).json({ message: 'Authorization error', error: error.message });
+  return (req, res, next) => {
+    // اليوزر مش موجود في الداتا بيز أصلاً
+    if (!req.userDoc) {
+      return res.status(401).json({ success: false, message: 'User profile not found in database' });
     }
-  };
-};
 
-const isStudent = async (req, res, next) => {
-  try {
-    const user = await User.findOne({ firebaseUid: req.user.uid });
-    if (!user || user.role !== 'student') {
-      return res.status(403).json({ message: 'Access denied: Student role required' });
-    }
-    req.userDoc = user;
-    next();
-  } catch (error) {
-    res.status(500).json({ message: 'Authorization error', error: error.message });
-  }
-};
-
-const isAdmin = async (req, res, next) => {
-  try {
-    const user = await User.findOne({ firebaseUid: req.user.uid });
-    const adminRoles = ['computer_admin', 'floor_admin', 'meal_admin', 'supervisor'];
-    if (!user || !adminRoles.includes(user.role)) {
-      return res.status(403).json({ message: 'Access denied: Admin role required' });
-    }
-    req.userDoc = user;
-    next();
-  } catch (error) {
-    res.status(500).json({ message: 'Authorization error', error: error.message });
-  }
-};
-
-const checkStudentApproval = async (req, res, next) => {
-  try {
-    const user = await User.findOne({ firebaseUid: req.user.uid });
-    if (!user) return res.status(401).json({ message: 'User not found' });
-
-    if (user.role === 'student' && user.registrationStatus !== 'approved') {
+    // التأكد من الـ Role
+    if (!allowedRoles.includes(req.userRole)) {
       return res.status(403).json({ 
-        message: 'Your account is pending approval. Please wait for admin confirmation.'
+        success: false,
+        message: `Access denied. Required roles: ${allowedRoles.join(', ')}` 
       });
     }
     next();
-  } catch (error) {
-    res.status(500).json({ message: 'Authorization error', error: error.message });
+  };
+};
+
+// تشيك على حالة القبول للطلاب
+const checkStudentApproval = (req, res, next) => {
+  if (req.userRole === 'student') {
+    if (req.userDoc.registrationStatus !== 'approved') {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Your account is pending approval. Please wait for admin confirmation.'
+      });
+    }
   }
+  next();
 };
 
 module.exports = {
   verifyRole,
-  isStudent,
-  isAdmin,
-  checkStudentApproval,
+  isStudent: verifyRole(['student']),
+  isAdmin: verifyRole(['computer_admin', 'floor_admin', 'meal_admin', 'supervisor']),
   isSupervisor: verifyRole(['supervisor']),
-  isFloorSupervisor: verifyRole(['floor_admin']),
-  isMealAdmin: verifyRole(['meal_admin']),
-  isComputerAdmin: verifyRole(['computer_admin'])
+  isFloorAdmin: verifyRole(['floor_admin']),
+  checkStudentApproval,
+  // اختصار لأي رول مستقبلاً
+  isComputerAdmin: verifyRole(['computer_admin']),
+  isMealAdmin: verifyRole(['meal_admin'])
 };

@@ -1,160 +1,61 @@
 const Attendance = require('../models/Attendance');
-const Student = require('../models/Student');
-const Building = require('../models/Building');
+const { User } = require('../models/User');
 
-const canManageAttendance = (role) =>
-  role === 'admin' || role === 'floor_supervisor' || role === 'computer_supervisor';
-
-const parseDateOrNull = (value) => {
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-// POST /api/attendance
-exports.recordAttendance = async (req, res) => {
-  try {
-    if (!canManageAttendance(req.user.role)) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-
-    const { studentId, buildingId, date, status } = req.body;
-    const parsedDate = parseDateOrNull(date);
-
-    if (!studentId || !buildingId || !parsedDate || !status) {
-      return res.status(400).json({ message: 'studentId, buildingId, date, and status are required' });
-    }
-
-    const student = await Student.findById(studentId);
-    if (!student) return res.status(404).json({ message: 'Student not found' });
-
-    const building = await Building.findById(buildingId);
-    if (!building) return res.status(404).json({ message: 'Building not found' });
-
-    const attendance = await Attendance.create({
-      studentId,
-      buildingId,
-      date: parsedDate,
-      status,
-      recordedBy: req.user.mongoId
-    });
-
-    return res.status(201).json({ id: attendance._id, status: attendance.status });
-  } catch (error) {
-    if (error.code === 11000) {
-      return res.status(409).json({ message: 'Attendance already recorded for this student/date' });
-    }
-    return res.status(500).json({ message: 'Failed to record attendance', error: error.message });
-  }
-};
-
-// POST /api/attendance/scan
+// ================= تسجيل الحضور بالـ QR (للمشرف) =================
 exports.scanAttendance = async (req, res) => {
   try {
-    if (!canManageAttendance(req.user.role)) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
+    const { qrCodeString, buildingId } = req.body;
 
-    const { qrCode, buildingId } = req.body;
-    if (!qrCode || !buildingId) {
-      return res.status(400).json({ message: 'qrCode and buildingId are required' });
-    }
+    // 1. البحث عن الطالب بكود الحضور
+    const student = await User.findOne({ "qrCode.attendanceCode": qrCodeString, role: 'student' });
+    if (!student) return res.status(404).json({ success: false, message: "Invalid QR Code" });
 
-    const student = await Student.findOne({ qrCode });
-    if (!student) {
-      return res.status(404).json({ message: 'Student not found for QR code' });
-    }
-
-    // Check if on leave
+    // 2. التحقق من حالة الإجازة (حسب الـ Enum في الموديل بتاعك 'suspended')
     if (student.housingStatus === 'suspended') {
-      const HousingRequest = require('../models/HousingRequest');
-      const leave = await HousingRequest.findOne({
-        studentId: student._id,
-        type: 'vacate',
-        status: 'approved',
-        startDate: { $lte: new Date() },
-        endDate: { $gte: new Date() }
+      return res.status(200).json({ 
+        success: true, 
+        message: "Student is on approved leave. Attendance not required.",
+        onLeave: true 
       });
-      if (leave) {
-        return res.status(200).json({ message: 'Student on leave, attendance not required' });
-      }
     }
 
-    const building = await Building.findById(buildingId);
-    if (!building) return res.status(404).json({ message: 'Building not found' });
+    // 3. منع التكرار في نفس اليوم
+    const start = new Date(); start.setHours(0,0,0,0);
+    const end = new Date(); end.setHours(23,59,59,999);
 
-    const attendance = await Attendance.create({
+    const existingRecord = await Attendance.findOne({
       studentId: student._id,
-      buildingId,
-      date: new Date(),
-      status: 'present',
-      recordedBy: req.user.mongoId
+      date: { $gte: start, $lte: end }
     });
 
-    return res.status(201).json({ message: 'Attendance recorded', status: attendance.status });
+    if (existingRecord) return res.status(400).json({ success: false, message: "Attendance already recorded today" });
+
+    // 4. تسجيل الحضور
+    const attendance = await Attendance.create({
+      studentId: student._id,
+      buildingId: buildingId || student.assignedRoomId, // الأفضل يتبعت من الموبايل بتاع المشرف
+      date: new Date(),
+      status: 'present',
+      recordedBy: req.userDoc._id
+    });
+
+    res.status(201).json({ 
+      success: true, 
+      message: `Attendance recorded for ${student.name}`,
+      studentDetails: { name: student.name, studentId: student.studentId }
+    });
+
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(409).json({ message: 'Attendance already recorded for this student/date' });
-    }
-    return res.status(500).json({ message: 'Failed to scan attendance', error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// GET /api/attendance/student/:id
-exports.getAttendanceByStudent = async (req, res) => {
+// ================= عرض سجل حضوري (للطالب) =================
+exports.getMyAttendance = async (req, res) => {
   try {
-    const records = await Attendance.find({ studentId: req.params.id }).sort({ date: -1 });
-    return res.status(200).json(
-      records.map((record) => ({
-        id: record._id,
-        date: record.date.toISOString().slice(0, 10),
-        status: record.status
-      }))
-    );
+    const records = await Attendance.find({ studentId: req.userDoc._id }).sort({ date: -1 });
+    res.status(200).json({ success: true, records });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to fetch student attendance', error: error.message });
-  }
-};
-
-// GET /api/attendance/building/:id
-exports.getAttendanceByBuilding = async (req, res) => {
-  try {
-    const records = await Attendance.find({ buildingId: req.params.id }).sort({ date: -1 });
-    return res.status(200).json(
-      records.map((record) => ({
-        studentId: record.studentId,
-        date: record.date.toISOString().slice(0, 10),
-        status: record.status
-      }))
-    );
-  } catch (error) {
-    return res.status(500).json({ message: 'Failed to fetch building attendance', error: error.message });
-  }
-};
-
-// PATCH /api/attendance/:id
-exports.updateAttendance = async (req, res) => {
-  try {
-    if (!canManageAttendance(req.user.role)) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-
-    const { status } = req.body;
-    if (!status) {
-      return res.status(400).json({ message: 'status is required' });
-    }
-
-    const updated = await Attendance.findByIdAndUpdate(
-      req.params.id,
-      { $set: { status } },
-      { new: true, runValidators: true }
-    );
-
-    if (!updated) {
-      return res.status(404).json({ message: 'Attendance record not found' });
-    }
-
-    return res.status(200).json({ message: 'Attendance updated' });
-  } catch (error) {
-    return res.status(500).json({ message: 'Failed to update attendance', error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 };

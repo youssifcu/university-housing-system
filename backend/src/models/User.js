@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const QRCode = require('qrcode');
 
 const baseOptions = {
   discriminatorKey: 'role',
@@ -19,78 +18,50 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
+// ---- Student Schema ----
 const studentSchema = new mongoose.Schema({
+  // Academic Info
   studentId: { type: String, required: true, unique: true, trim: true },
+  nationalId: { type: String, required: true, unique: true },
   universityYear: { type: Number, min: 1, max: 7 },
-  faculty: { type: String, trim: true },
-  registrationStatus: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
+  faculty: { type: String, required: true, trim: true },
+  
+  // Housing Info
+  housingStatus: { 
+    type: String, 
+    enum: ['new_applicant', 'active', 'inactive', 'suspended', 'banned'], 
+    default: 'new_applicant' 
   },
-  approvalDate: { type: Date, default: null },
-  approvalReason: { type: String, default: '' },
+  applicationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Application', default: null },
   assignedRoomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', default: null },
+  bedNumber: { type: Number, default: null }, // رقم السرير
   roomAllocationDate: { type: Date, default: null },
+  
+  // QRs & Operations
   qrCode: {
     attendanceCode: { type: String, default: null },
-    attendanceQR: { type: String, default: null },
-    mealCode: { type: String, default: null },
-    mealQR: { type: String, default: null }
+    mealCode: { type: String, default: null }
   },
   leaveStatus: {
     isOnLeave: { type: Boolean, default: false },
     leaveStartDate: { type: Date, default: null },
     leaveEndDate: { type: Date, default: null },
-    leaveReason: { type: String, default: '' },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
-  },
-  documents: {
-    studentIdCard: { url: String, uploadedAt: Date },
-    nationalId: { url: String, uploadedAt: Date },
-    clearance: { url: String, uploadedAt: Date }
-  },
-  housingStatus: { 
-    type: String, 
-    enum: ['new_applicant', 'currently_resident', 'previously_resident', 'discontinued', 'banned'], 
-    default: 'new_applicant' 
-  },
-  academicStatus: { type: String, enum: ['active', 'graduated', 'suspended'], default: 'active' },
-  banReason: { type: String, default: '' }
+  }
 });
 
 const Student = User.discriminator('student', studentSchema);
 
-const ComputerAdmin = User.discriminator('computer_admin', new mongoose.Schema({
-  labNumber: { type: String, required: true },
-  technicalSkills: [{ type: String }],
-  officeHours: { start: { type: String }, end: { type: String } },
-  managedAssetsCount: { type: Number, default: 0 },
-  isMainSupervisor: { type: Boolean, default: false }
-}));
-
+// ---- Admins & Supervisors Schemas ----
 const FloorAdmin = User.discriminator('floor_admin', new mongoose.Schema({
   floorNumber: { type: Number, required: true },
-  buildingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Building' },
-  buildingResponsibility: { type: String, required: true },
-  emergencyContact: { type: String },
-  isNightShift: { type: Boolean, default: false },
-  managedStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }]
-}));
-
-const MealAdmin = User.discriminator('meal_admin', new mongoose.Schema({
-  restaurantSection: { type: String, default: 'Main' },
-  healthCertificateNumber: { type: String },
-  stockManagementAccess: { type: Boolean, default: true },
-  dailyMealsLimit: { type: Number, default: 500 },
-  todaysMealCount: { type: Number, default: 0 }
+  buildingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Building', required: true },
+  isNightShift: { type: Boolean, default: false }
 }));
 
 const SupervisorAdmin = User.discriminator('supervisor', new mongoose.Schema({
   supervisorType: { type: String, enum: ['housing', 'academic', 'discipline'], required: true },
-  department: { type: String },
-  officeLocation: { type: String },
-  assignedStudentIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }]
+  department: { type: String }
 }));
 
-module.exports = { User, Student, ComputerAdmin, FloorAdmin, MealAdmin, SupervisorAdmin };
+module.exports = { User, Student, FloorAdmin, SupervisorAdmin };

@@ -21,14 +21,19 @@ const buildingSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  supervisorName: {
-    type: String,
-    trim: true
+  // ربط المشرف بجدول المستخدمين مباشرة عشان يظهر في موبايل الطالب
+  supervisorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
   },
-  supervisorPhone: {
+  status: {
     type: String,
-    trim: true
+    enum: ['active', 'maintenance', 'inactive'],
+    default: 'active'
   }
+}, {
+  timestamps: true // لزوم الـ Sprint 2 (تاريخ الإضافة)
 });
 
 const Building = mongoose.model('Building', buildingSchema);

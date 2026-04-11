@@ -1,25 +1,26 @@
 const mongoose = require('mongoose');
 
 const roomSchema = new mongoose.Schema({
+  roomNumber: {
+    type: String,
+    required: [true, 'Room number is required'],
+    trim: true
+  },
   buildingId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Building',
-    required: [true, 'A room must belong to a building']
+    required: [true, 'Room must belong to a building']
   },
   floorNumber: {
     type: Number,
     required: [true, 'Floor number is required']
   },
-  roomNumber: {
-    type: String, 
-    required: [true, 'Room number/label is required'],
-    trim: true
-  },
   capacity: {
     type: Number,
-    required: [true, 'Maximum occupancy is required'],
-    min: [1, 'Capacity cannot be less than 1']
+    required: [true, 'Room capacity is required'],
+    default: 4
   },
+  // تخزين الـ IDs بتاعة الطلاب اللي جوه الأوضة فعلياً
   currentOccupants: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -33,7 +34,15 @@ const roomSchema = new mongoose.Schema({
   timestamps: true
 });
 
-roomSchema.index({ buildingId: 1, roomNumber: 1 }, { unique: true });
+// Middleware: تحديث حالة الغرفة تلقائياً بناءً على عدد الطلاب
+roomSchema.pre('save', function (next) {
+  if (this.currentOccupants.length >= this.capacity) {
+    this.status = 'full';
+  } else if (this.status !== 'maintenance') {
+    this.status = 'available';
+  }
+  next();
+});
 
 const Room = mongoose.model('Room', roomSchema);
 
