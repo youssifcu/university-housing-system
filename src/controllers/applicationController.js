@@ -293,3 +293,80 @@ exports.getMyApplication = async (req, res) => {
         return sendError(res, 500, 'Failed to fetch application', error.message);
     }
 };
+
+// ==========================================
+// GET /api/applications/:id
+// ==========================================
+exports.getApplicationById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = req.userDoc;
+
+        // البحث عن الطلب
+        const application = await Application.findById(id)
+            .populate('userId', 'name email studentId')
+            .select('-__v')
+            .lean();
+
+        if (!application) {
+            return sendError(res, 404, 'Application not found');
+        }
+
+        // التحقق من الصلاحيات: المالك أو الأدمن أو المشرف
+        const isOwner = application.userId._id.toString() === user._id.toString();
+        const isAdmin = user.role === 'admin';
+        const isSupervisor = user.role === 'supervisor';
+
+        if (!isOwner && !isAdmin && !isSupervisor) {
+            return sendError(res, 403, 'Access denied. You can only view your own applications');
+        }
+
+        return sendSuccess(res, 200, 'Application fetched successfully', { application });
+
+    } catch (error) {
+        console.error('Get Application By ID Error:', error);
+        if (error.name === 'CastError') {
+            return sendError(res, 400, 'Invalid application ID');
+        }
+        return sendError(res, 500, 'Failed to fetch application', error.message);
+    }
+};
+
+// ==========================================
+// DELETE /api/applications/:id
+// ==========================================
+exports.deleteApplication = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = req.userDoc;
+
+        // البحث عن الطلب
+        const application = await Application.findById(id);
+
+        if (!application) {
+            return sendError(res, 404, 'Application not found');
+        }
+
+        // التحقق من الصلاحيات: فقط المالك يمكنه الحذف
+        if (application.userId.toString() !== user._id.toString()) {
+            return sendError(res, 403, 'Access denied. You can only delete your own applications');
+        }
+
+        // التحقق من حالة الطلب: يمكن الحذف فقط قبل المراجعة
+        if (application.status !== 'pending') {
+            return sendError(res, 400, 'Cannot delete application. It has already been reviewed');
+        }
+
+        // حذف الطلب
+        await Application.findByIdAndDelete(id);
+
+        return sendSuccess(res, 200, 'Application deleted successfully');
+
+    } catch (error) {
+        console.error('Delete Application Error:', error);
+        if (error.name === 'CastError') {
+            return sendError(res, 400, 'Invalid application ID');
+        }
+        return sendError(res, 500, 'Failed to delete application', error.message);
+    }
+};
