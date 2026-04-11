@@ -30,10 +30,11 @@ const startServer = async () => {
         console.log('✅ Database connected successfully');
 
         const PORT = process.env.PORT || 5000;
-        const server = app.listen(PORT, () => {
+        // Notice the "0.0.0.0" added right after PORT
+        const server = app.listen(PORT, "0.0.0.0", () => {
             console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
         });
-
+        
         // ==========================================
         // 3. Socket.io Configuration
         // ==========================================

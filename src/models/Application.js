@@ -21,8 +21,7 @@ const applicationSchema = new mongoose.Schema(
             required: [true, 'National ID is required'],
             unique: true,
             trim: true,
-            match: [/^\d{14}$/, 'National ID must be 14 digits'],
-            index: true
+            match: [/^\d{14}$/, 'National ID must be 14 digits']
         },
         fullName: {
             type: String,
@@ -251,7 +250,6 @@ applicationSchema.virtual('canBeReviewed').get(function() {
 applicationSchema.index({ status: 1, createdAt: -1 });
 applicationSchema.index({ userId: 1, status: 1 });
 applicationSchema.index({ college: 1, academicYear: 1 });
-applicationSchema.index({ nationalId: 1 }, { unique: true });
 applicationSchema.index({ 'documents.nationalIdCard.uploadedAt': 1 });
 
 // ==========================================

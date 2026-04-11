@@ -40,7 +40,7 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.FIREBASE_SERVICE_AC
 } else {
   // Priority 3: local development fallback
   try {
-    serviceAccount = require("../../serviceAccountKey.json");
+    serviceAccount = require("../../backend/serviceAccountKey.json");
   } catch (error) {
     throw new Error(
       "Firebase credentials are missing. Set FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY in Railway."
