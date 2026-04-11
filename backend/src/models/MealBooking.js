@@ -1,51 +1,153 @@
 const mongoose = require('mongoose');
 
-const mealBookingSchema = new mongoose.Schema({
-  studentId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Student',
-    required: [true, 'Booking must be linked to a student']
-  },
-  mealId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Meal',
-    required: [true, 'Booking must reference a specific meal']
-  },
-  date: {
-    type: Date,
-    required: true
-  },
-  status: {
-    type: String,
-    enum: ['booked', 'cancelled'],
-    default: 'booked'
-  },
-  isServed: {
-    type: Boolean,
-    default: false // Set to true once the QR code is scanned at the restaurant
-  },
-  servedAt: {
-    type: Date
-  },
-  servedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User' // Reference to the restaurant_supervisor
-  },
-  rating: {
-    type: Number,
-    min: 1,
-    max: 5
-  },
-  review: {
-    type: String,
-    trim: true
-  }
-}, {
-  timestamps: true
+const mealBookingSchema = new mongoose.Schema(
+    {
+        studentId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User', // تم التغيير إلى User ليتوافق مع نظام المستخدم الموحد
+            required: [true, 'Student reference is required'],
+            index: true
+        },
+        mealId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Meal',
+            required: [true, 'Meal reference is required'],
+            index: true
+        },
+        date: {
+            type: Date,
+            required: [true, 'Booking date is required'],
+            index: true
+        },
+        status: {
+            type: String,
+            enum: {
+                values: ['booked', 'cancelled', 'missed'],
+                message: 'Status must be booked, cancelled, or missed'
+            },
+            default: 'booked',
+            index: true
+        },
+        isServed: {
+            type: Boolean,
+            default: false,
+            index: true
+        },
+        servedAt: Date,
+        servedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        cancellationReason: {
+            type: String,
+            trim: true,
+            maxlength: [200, 'Cancellation reason cannot exceed 200 characters']
+        },
+        cancelledAt: Date,
+        rating: {
+            type: Number,
+            min: [1, 'Rating must be at least 1'],
+            max: [5, 'Rating cannot exceed 5']
+        },
+        review: {
+            type: String,
+            trim: true,
+            maxlength: [500, 'Review cannot exceed 500 characters']
+        },
+        specialRequests: {
+            type: String,
+            trim: true,
+            maxlength: [200, 'Special requests cannot exceed 200 characters']
+        }
+    },
+    {
+        timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
+    }
+);
+
+// ==========================================
+// Virtuals
+// ==========================================
+mealBookingSchema.virtual('isActive').get(function() {
+    return this.status === 'booked' && !this.isServed;
 });
 
-// Index to prevent a student from booking the same meal twice
+mealBookingSchema.virtual('canCancel').get(function() {
+    // يمكن الإلغاء إذا كانت الحالة booked ولم يتم التقديم
+    return this.status === 'booked' && !this.isServed;
+});
+
+// ==========================================
+// Indexes
+// ==========================================
+// منع تكرار الحجز لنفس الطالب لنفس الوجبة
 mealBookingSchema.index({ studentId: 1, mealId: 1 }, { unique: true });
+
+// فهارس مركبة للاستعلامات الشائعة
+mealBookingSchema.index({ date: 1, status: 1 });
+mealBookingSchema.index({ mealId: 1, isServed: 1 });
+mealBookingSchema.index({ studentId: 1, date: -1 });
+
+// ==========================================
+// Static Methods
+// ==========================================
+mealBookingSchema.statics.getStudentBookingStats = async function(studentId) {
+    const result = await this.aggregate([
+        { $match: { studentId: mongoose.Types.ObjectId(studentId) } },
+        {
+            $group: {
+                _id: null,
+                totalBookings: { $sum: 1 },
+                servedCount: { $sum: { $cond: ['$isServed', 1, 0] } },
+                cancelledCount: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } },
+                missedCount: { $sum: { $cond: [{ $eq: ['$status', 'missed'] }, 1, 0] } }
+            }
+        }
+    ]);
+    return result[0] || { totalBookings: 0, servedCount: 0, cancelledCount: 0, missedCount: 0 };
+};
+
+mealBookingSchema.statics.hasActiveBooking = async function(studentId, mealId) {
+    const booking = await this.findOne({
+        studentId,
+        mealId,
+        status: 'booked'
+    }).lean();
+    return !!booking;
+};
+
+mealBookingSchema.statics.getMealBookingSummary = async function(mealId) {
+    return this.aggregate([
+        { $match: { mealId: mongoose.Types.ObjectId(mealId) } },
+        {
+            $group: {
+                _id: '$status',
+                count: { $sum: 1 },
+                served: { $sum: { $cond: ['$isServed', 1, 0] } }
+            }
+        }
+    ]);
+};
+
+// ==========================================
+// Pre-save Middleware
+// ==========================================
+mealBookingSchema.pre('save', function(next) {
+    // تعيين تاريخ الإلغاء عند تغيير الحالة إلى cancelled
+    if (this.isModified('status') && this.status === 'cancelled') {
+        this.cancelledAt = new Date();
+    }
+    
+    // إذا تم تقديم الوجبة، نضمن أن الحالة booked
+    if (this.isModified('isServed') && this.isServed) {
+        this.servedAt = new Date();
+        this.status = 'booked';
+    }
+    
+    next();
+});
 
 const MealBooking = mongoose.model('MealBooking', mealBookingSchema);
 
