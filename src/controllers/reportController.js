@@ -251,3 +251,33 @@ exports.getMyReports = async (req, res) => {
         return sendError(res, 500, 'Failed to fetch your reports', error.message);
     }
 };
+
+// ==========================================
+// DELETE /api/reports/:id (Admin/Supervisor)
+// ==========================================
+exports.deleteReport = async (req, res) => {
+    try {
+        if (!canManageReports(req.userDoc.role)) {
+            return sendError(res, 403, 'Access denied');
+        }
+
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendError(res, 400, 'Invalid report ID format');
+        }
+
+        const report = await Report.findByIdAndDelete(id);
+        if (!report) {
+            return sendError(res, 404, 'Report not found');
+        }
+
+        return sendSuccess(res, 200, 'Report deleted successfully', {
+            id: report._id
+        });
+
+    } catch (error) {
+        console.error('Delete Report Error:', error);
+        return sendError(res, 500, 'Failed to delete report', error.message);
+    }
+};
