@@ -182,3 +182,116 @@ exports.getProfile = async (req, res) => {
         return sendError(res, 500, 'Failed to fetch profile', error.message);
     }
 };
+
+// ==========================================
+// PUT /api/auth/profile
+// ==========================================
+exports.updateProfile = async (req, res) => {
+    try {
+        const userId = req.userDoc._id;
+        const updates = req.body;
+
+        // الحقول المسموح بتحديثها
+        const allowedFields = ['name', 'phoneNumber'];
+        const filteredUpdates = {};
+
+        for (const field of allowedFields) {
+            if (updates[field] !== undefined) {
+                filteredUpdates[field] = updates[field];
+            }
+        }
+
+        if (Object.keys(filteredUpdates).length === 0) {
+            return sendError(res, 400, 'No valid fields to update');
+        }
+
+        // تحديث المستخدم
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            filteredUpdates,
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedUser) {
+            return sendError(res, 404, 'User not found');
+        }
+
+        return sendSuccess(res, 200, 'Profile updated successfully', { user: updatedUser });
+
+    } catch (error) {
+        console.error('Update Profile Error:', error);
+        return sendError(res, 500, 'Failed to update profile', error.message);
+    }
+};
+
+// ==========================================
+// PATCH /api/auth/password
+// ==========================================
+exports.changePassword = async (req, res) => {
+    try {
+        const userId = req.userDoc._id;
+        const { currentPassword, newPassword } = req.body;
+
+        if (!currentPassword || !newPassword) {
+            return sendError(res, 400, 'Current password and new password are required');
+        }
+
+        // Note: Since authentication is handled by Firebase, password change should be done via Firebase Auth
+        // This is a placeholder - you might need to implement Firebase password change
+        return sendError(res, 501, 'Password change not implemented - use Firebase Auth');
+
+    } catch (error) {
+        console.error('Change Password Error:', error);
+        return sendError(res, 500, 'Failed to change password', error.message);
+    }
+};
+
+// ==========================================
+// POST /api/auth/register-admin
+// ==========================================
+exports.registerAdmin = async (req, res) => {
+    try {
+        const { 
+            firebaseUid, email, name, phoneNumber, role 
+        } = req.body;
+
+        // 1. التحقق من الحقول المطلوبة
+        const requiredFields = ['firebaseUid', 'email', 'name', 'phoneNumber', 'role'];
+        const missingFields = requiredFields.filter(field => !req.body[field]);
+        if (missingFields.length > 0) {
+            return sendError(res, 400, `Missing required fields: ${missingFields.join(', ')}`);
+        }
+
+        // التحقق من الدور
+        const validRoles = ['admin', 'supervisor'];
+        if (!validRoles.includes(role)) {
+            return sendError(res, 400, 'Invalid role. Must be admin or supervisor');
+        }
+
+        // 2. التأكد من عدم وجود المستخدم مسبقاً
+        const existingUser = await User.findOne({ 
+            $or: [{ email }, { firebaseUid }] 
+        }).select('_id').lean();
+
+        if (existingUser) {
+            return sendError(res, 409, 'User already exists with this email or Firebase UID');
+        }
+
+        // 3. إنشاء المستخدم الجديد
+        const newUser = new User({
+            firebaseUid,
+            email,
+            name,
+            phoneNumber,
+            role
+        });
+
+        await newUser.save();
+
+        return sendSuccess(res, 201, 'Admin/Supervisor registered successfully', { user: newUser });
+
+    } catch (error) {
+        console.error('Register Admin Error:', error);
+        return sendError(res, 500, 'Failed to register admin/supervisor', error.message);
+    }
+};
