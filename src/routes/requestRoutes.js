@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const studentRequestController = require('../controllers/studentRequestController');
+const studentRequestController = require('../controllers/requestController');
 const verifyToken = require('../middlewares/verifyFirebaseToken');
 const { isStudent, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
 

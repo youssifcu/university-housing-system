@@ -11,7 +11,7 @@ const {
 } = require('../middlewares/roleMiddleware');
 
 // استدعاء الكنترولرات الموحدة
-const studentRequestController = require('../controllers/studentRequestController');
+const studentRequestController = require('../controllers/requestController');
 const qrController = require('../controllers/qrController');
 const studentController = require('../controllers/studentController'); // دوال الإجازة والحضور
 
