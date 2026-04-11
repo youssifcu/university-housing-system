@@ -14,6 +14,8 @@ const {
 const studentRequestController = require('../controllers/requestController');
 const qrController = require('../controllers/qrController');
 const studentController = require('../controllers/studentController'); // دوال الإجازة والحضور
+const attendanceController = require('../controllers/attendanceController');
+const mealController = require('../controllers/mealController');
 
 // ==========================================
 // مسارات طلبات الطلاب (Student Requests)
@@ -107,7 +109,7 @@ router.post(
     '/attendance/scan',
     verifyToken,
     isFloorAdmin,
-    studentController.scanAttendance
+    attendanceController.scanAttendance
 );
 
 // تسجيل وجبة (مسح QR) - لمسؤولي الوجبات
@@ -115,7 +117,7 @@ router.post(
     '/meals/scan',
     verifyToken,
     isMealAdmin,
-    studentController.scanMeal
+    mealController.scanMeal
 );
 
 // طلب إجازة (طالب)
