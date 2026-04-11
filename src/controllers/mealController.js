@@ -236,3 +236,228 @@ exports.getMyBookings = async (req, res) => {
         return sendError(res, 500, 'Failed to fetch bookings', error.message);
     }
 };
+
+// ==========================================
+// GET /api/meals/week (قائمة الوجبات للأسبوع)
+// ==========================================
+exports.getWeeklyMenu = async (req, res) => {
+    try {
+        const startDate = req.query.startDate ? new Date(req.query.startDate) : new Date();
+        if (isNaN(startDate)) {
+            return sendError(res, 400, 'Invalid startDate format');
+        }
+
+        const weekStart = new Date(startDate);
+        weekStart.setHours(0, 0, 0, 0);
+        const day = weekStart.getDay();
+        const monday = new Date(weekStart);
+        monday.setDate(weekStart.getDate() - ((day + 6) % 7));
+
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        sunday.setHours(23, 59, 59, 999);
+
+        const meals = await Meal.find({
+            date: { $gte: monday, $lte: sunday }
+        })
+            .sort({ date: 1, mealType: 1 })
+            .lean();
+
+        if (req.userDoc?.role === 'student') {
+            const mealIds = meals.map(m => m._id);
+            const bookings = await MealBooking.find({
+                studentId: req.userDoc._id,
+                mealId: { $in: mealIds }
+            }).select('mealId status').lean();
+
+            const bookingMap = {};
+            bookings.forEach(b => { bookingMap[b.mealId] = b.status; });
+
+            meals.forEach(meal => {
+                meal.isBooked = !!bookingMap[meal._id];
+                meal.bookingStatus = bookingMap[meal._id] || null;
+            });
+        }
+
+        return sendSuccess(res, 200, 'Weekly meal menu fetched successfully', {
+            meals,
+            week: {
+                startDate: monday.toISOString(),
+                endDate: sunday.toISOString()
+            }
+        });
+
+    } catch (error) {
+        console.error('Get Weekly Menu Error:', error);
+        return sendError(res, 500, 'Failed to fetch weekly menu', error.message);
+    }
+};
+
+// ==========================================
+// DELETE /api/meals/book/:bookingId (إلغاء الحجز)
+// ==========================================
+exports.cancelBooking = async (req, res) => {
+    try {
+        const { bookingId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+            return sendError(res, 400, 'Invalid booking ID format');
+        }
+
+        const booking = await MealBooking.findOne({
+            _id: bookingId,
+            studentId: req.userDoc._id
+        });
+
+        if (!booking) {
+            return sendError(res, 404, 'Booking not found');
+        }
+
+        if (booking.status !== 'booked' || booking.isServed) {
+            return sendError(res, 400, 'Only active booked meals can be cancelled');
+        }
+
+        booking.status = 'cancelled';
+        booking.cancellationReason = req.body.reason || 'Cancelled by student';
+        await booking.save();
+
+        return sendSuccess(res, 200, 'Booking cancelled successfully', {
+            bookingId: booking._id
+        });
+    } catch (error) {
+        console.error('Cancel Booking Error:', error);
+        return sendError(res, 500, 'Failed to cancel booking', error.message);
+    }
+};
+
+// ==========================================
+// POST /api/meals (إنشاء وجبة)
+// ==========================================
+exports.createMeal = async (req, res) => {
+    try {
+        const {
+            name,
+            description,
+            mealType,
+            price,
+            date,
+            servingTime,
+            maxBookings,
+            ingredients,
+            nutritionalInfo,
+            image
+        } = req.body;
+
+        if (!name || !mealType || !date) {
+            return sendError(res, 400, 'name, mealType, and date are required');
+        }
+
+        const mealDate = new Date(date);
+        if (isNaN(mealDate)) {
+            return sendError(res, 400, 'Invalid date format');
+        }
+
+        const meal = await Meal.create({
+            name,
+            description,
+            mealType,
+            price,
+            date: mealDate,
+            servingTime,
+            maxBookings: maxBookings || 0,
+            ingredients: ingredients || [],
+            nutritionalInfo: nutritionalInfo || {},
+            image: image || {},
+            createdBy: req.userDoc?._id
+        });
+
+        return sendSuccess(res, 201, 'Meal created successfully', { meal });
+    } catch (error) {
+        console.error('Create Meal Error:', error);
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(e => e.message);
+            return sendError(res, 400, 'Validation failed', messages);
+        }
+        return sendError(res, 500, 'Failed to create meal', error.message);
+    }
+};
+
+// ==========================================
+// PUT /api/meals/:id (تحديث وجبة)
+// ==========================================
+exports.updateMeal = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = { ...req.body };
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendError(res, 400, 'Invalid meal ID format');
+        }
+
+        const meal = await Meal.findById(id);
+        if (!meal) {
+            return sendError(res, 404, 'Meal not found');
+        }
+
+        const updatableFields = [
+            'name',
+            'description',
+            'mealType',
+            'price',
+            'date',
+            'servingTime',
+            'maxBookings',
+            'isAvailable',
+            'ingredients',
+            'nutritionalInfo',
+            'image'
+        ];
+
+        updatableFields.forEach(field => {
+            if (Object.prototype.hasOwnProperty.call(updates, field)) {
+                meal[field] = updates[field];
+            }
+        });
+
+        if (updates.date) {
+            const mealDate = new Date(updates.date);
+            if (isNaN(mealDate)) {
+                return sendError(res, 400, 'Invalid date format');
+            }
+            meal.date = mealDate;
+        }
+
+        await meal.save();
+        return sendSuccess(res, 200, 'Meal updated successfully', { meal });
+    } catch (error) {
+        console.error('Update Meal Error:', error);
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(e => e.message);
+            return sendError(res, 400, 'Validation failed', messages);
+        }
+        return sendError(res, 500, 'Failed to update meal', error.message);
+    }
+};
+
+// ==========================================
+// DELETE /api/meals/:id (حذف وجبة)
+// ==========================================
+exports.deleteMeal = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendError(res, 400, 'Invalid meal ID format');
+        }
+
+        const meal = await Meal.findByIdAndDelete(id);
+        if (!meal) {
+            return sendError(res, 404, 'Meal not found');
+        }
+
+        return sendSuccess(res, 200, 'Meal deleted successfully', { mealId: id });
+    } catch (error) {
+        console.error('Delete Meal Error:', error);
+        return sendError(res, 500, 'Failed to delete meal', error.message);
+    }
+};
