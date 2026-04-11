@@ -39,7 +39,7 @@ app.use((req, res, next) => {
 
 const allowedOrigins = process.env.CORS_ORIGIN 
     ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()) 
-    : ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173'];
+    : ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173' , 'https://university-housing-system-production-64e5.up.railway.app'];
 
 app.use(cors({
     origin: function (origin, callback) {
