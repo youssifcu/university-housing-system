@@ -1,8 +1,24 @@
 const isSupervisorOrAdmin = (req, res, next) => {
-  if (req.user && (req.user.role === 'admin' || req.user.role === 'floor_supervisor')) {
-    return next();
-  }
-  return res.status(403).json({ success: false, message: 'Access Denied: Supervisor or Admin required' });
+    const user = req.userDoc || req.user;
+    
+    if (!user) {
+        return res.status(401).json({
+            success: false,
+            message: 'Authentication required'
+        });
+    }
+
+    // الأدوار المسموحة: admin, supervisor, floor_admin
+    const allowedRoles = ['admin', 'supervisor', 'floor_admin'];
+    
+    if (allowedRoles.includes(user.role)) {
+        next();
+    } else {
+        return res.status(403).json({
+            success: false,
+            message: 'Access Denied: Supervisor or Admin privileges required'
+        });
+    }
 };
 
 module.exports = isSupervisorOrAdmin;
