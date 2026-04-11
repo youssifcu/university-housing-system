@@ -1,42 +1,66 @@
+/**
+ * Middleware factory to verify user roles
+ * @param {string[]} allowedRoles - Array of roles allowed to access the route
+ */
 const verifyRole = (allowedRoles) => {
-  return (req, res, next) => {
-    // اليوزر مش موجود في الداتا بيز أصلاً
-    if (!req.userDoc) {
-      return res.status(401).json({ success: false, message: 'User profile not found in database' });
-    }
+    return (req, res, next) => {
+        // User must exist in database
+        if (!req.userDoc) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authentication required. User profile not found.'
+            });
+        }
 
-    // التأكد من الـ Role
-    if (!allowedRoles.includes(req.userRole)) {
-      return res.status(403).json({ 
-        success: false,
-        message: `Access denied. Required roles: ${allowedRoles.join(', ')}` 
-      });
+        // Check if user's role is in the allowed list
+        if (!allowedRoles.includes(req.userDoc.role)) {
+            return res.status(403).json({
+                success: false,
+                message: `Access denied. Required roles: ${allowedRoles.join(', ')}`
+            });
+        }
+        next();
+    };
+};
+
+/**
+ * Middleware to check if student is approved/active
+ * (Only applies to users with role 'student')
+ */
+const checkStudentApproval = (req, res, next) => {
+    if (req.userDoc?.role === 'student') {
+        // Use housingStatus field to determine approval
+        if (req.userDoc.housingStatus === 'new_applicant') {
+            return res.status(403).json({
+                success: false,
+                message: 'Your account is pending approval. Please wait for admin confirmation.'
+            });
+        }
+        if (req.userDoc.housingStatus === 'banned') {
+            return res.status(403).json({
+                success: false,
+                message: 'Your account has been banned. Please contact administration.'
+            });
+        }
     }
     next();
-  };
 };
 
-// تشيك على حالة القبول للطلاب
-const checkStudentApproval = (req, res, next) => {
-  if (req.userRole === 'student') {
-    if (req.userDoc.registrationStatus !== 'approved') {
-      return res.status(403).json({ 
-        success: false,
-        message: 'Your account is pending approval. Please wait for admin confirmation.'
-      });
-    }
-  }
-  next();
-};
+// Predefined role middlewares
+const isStudent = verifyRole(['student']);
+const isAdmin = verifyRole(['admin']);
+const isSupervisor = verifyRole(['supervisor']);
+const isFloorAdmin = verifyRole(['floor_admin']);
+const isMealAdmin = verifyRole(['meal_admin']);
+const isAdminOrSupervisor = verifyRole(['admin', 'supervisor', 'floor_admin']);
 
 module.exports = {
-  verifyRole,
-  isStudent: verifyRole(['student']),
-  isAdmin: verifyRole(['computer_admin', 'floor_admin', 'meal_admin', 'supervisor']),
-  isSupervisor: verifyRole(['supervisor']),
-  isFloorAdmin: verifyRole(['floor_admin']),
-  checkStudentApproval,
-  // اختصار لأي رول مستقبلاً
-  isComputerAdmin: verifyRole(['computer_admin']),
-  isMealAdmin: verifyRole(['meal_admin'])
+    verifyRole,
+    isStudent,
+    isAdmin,
+    isSupervisor,
+    isFloorAdmin,
+    isMealAdmin,
+    isAdminOrSupervisor,
+    checkStudentApproval
 };
