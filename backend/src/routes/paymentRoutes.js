@@ -2,14 +2,60 @@ const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/paymentController');
 const verifyToken = require('../middlewares/verifyFirebaseToken');
-const isAdmin = require('../middlewares/adminMiddleware');
+const { isAdmin, isStudent } = require('../middlewares/roleMiddleware');
 
-router.get('/my', verifyToken, paymentController.getMyPayments);
-router.post('/', verifyToken, paymentController.createPayment);
+// ==========================================
+// مسارات الطالب (Student Only)
+// ==========================================
+// عرض مدفوعاتي
+router.get(
+    '/my',
+    verifyToken,
+    isStudent,
+    paymentController.getMyPayments
+);
 
-router.get('/', verifyToken, isAdmin, paymentController.getAllPayments);
-router.get('/:id', verifyToken, isAdmin, paymentController.getPaymentById);
-router.put('/:id', verifyToken, isAdmin, paymentController.updatePayment);
-router.delete('/:id', verifyToken, isAdmin, paymentController.deletePayment);
+// إنشاء دفعة جديدة (للطالب)
+router.post(
+    '/',
+    verifyToken,
+    isStudent,
+    paymentController.createPayment
+);
+
+// عرض تفاصيل دفعة محددة (للطالب - بشروط الملكية داخل الكنترولر)
+router.get(
+    '/:id',
+    verifyToken,
+    isStudent,
+    paymentController.getPaymentById
+);
+
+// ==========================================
+// مسارات الإدارة (Admin Only)
+// ==========================================
+// عرض جميع المدفوعات (مع Pagination وفلترة)
+router.get(
+    '/',
+    verifyToken,
+    isAdmin,
+    paymentController.getAllPayments
+);
+
+// تحديث دفعة
+router.put(
+    '/:id',
+    verifyToken,
+    isAdmin,
+    paymentController.updatePayment
+);
+
+// حذف دفعة
+router.delete(
+    '/:id',
+    verifyToken,
+    isAdmin,
+    paymentController.deletePayment
+);
 
 module.exports = router;
