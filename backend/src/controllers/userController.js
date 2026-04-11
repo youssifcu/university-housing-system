@@ -1,48 +1,183 @@
-const User = require('../models/User');
-const admin = require('firebase-admin'); // Ensure firebase-admin is initialized in your config
+const mongoose = require('mongoose');
+const { User } = require('../models/User');
+const admin = require('../config/firebase'); // تأكد من مسار التهيئة الصحيح
 
-/**
- * @desc    Delete a user from DB and Firebase (Admin only)
- * @route   DELETE /api/users/:id
- * @access  Private (Admin)
- */
-exports.deleteUser = async (req, res) => {
+// ==========================================
+// Helpers للتنسيق الموحد
+// ==========================================
+const sendSuccess = (res, statusCode, message, data = null) => {
+    return res.status(statusCode).json({
+        success: true,
+        message,
+        ...(data && { data })
+    });
+};
+
+const sendError = (res, statusCode, message, errorDetails = null) => {
+    const response = { success: false, message };
+    if (errorDetails && process.env.NODE_ENV === 'development') {
+        response.error = errorDetails;
+    }
+    return res.status(statusCode).json(response);
+};
+
+// الأدوار المسموحة للتحديث عبر الـ API
+const ALLOWED_ROLES = ['student', 'supervisor', 'security', 'admin', 'floor_admin', 'meal_admin'];
+
+// ==========================================
+// GET /api/users (Admin Only)
+// ==========================================
+exports.getAllUsers = async (req, res) => {
     try {
-        const userId = req.params.id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
 
-        // 1. Find the user in MongoDB first to get their Firebase UID
-        const user = await User.findById(userId);
+        const filter = {};
+        if (req.query.role) filter.role = req.query.role;
+        if (req.query.housingStatus) filter.housingStatus = req.query.housingStatus;
 
-        if (!user) {
-            return res.status(404).json({ 
-                success: false, 
-                message: "User not found in database" 
-            });
-        }
+        const [users, total] = await Promise.all([
+            User.find(filter)
+                .select('-qrCode -firebaseUID') // نخفي بيانات حساسة
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            User.countDocuments(filter)
+        ]);
 
-        // 2. Delete from Firebase Authentication
-        // Using 'firebaseUID' as defined in User model
-        try {
-            await admin.auth().deleteUser(user.firebaseUID);
-        } catch (firebaseError) {
-            console.error("Firebase deletion failed:", firebaseError.message);
-            // We continue even if Firebase fails (e.g., if user was already deleted there)
-        }
-
-        // 3. Delete from MongoDB
-        await User.findByIdAndDelete(userId);
-
-        res.status(200).json({ 
-            success: true, 
-            message: "User deleted successfully from both Firebase and Database" 
-            // Note: In your Cairo University project, you might also want to delete 
-            // the associated Student record here if they are a student.
+        return sendSuccess(res, 200, 'Users fetched successfully', {
+            users,
+            pagination: { page, limit, total, pages: Math.ceil(total / limit) }
         });
     } catch (error) {
-        res.status(500).json({ 
-            success: false, 
-            message: "Server Error: Could not delete user",
-            error: error.message 
+        console.error('Get All Users Error:', error);
+        return sendError(res, 500, 'Failed to fetch users', error.message);
+    }
+};
+
+// ==========================================
+// GET /api/users/:id (Admin/Self)
+// ==========================================
+exports.getUserById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendError(res, 400, 'Invalid user ID format');
+        }
+
+        const user = await User.findById(id)
+            .select('-qrCode -firebaseUID')
+            .lean();
+
+        if (!user) {
+            return sendError(res, 404, 'User not found');
+        }
+
+        // المستخدم العادي لا يرى إلا بياناته
+        if (req.userDoc.role !== 'admin' && req.userDoc._id.toString() !== id) {
+            return sendError(res, 403, 'Access denied');
+        }
+
+        return sendSuccess(res, 200, 'User fetched successfully', { user });
+    } catch (error) {
+        console.error('Get User By ID Error:', error);
+        return sendError(res, 500, 'Failed to fetch user', error.message);
+    }
+};
+
+// ==========================================
+// PUT /api/users/:id (Admin Only)
+// ==========================================
+exports.updateUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendError(res, 400, 'Invalid user ID format');
+        }
+
+        // الحقول المسموح بتحديثها (لا نسمح بتعديل firebaseUID أو كلمات السر)
+        const allowedUpdates = ['name', 'email', 'phoneNumber', 'role', 'housingStatus'];
+        const updates = {};
+
+        allowedUpdates.forEach(field => {
+            if (req.body[field] !== undefined) {
+                let value = req.body[field];
+                if (typeof value === 'string') {
+                    value = value.trim();
+                }
+                updates[field] = value;
+            }
         });
+
+        if (updates.role && !ALLOWED_ROLES.includes(updates.role)) {
+            return sendError(res, 400, `Invalid role. Allowed: ${ALLOWED_ROLES.join(', ')}`);
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return sendError(res, 400, 'No valid fields provided for update');
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            id,
+            { $set: updates },
+            { new: true, runValidators: true }
+        ).select('-qrCode -firebaseUID').lean();
+
+        if (!updatedUser) {
+            return sendError(res, 404, 'User not found');
+        }
+
+        return sendSuccess(res, 200, 'User updated successfully', { user: updatedUser });
+    } catch (error) {
+        console.error('Update User Error:', error);
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(e => e.message);
+            return sendError(res, 400, 'Validation failed', messages);
+        }
+        return sendError(res, 500, 'Failed to update user', error.message);
+    }
+};
+
+// ==========================================
+// DELETE /api/users/:id (Admin Only)
+// ==========================================
+exports.deleteUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendError(res, 400, 'Invalid user ID format');
+        }
+
+        // 1. البحث عن المستخدم
+        const user = await User.findById(id).select('firebaseUID role _id');
+        if (!user) {
+            return sendError(res, 404, 'User not found in database');
+        }
+
+        // 2. محاولة حذف المستخدم من Firebase (إذا كان لديه firebaseUID)
+        if (user.firebaseUID) {
+            try {
+                await admin.auth().deleteUser(user.firebaseUID);
+                console.log(`Firebase user ${user.firebaseUID} deleted`);
+            } catch (firebaseError) {
+                // قد يكون المستخدم محذوفاً بالفعل من Firebase أو خطأ آخر
+                console.warn(`Firebase deletion warning: ${firebaseError.message}`);
+                // نكمل العملية ولا نفشل بسبب Firebase
+            }
+        }
+
+        // 3. حذف المستخدم من MongoDB
+        await User.findByIdAndDelete(id);
+
+        return sendSuccess(res, 200, 'User deleted successfully from system', {
+            deletedId: id,
+            firebaseUid: user.firebaseUID || null
+        });
+
+    } catch (error) {
+        console.error('Delete User Error:', error);
+        return sendError(res, 500, 'Failed to delete user', error.message);
     }
 };
