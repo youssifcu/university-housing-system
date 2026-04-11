@@ -1,11 +1,21 @@
-const isAdmin = (req, res, next) => {
-    if (req.userDoc && req.userDoc.role === 'admin') return next();
-    return res.status(403).json({ success: false, message: 'Admin access required' });
-};
+const {
+    verifyRole,
+    isStudent,
+    isAdmin,
+    isSupervisor,
+    isFloorAdmin,
+    isMealAdmin,
+    isAdminOrSupervisor,
+    checkStudentApproval
+} = require('./authMiddleware');
 
-const isAdminOrSupervisor = (req, res, next) => {
-    if (req.userDoc && ['admin', 'supervisor'].includes(req.userDoc.role)) return next();
-    return res.status(403).json({ success: false, message: 'Admin or Supervisor access required' });
+module.exports = {
+    verifyRole,
+    isStudent,
+    isAdmin,
+    isSupervisor,
+    isFloorAdmin,
+    isMealAdmin,
+    isAdminOrSupervisor,
+    checkStudentApproval
 };
-
-module.exports = { isAdmin, isAdminOrSupervisor };
