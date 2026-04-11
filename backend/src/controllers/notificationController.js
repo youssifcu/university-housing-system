@@ -1,60 +1,241 @@
+const mongoose = require('mongoose');
 const Notification = require('../models/Notification');
+const { User } = require('../models/User');
 
-// ================= إنشاء إشعار جديد (Admin/System) =================
-exports.createNotification = async (req, res) => {
-  try {
-    const { title, message, targetUser, targetRole, type } = req.body;
-
-    const notification = new Notification({
-      title,
-      message,
-      targetUser, // لو لواحد معين
-      targetRole, // لو لكل الطلاب مثلاً
-      type,       // 'info', 'warning', 'meal', 'attendance'
-      sender: req.userDoc._id
+// ==========================================
+// Helpers للتنسيق الموحد
+// ==========================================
+const sendSuccess = (res, statusCode, message, data = null) => {
+    return res.status(statusCode).json({
+        success: true,
+        message,
+        ...(data && { data })
     });
+};
 
-    await notification.save();
-
-    // إرسال تنبيه لحظي (Socket.io)
-    const io = req.app.get('io');
-    if (io) {
-      // إرسال للكل أو لغرفة معينة (Role-based rooms)
-      if (targetUser) {
-        io.to(targetUser.toString()).emit('notification:new', notification);
-      } else {
-        io.emit(`notification:${targetRole}`, notification);
-      }
+const sendError = (res, statusCode, message, errorDetails = null) => {
+    const response = { success: false, message };
+    if (errorDetails && process.env.NODE_ENV === 'development') {
+        response.error = errorDetails;
     }
-
-    res.status(201).json({ success: true, notification });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+    return res.status(statusCode).json(response);
 };
 
-// ================= الحصول على إشعاراتي (للطالب أو المشرف) =================
+// الأنواع المسموحة للإشعارات
+const ALLOWED_TYPES = ['info', 'warning', 'success', 'meal', 'attendance', 'announcement'];
+const ALLOWED_TARGET_ROLES = ['all', 'student', 'supervisor', 'security', 'admin'];
+
+// ==========================================
+// POST /api/notifications (Admin/System)
+// ==========================================
+exports.createNotification = async (req, res) => {
+    try {
+        const { title, message, targetUser, targetRole, type } = req.body;
+        const senderId = req.userDoc._id;
+
+        // التحقق من المدخلات الأساسية
+        if (!title?.trim() || !message?.trim()) {
+            return sendError(res, 400, 'Title and message are required');
+        }
+
+        // التحقق من النوع
+        if (type && !ALLOWED_TYPES.includes(type)) {
+            return sendError(res, 400, `Invalid notification type. Allowed: ${ALLOWED_TYPES.join(', ')}`);
+        }
+
+        // التحقق من targetRole
+        if (targetRole && !ALLOWED_TARGET_ROLES.includes(targetRole)) {
+            return sendError(res, 400, `Invalid target role. Allowed: ${ALLOWED_TARGET_ROLES.join(', ')}`);
+        }
+
+        // لا يمكن تحديد targetUser و targetRole معًا (الـ targetUser له الأولوية)
+        if (targetUser && !mongoose.Types.ObjectId.isValid(targetUser)) {
+            return sendError(res, 400, 'Invalid target user ID format');
+        }
+
+        // إنشاء الإشعار
+        const notification = new Notification({
+            title: title.trim(),
+            message: message.trim(),
+            targetUser: targetUser || null,
+            targetRole: targetUser ? null : (targetRole || 'all'), // إذا وجد targetUser نتجاهل targetRole
+            type: type || 'info',
+            sender: senderId,
+            isRead: false
+        });
+
+        await notification.save();
+
+        // إرسال تنبيه لحظي عبر Socket.io
+        const io = req.app.get('io');
+        if (io) {
+            const notificationData = {
+                id: notification._id,
+                title: notification.title,
+                message: notification.message,
+                type: notification.type,
+                createdAt: notification.createdAt
+            };
+
+            if (targetUser) {
+                // إرسال لمستخدم محدد (نفترض أنه متصل ولديه socket id)
+                io.to(targetUser.toString()).emit('notification:new', notificationData);
+            } else {
+                // إرسال للدور المحدد (نفترض أن المستخدمين انضموا لغرف بأسماء أدوارهم)
+                const role = targetRole || 'all';
+                io.to(`role:${role}`).emit('notification:new', notificationData);
+            }
+        }
+
+        return sendSuccess(res, 201, 'Notification created successfully', {
+            id: notification._id
+        });
+
+    } catch (error) {
+        console.error('Create Notification Error:', error);
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(e => e.message);
+            return sendError(res, 400, 'Validation failed', messages);
+        }
+        return sendError(res, 500, 'Failed to create notification', error.message);
+    }
+};
+
+// ==========================================
+// GET /api/notifications/me
+// ==========================================
 exports.getMyNotifications = async (req, res) => {
-  try {
-    const notifications = await Notification.find({
-      $or: [
-        { targetUser: req.userDoc._id },
-        { targetRole: req.userDoc.role }
-      ]
-    }).sort({ createdAt: -1 }).limit(20);
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
 
-    res.status(200).json({ success: true, notifications });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+        const filter = {
+            $or: [
+                { targetUser: req.userDoc._id },
+                { targetRole: req.userDoc.role },
+                { targetRole: 'all' }
+            ]
+        };
+
+        // فلترة حسب حالة القراءة (اختياري)
+        if (req.query.isRead === 'true') {
+            filter.isRead = true;
+        } else if (req.query.isRead === 'false') {
+            filter.isRead = false;
+        }
+
+        const [notifications, total, unreadCount] = await Promise.all([
+            Notification.find(filter)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Notification.countDocuments(filter),
+            Notification.countDocuments({ ...filter, isRead: false })
+        ]);
+
+        return sendSuccess(res, 200, 'Notifications fetched successfully', {
+            notifications,
+            unreadCount,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        });
+
+    } catch (error) {
+        console.error('Get My Notifications Error:', error);
+        return sendError(res, 500, 'Failed to fetch notifications', error.message);
+    }
 };
 
-// ================= تحديد الإشعار كمقروء =================
+// ==========================================
+// PATCH /api/notifications/:id/read
+// ==========================================
 exports.markAsRead = async (req, res) => {
-  try {
-    await Notification.findByIdAndUpdate(req.params.id, { isRead: true });
-    res.status(200).json({ success: true, message: "Marked as read" });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendError(res, 400, 'Invalid notification ID format');
+        }
+
+        // التأكد من أن الإشعار يخص المستخدم الحالي
+        const notification = await Notification.findOne({
+            _id: id,
+            $or: [
+                { targetUser: req.userDoc._id },
+                { targetRole: req.userDoc.role },
+                { targetRole: 'all' }
+            ]
+        });
+
+        if (!notification) {
+            return sendError(res, 404, 'Notification not found or access denied');
+        }
+
+        if (notification.isRead) {
+            return sendSuccess(res, 200, 'Notification already marked as read', { id });
+        }
+
+        notification.isRead = true;
+        await notification.save();
+
+        return sendSuccess(res, 200, 'Notification marked as read', { id });
+
+    } catch (error) {
+        console.error('Mark As Read Error:', error);
+        return sendError(res, 500, 'Failed to mark notification as read', error.message);
+    }
+};
+
+// ==========================================
+// PATCH /api/notifications/read-all
+// ==========================================
+exports.markAllAsRead = async (req, res) => {
+    try {
+        const filter = {
+            isRead: false,
+            $or: [
+                { targetUser: req.userDoc._id },
+                { targetRole: req.userDoc.role },
+                { targetRole: 'all' }
+            ]
+        };
+
+        const result = await Notification.updateMany(filter, { isRead: true });
+
+        return sendSuccess(res, 200, 'All notifications marked as read', {
+            updatedCount: result.modifiedCount
+        });
+
+    } catch (error) {
+        console.error('Mark All As Read Error:', error);
+        return sendError(res, 500, 'Failed to mark all as read', error.message);
+    }
+};
+
+// ==========================================
+// GET /api/notifications/unread-count
+// ==========================================
+exports.getUnreadCount = async (req, res) => {
+    try {
+        const count = await Notification.countDocuments({
+            isRead: false,
+            $or: [
+                { targetUser: req.userDoc._id },
+                { targetRole: req.userDoc.role },
+                { targetRole: 'all' }
+            ]
+        });
+
+        return sendSuccess(res, 200, 'Unread count fetched', { count });
+
+    } catch (error) {
+        console.error('Get Unread Count Error:', error);
+        return sendError(res, 500, 'Failed to get unread count', error.message);
+    }
 };
