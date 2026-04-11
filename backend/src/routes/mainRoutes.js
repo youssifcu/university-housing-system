@@ -1,33 +1,152 @@
 const express = require('express');
 const router = express.Router();
-const verifyFirebaseToken = require('../middlewares/verifyFirebaseToken');
-const { isAdmin, isSupervisor, isFloorSupervisor, isMealAdmin, isStudent, checkStudentApproval } = require('../middlewares/authMiddleware');
+const verifyToken = require('../middlewares/verifyFirebaseToken');
+const { 
+    isAdmin, 
+    isSupervisor, 
+    isFloorAdmin, 
+    isMealAdmin, 
+    isStudent,
+    isAdminOrSupervisor 
+} = require('../middlewares/roleMiddleware');
 
-const requestController = require('../controllers/requestController');
+// استدعاء الكنترولرات الموحدة
+const studentRequestController = require('../controllers/studentRequestController');
 const qrController = require('../controllers/qrController');
-const leaveController = require('../controllers/leaveController');
+const studentController = require('../controllers/studentController'); // دوال الإجازة والحضور
 
-router.post('/requests/submit', verifyFirebaseToken, isStudent, checkStudentApproval, requestController
-.submitRequest);
-router.get('/requests', verifyFirebaseToken, isAdmin, requestController
-.getRequestsForAdmin);
-router.get('/requests/:requestId', verifyFirebaseToken, requestController
-.getRequestDetails);
-router.patch('/requests/:requestId/assign', verifyFirebaseToken, isAdmin, requestController
-.assignRequestToSelf);
-router.patch('/requests/:requestId/message', verifyFirebaseToken, requestController
-.addRequestMessage);
-router.patch('/requests/:requestId/respond', verifyFirebaseToken, isAdmin, requestController
-.respondToRequest);
+// ==========================================
+// مسارات طلبات الطلاب (Student Requests)
+// ==========================================
+// تقديم طلب (student only)
+router.post(
+    '/requests',
+    verifyToken,
+    isStudent,
+    studentRequestController.submitRequest
+);
 
-router.post('/qr-codes/generate', verifyFirebaseToken, isStudent, checkStudentApproval, qrController.generateStudentQRCodes);
-router.get('/qr-codes', verifyFirebaseToken, isStudent, qrController.getStudentQRCodes);
-router.post('/attendance/scan', verifyFirebaseToken, isFloorSupervisor, qrController.recordAttendance);
-router.post('/meals/scan', verifyFirebaseToken, isMealAdmin, qrController.recordMeal);
+// عرض طلباتي (student only)
+router.get(
+    '/requests/my',
+    verifyToken,
+    isStudent,
+    studentRequestController.getMyRequests
+);
 
-router.post('/leave/request', verifyFirebaseToken, isStudent, checkStudentApproval, leaveController.requestLeave);
-router.patch('/leave/:requestId/approve', verifyFirebaseToken, isSupervisor, leaveController.approveLeave);
-router.patch('/leave/:studentId/end', verifyFirebaseToken, isSupervisor, leaveController.endLeave);
-router.get('/attendance/:studentId/report', verifyFirebaseToken, leaveController.getAttendanceReport);
+// عرض الطلبات المخصصة لدور المشرف/الأدمن
+router.get(
+    '/requests',
+    verifyToken,
+    isAdminOrSupervisor,
+    studentRequestController.getRequestsForAdmin
+);
+
+// تفاصيل طلب محدد (مالك الطلب أو مشرف)
+router.get(
+    '/requests/:requestId',
+    verifyToken,
+    studentRequestController.getRequestDetails
+);
+
+// تعيين الطلب للمشرف الحالي
+router.patch(
+    '/requests/:requestId/assign',
+    verifyToken,
+    isAdminOrSupervisor,
+    studentRequestController.assignRequestToSelf
+);
+
+// إضافة رسالة للطلب (مالك أو مشرف)
+router.post(
+    '/requests/:requestId/messages',
+    verifyToken,
+    studentRequestController.addRequestMessage
+);
+
+// الرد على الطلب (موافقة/رفض/مراجعة)
+router.patch(
+    '/requests/:requestId/respond',
+    verifyToken,
+    isAdminOrSupervisor,
+    studentRequestController.respondToRequest
+);
+
+// ==========================================
+// مسارات QR Codes
+// ==========================================
+// توليد QR Codes للطالب
+router.post(
+    '/qr/generate',
+    verifyToken,
+    isStudent,
+    qrController.generateStudentQRCodes
+);
+
+// تجديد QR Codes (اختياري)
+router.post(
+    '/qr/refresh',
+    verifyToken,
+    isStudent,
+    qrController.refreshStudentQRCodes
+);
+
+// عرض QR Codes الحالية
+router.get(
+    '/qr/my',
+    verifyToken,
+    isStudent,
+    qrController.getStudentQRCodes
+);
+
+// ==========================================
+// مسارات الحضور والإجازات (Attendance & Leave)
+// ==========================================
+// تسجيل حضور (مسح QR) - للمشرفين
+router.post(
+    '/attendance/scan',
+    verifyToken,
+    isFloorAdmin,
+    studentController.scanAttendance
+);
+
+// تسجيل وجبة (مسح QR) - لمسؤولي الوجبات
+router.post(
+    '/meals/scan',
+    verifyToken,
+    isMealAdmin,
+    studentController.scanMeal
+);
+
+// طلب إجازة (طالب)
+router.post(
+    '/leave/request',
+    verifyToken,
+    isStudent,
+    studentController.requestLeave
+);
+
+// الموافقة على طلب إجازة (مشرف/أدمن)
+router.patch(
+    '/leave/:requestId/approve',
+    verifyToken,
+    isAdminOrSupervisor,
+    studentController.approveLeave
+);
+
+// إنهاء الإجازة (مشرف/أدمن)
+router.patch(
+    '/leave/:studentId/end',
+    verifyToken,
+    isAdminOrSupervisor,
+    studentController.endLeave
+);
+
+// تقرير حضور طالب (للمشرف أو الطالب نفسه)
+router.get(
+    '/attendance/report/:studentId?',
+    verifyToken,
+    studentController.getAttendanceReport
+);
 
 module.exports = router;
