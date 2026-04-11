@@ -183,7 +183,17 @@ app.use((err, req, res, next) => {
             message: 'Invalid token'
         });
     }
-
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: `
+        .swagger-ui .topbar { display: none }
+        .swagger-ui .info .title { font-size: 2.2em; color: #0a4b6e; }
+        .swagger-ui .scheme-container { background: #f8f9fa; }
+        .swagger-ui .opblock-tag { font-size: 1.3em; }
+        body { background: #f4f7f9; }
+    `,
+    customSiteTitle: 'Housing API Docs',
+    customfavIcon: 'https://img.icons8.com/color/48/university.png'
+}));
     // خطأ عام
     const statusCode = err.status || 500;
     res.status(statusCode).json({
