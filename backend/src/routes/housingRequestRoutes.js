@@ -2,15 +2,53 @@ const express = require('express');
 const router = express.Router();
 const housingRequestController = require('../controllers/housingRequestController');
 const verifyToken = require('../middlewares/verifyFirebaseToken');
-const isAdmin = require('../middlewares/adminMiddleware');
-const isSupervisorOrAdmin = require('../middlewares/supervisorMiddleware');
+const { isAdmin, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
 
-// Student submits their request
-router.post('/', verifyToken, housingRequestController.submitRequest);
+// ==========================================
+// مسارات الطالب (Student Only)
+// ==========================================
+// تقديم طلب جديد (نقل، إجازة، إخلاء، صيانة)
+router.post(
+    '/',
+    verifyToken,
+    housingRequestController.submitRequest
+);
 
-// Supervisor/Admin views and manages requests
-router.get('/', verifyToken, isSupervisorOrAdmin, housingRequestController.getAllRequests);
-router.get('/:id', verifyToken, isSupervisorOrAdmin, housingRequestController.getRequestById);
-router.patch('/:id/status', verifyToken, isSupervisorOrAdmin, housingRequestController.updateStatus);
+// عرض طلباتي (مع Pagination)
+router.get(
+    '/my',
+    verifyToken,
+    housingRequestController.getMyRequests
+);
+
+// ==========================================
+// مسارات الإدارة (Admin/Supervisor)
+// ==========================================
+// عرض جميع الطلبات (مع Pagination وفلترة)
+router.get(
+    '/',
+    verifyToken,
+    isAdminOrSupervisor,
+    housingRequestController.getAllRequests
+);
+
+// عرض تفاصيل طلب محدد
+router.get(
+    '/:id',
+    verifyToken,
+    isAdminOrSupervisor,
+    housingRequestController.getRequestById
+);
+
+// تحديث حالة الطلب (موافقة/رفض) - مع تنفيذ الإجراءات تلقائياً
+router.patch(
+    '/:id/status',
+    verifyToken,
+    isAdminOrSupervisor,
+    housingRequestController.updateStatus
+);
+
+// تعليق على طلب (اختياري - لو موجود في الكنترولر)
+// router.post('/:id/messages', verifyToken, isAdminOrSupervisor, housingRequestController.addRequestMessage);
 
 module.exports = router;
