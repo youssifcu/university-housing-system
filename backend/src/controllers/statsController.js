@@ -1,137 +1,295 @@
-const { User, Student } = require('../models/User');
+const { User } = require('../models/User');
 const Application = require('../models/Application');
 const Room = require('../models/Room');
-const Building = require('../models/Building');
-const Meal = require('../models/Meal');
 const MealBooking = require('../models/MealBooking');
 const Payment = require('../models/Payment');
 
-// ================= إحصائيات الطلاب حسب الكلية =================
+// ==========================================
+// Helpers للتنسيق الموحد
+// ==========================================
+const sendSuccess = (res, statusCode, message, data = null) => {
+    return res.status(statusCode).json({
+        success: true,
+        message,
+        ...(data && { data })
+    });
+};
+
+const sendError = (res, statusCode, message, errorDetails = null) => {
+    const response = { success: false, message };
+    if (errorDetails && process.env.NODE_ENV === 'development') {
+        response.error = errorDetails;
+    }
+    return res.status(statusCode).json(response);
+};
+
+// ==========================================
+// GET /api/stats/students-by-college
+// ==========================================
 exports.getStudentsByCollege = async (req, res) => {
-  try {
-    // الأفضل نجيبها من الـ User (الطالب الفعلي) مش الأبلكيشن
-    const stats = await User.aggregate([
-      { $match: { role: 'student', housingStatus: 'active' } },
-      { $group: { _id: '$faculty', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-    res.status(200).json({ success: true, stats });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+    try {
+        const stats = await User.aggregate([
+            { 
+                $match: { 
+                    role: 'student', 
+                    housingStatus: 'active',
+                    faculty: { $ne: null, $ne: '' } 
+                } 
+            },
+            { 
+                $group: { 
+                    _id: '$faculty', 
+                    count: { $sum: 1 } 
+                } 
+            },
+            { $sort: { count: -1 } }
+        ]);
+
+        return sendSuccess(res, 200, 'Students by college statistics', { stats });
+    } catch (error) {
+        console.error('Get Students By College Error:', error);
+        return sendError(res, 500, 'Failed to fetch statistics', error.message);
+    }
 };
 
-// ================= إحصائيات الطلاب حسب السنة الدراسية =================
+// ==========================================
+// GET /api/stats/students-by-grade
+// ==========================================
 exports.getStudentsByGrade = async (req, res) => {
-  try {
-    const stats = await User.aggregate([
-      { $match: { role: 'student', housingStatus: 'active' } },
-      { $group: { _id: '$universityYear', count: { $sum: 1 } } },
-      { $sort: { _id: 1 } }
-    ]);
-    res.status(200).json({ success: true, stats });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+    try {
+        const stats = await User.aggregate([
+            { 
+                $match: { 
+                    role: 'student', 
+                    housingStatus: 'active',
+                    universityYear: { $ne: null } 
+                } 
+            },
+            { 
+                $group: { 
+                    _id: '$universityYear', 
+                    count: { $sum: 1 } 
+                } 
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        return sendSuccess(res, 200, 'Students by grade statistics', { stats });
+    } catch (error) {
+        console.error('Get Students By Grade Error:', error);
+        return sendError(res, 500, 'Failed to fetch statistics', error.message);
+    }
 };
 
-// ================= إحصائيات الغرف والمباني (تحسين الأداء) =================
+// ==========================================
+// GET /api/stats/buildings-availability
+// ==========================================
 exports.getBuildingsAvailability = async (req, res) => {
-  try {
-    //Aggregation واحدة تجيب كل حاجة بدل الـ Loop
-    const stats = await Room.aggregate([
-      {
-        $group: {
-          _id: '$buildingId',
-          totalCapacity: { $sum: '$capacity' },
-          currentOccupancy: { $sum: { $size: '$currentOccupants' } }
-        }
-      },
-      {
-        $lookup: {
-          from: 'buildings',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'buildingInfo'
-        }
-      },
-      { $unwind: '$buildingInfo' },
-      {
-        $project: {
-          buildingName: '$buildingInfo.name',
-          totalCapacity: 1,
-          currentOccupancy: 1,
-          available: { $subtract: ['$totalCapacity', '$currentOccupancy'] }
-        }
-      }
-    ]);
-    res.status(200).json({ success: true, stats });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+    try {
+        const stats = await Room.aggregate([
+            {
+                $group: {
+                    _id: '$buildingId',
+                    totalCapacity: { $sum: '$capacity' },
+                    currentOccupancy: { $sum: { $size: '$currentOccupants' } }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'buildings',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'buildingInfo'
+                }
+            },
+            { $unwind: { path: '$buildingInfo', preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    buildingId: '$_id',
+                    buildingName: { $ifNull: ['$buildingInfo.name', 'Unknown'] },
+                    gender: '$buildingInfo.gender',
+                    totalCapacity: 1,
+                    currentOccupancy: 1,
+                    available: { $subtract: ['$totalCapacity', '$currentOccupancy'] },
+                    occupancyRate: {
+                        $cond: [
+                            { $eq: ['$totalCapacity', 0] },
+                            0,
+                            { $multiply: [{ $divide: ['$currentOccupancy', '$totalCapacity'] }, 100] }
+                        ]
+                    }
+                }
+            },
+            { $sort: { buildingName: 1 } }
+        ]);
+
+        return sendSuccess(res, 200, 'Buildings availability statistics', { stats });
+    } catch (error) {
+        console.error('Get Buildings Availability Error:', error);
+        return sendError(res, 500, 'Failed to fetch availability', error.message);
+    }
 };
 
-// ================= إحصائيات تحضير الوجبات (تجاهل الطلاب في إجازة) =================
+// ==========================================
+// GET /api/stats/meals-preparation
+// ==========================================
 exports.getMealsPreparationStats = async (req, res) => {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    try {
+        let targetDate = new Date();
+        if (req.query.date) {
+            targetDate = new Date(req.query.date);
+            if (isNaN(targetDate)) {
+                return sendError(res, 400, 'Invalid date format');
+            }
+        }
+        targetDate.setHours(0, 0, 0, 0);
+        const nextDate = new Date(targetDate);
+        nextDate.setDate(nextDate.getDate() + 1);
 
-    const stats = await MealBooking.aggregate([
-      { $match: { date: { $gte: today, $lt: tomorrow }, status: 'booked' } },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'studentId',
-          foreignField: '_id',
-          as: 'student'
-        }
-      },
-      { $unwind: '$student' },
-      // تصفية الطلاب اللي مش في إجازة (housingStatus != suspended)
-      { $match: { 'student.housingStatus': { $ne: 'suspended' } } },
-      {
-        $lookup: {
-          from: 'meals',
-          localField: 'mealId',
-          foreignField: '_id',
-          as: 'mealInfo'
-        }
-      },
-      { $unwind: '$mealInfo' },
-      {
-        $group: {
-          _id: '$mealId',
-          mealName: { $first: '$mealInfo.name' },
-          requiredCount: { $sum: 1 }
-        }
-      }
-    ]);
+        const stats = await MealBooking.aggregate([
+            { 
+                $match: { 
+                    date: { $gte: targetDate, $lt: nextDate }, 
+                    status: 'booked' 
+                } 
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'studentId',
+                    foreignField: '_id',
+                    as: 'student'
+                }
+            },
+            { $unwind: '$student' },
+            { 
+                $match: { 
+                    'student.housingStatus': { $nin: ['suspended', 'banned'] } 
+                } 
+            },
+            {
+                $lookup: {
+                    from: 'meals',
+                    localField: 'mealId',
+                    foreignField: '_id',
+                    as: 'mealInfo'
+                }
+            },
+            { $unwind: '$mealInfo' },
+            {
+                $group: {
+                    _id: '$mealId',
+                    mealName: { $first: '$mealInfo.name' },
+                    mealType: { $first: '$mealInfo.type' },
+                    requiredCount: { $sum: 1 },
+                    servedCount: { 
+                        $sum: { $cond: [{ $eq: ['$isServed', true] }, 1, 0] } 
+                    }
+                }
+            },
+            { $sort: { mealType: 1 } }
+        ]);
 
-    res.status(200).json({ success: true, stats });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+        return sendSuccess(res, 200, 'Meals preparation statistics', { 
+            date: targetDate,
+            stats 
+        });
+    } catch (error) {
+        console.error('Get Meals Preparation Stats Error:', error);
+        return sendError(res, 500, 'Failed to fetch meal stats', error.message);
+    }
 };
 
-// ================= إحصائيات المدفوعات =================
+// ==========================================
+// GET /api/stats/payments
+// ==========================================
 exports.getPaymentsStats = async (req, res) => {
-  try {
-    const stats = await Payment.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalAmount: { $sum: '$amount' },
-          confirmedCount: { $sum: { $cond: [{ $eq: ['$status', 'confirmed'] }, 1, 0] } },
-          pendingCount: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }
-        }
-      }
-    ]);
-    
-    res.status(200).json({ success: true, stats: stats[0] || {} });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+    try {
+        const result = await Payment.aggregate([
+            {
+                $facet: {
+                    summary: [
+                        {
+                            $group: {
+                                _id: null,
+                                totalAmount: { $sum: '$amount' },
+                                totalPayments: { $sum: 1 }
+                            }
+                        }
+                    ],
+                    byStatus: [
+                        {
+                            $group: {
+                                _id: '$status',
+                                count: { $sum: 1 },
+                                amount: { $sum: '$amount' }
+                            }
+                        }
+                    ],
+                    byMethod: [
+                        {
+                            $group: {
+                                _id: '$paymentMethod',
+                                count: { $sum: 1 },
+                                amount: { $sum: '$amount' }
+                            }
+                        }
+                    ]
+                }
+            }
+        ]);
+
+        const stats = {
+            summary: result[0].summary[0] || { totalAmount: 0, totalPayments: 0 },
+            byStatus: result[0].byStatus,
+            byMethod: result[0].byMethod
+        };
+
+        return sendSuccess(res, 200, 'Payment statistics', { stats });
+    } catch (error) {
+        console.error('Get Payments Stats Error:', error);
+        return sendError(res, 500, 'Failed to fetch payment stats', error.message);
+    }
+};
+
+// ==========================================
+// GET /api/stats/dashboard
+// ==========================================
+exports.getDashboardStats = async (req, res) => {
+    try {
+        const [
+            totalStudents,
+            totalRooms,
+            availableRooms,
+            pendingApplications,
+            todayMeals,
+            pendingPayments
+        ] = await Promise.all([
+            User.countDocuments({ role: 'student', housingStatus: 'active' }),
+            Room.countDocuments(),
+            Room.countDocuments({ status: 'available' }),
+            Application.countDocuments({ status: 'pending' }),
+            MealBooking.countDocuments({ 
+                date: { 
+                    $gte: new Date(new Date().setHours(0,0,0,0)),
+                    $lt: new Date(new Date().setHours(23,59,59,999))
+                }
+            }),
+            Payment.countDocuments({ status: 'pending' })
+        ]);
+
+        return sendSuccess(res, 200, 'Dashboard statistics', {
+            stats: {
+                totalStudents,
+                totalRooms,
+                availableRooms,
+                pendingApplications,
+                todayMeals,
+                pendingPayments
+            }
+        });
+    } catch (error) {
+        console.error('Get Dashboard Stats Error:', error);
+        return sendError(res, 500, 'Failed to fetch dashboard stats', error.message);
+    }
 };
