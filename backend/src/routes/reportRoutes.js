@@ -2,11 +2,60 @@ const express = require('express');
 const router = express.Router();
 const reportController = require('../controllers/reportController');
 const verifyToken = require('../middlewares/verifyFirebaseToken');
+const { isStudent, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
 
-router.post('/', verifyToken, reportController.createReport);
-router.get('/', verifyToken, reportController.getAllReports);
-router.get('/:id', verifyToken, reportController.getReportById);
-router.patch('/:id/status', verifyToken, reportController.updateReportStatus);
-router.delete('/:id', verifyToken, reportController.deleteReport);
+// ==========================================
+// مسارات الطالب (Student Only)
+// ==========================================
+// تقديم بلاغ جديد
+router.post(
+    '/',
+    verifyToken,
+    isStudent,
+    reportController.createReport
+);
+
+// عرض بلاغاتي
+router.get(
+    '/my',
+    verifyToken,
+    isStudent,
+    reportController.getMyReports
+);
+
+// عرض تفاصيل بلاغ (للطالب - بشروط الملكية داخل الكنترولر)
+router.get(
+    '/:id',
+    verifyToken,
+    isStudent,
+    reportController.getReportById
+);
+
+// ==========================================
+// مسارات الإدارة (Admin/Supervisor)
+// ==========================================
+// عرض جميع البلاغات (مع Pagination وفلترة)
+router.get(
+    '/',
+    verifyToken,
+    isAdminOrSupervisor,
+    reportController.getAllReports
+);
+
+// تحديث حالة بلاغ
+router.patch(
+    '/:id/status',
+    verifyToken,
+    isAdminOrSupervisor,
+    reportController.updateReportStatus
+);
+
+// حذف بلاغ (اختياري - إن أردت إضافته للكنترولر)
+router.delete(
+    '/:id',
+    verifyToken,
+    isAdminOrSupervisor,
+    reportController.deleteReport
+);
 
 module.exports = router;
