@@ -1,8 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express'); 
-const swaggerSpec = require('./config/swagger'); 
 const path = require('path');
+
+// 1. استدعاء ملف السواجر الجديد
+const swaggerDocument = require('../swagger-complete.json'); 
 
 // استدعاء المسارات
 const authRoutes = require('./routes/authRoutes');
@@ -24,29 +26,23 @@ const mainRoutes = require('./routes/mainRoutes');
 const app = express();
 
 // ==========================================
-// 1. Middleware أساسي (بدون تثبيت جديد)
+// 1. Middleware أساسي
 // ==========================================
 
-// أمان: نخفي إننا شغالين بـ Express
 app.disable('x-powered-by');
 
-// أمان: نضيف Headers مفيدة يدويًا
 app.use((req, res, next) => {
-    // منع الـ Clickjacking
     res.setHeader('X-Frame-Options', 'DENY');
-    // تفعيل حماية XSS في المتصفحات الحديثة
     res.setHeader('X-Content-Type-Options', 'nosniff');
     next();
 });
 
-// CORS محسن: بيدعم Array of Origins
 const allowedOrigins = process.env.CORS_ORIGIN 
     ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()) 
     : ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173'];
 
 app.use(cors({
     origin: function (origin, callback) {
-        // نسمح للـ Mobile Apps أو Server-to-Server بدون Origin
         if (!origin) return callback(null, true);
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
@@ -61,11 +57,9 @@ app.use(cors({
     optionsSuccessStatus: 200
 }));
 
-// Body Parsers
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Logger محلي (بديل بسيط لـ Morgan)
 app.use((req, res, next) => {
     const start = Date.now();
     res.on('finish', () => {
@@ -81,12 +75,11 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 2. ملفات ثابتة مع كاش
+// 2. ملفات ثابتة
 // ==========================================
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
-    maxAge: '1d', // تحميل من الكاش لمدة يوم
+    maxAge: '1d',
     setHeaders: (res, filePath) => {
-        // منع كاش ملفات الـ HTML لو كانت موجودة
         if (filePath.endsWith('.html')) {
             res.setHeader('Cache-Control', 'no-cache');
         }
@@ -94,23 +87,18 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
 }));
 
 // ==========================================
-// 3. Swagger Documentation
+// 3. Swagger Documentation (الجديد)
 // ==========================================
-// Serve complete swagger JSON
-const swaggerJson = require('../swagger-complete.json');
-app.get('/api-docs/swagger.json', (req, res) => {
-    res.json(swaggerJson);
-});
-
-// Serve Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-    customCss: '.swagger-ui .topbar { display: none }',
-    swaggerUrl: '/api-docs/swagger.json'
-}));
-
-// Alternative Swagger UI route using complete spec
-app.use('/api-docs-complete', swaggerUi.serve, swaggerUi.setup(swaggerJson, {
-    customCss: '.swagger-ui .topbar { display: none }'
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+    customCss: `
+        .swagger-ui .topbar { display: none }
+        .swagger-ui .info .title { font-size: 2.2em; color: #0a4b6e; }
+        .swagger-ui .scheme-container { background: #f8f9fa; }
+        .swagger-ui .opblock-tag { font-size: 1.3em; }
+        body { background: #f4f7f9; }
+    `,
+    customSiteTitle: 'Housing API Docs',
+    customfavIcon: 'https://img.icons8.com/color/48/university.png'
 }));
 
 // ==========================================
@@ -126,7 +114,7 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// 5. تسجيل المسارات (نفس القديم لكن بشكل أنظف)
+// 5. تسجيل المسارات
 // ==========================================
 const routesMap = [
     { path: '/api/auth', router: authRoutes },
@@ -151,7 +139,7 @@ routesMap.forEach(route => {
 });
 
 // ==========================================
-// 6. معالج 404 للمسارات الغير موجودة
+// 6. معالج 404
 // ==========================================
 app.use((req, res, next) => {
     res.status(404).json({
@@ -161,10 +149,9 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 7. Global Error Handler (مع تفاصيل آمنة)
+// 7. Global Error Handler (متصلح)
 // ==========================================
 app.use((err, req, res, next) => {
-    // تسجيل الخطأ كامل في الكونسول بس
     console.error('💥 ERROR:', {
         message: err.message,
         stack: err.stack,
@@ -172,7 +159,6 @@ app.use((err, req, res, next) => {
         method: req.method
     });
 
-    // لو الخطأ بسبب CORS (نتيجة الـ callback فوق)
     if (err.message && err.message.includes('CORS')) {
         return res.status(403).json({
             success: false,
@@ -180,7 +166,6 @@ app.use((err, req, res, next) => {
         });
     }
 
-    // لو الخطأ من Mongoose (Validation Error)
     if (err.name === 'ValidationError') {
         return res.status(400).json({
             success: false,
@@ -189,30 +174,17 @@ app.use((err, req, res, next) => {
         });
     }
 
-    // لو JWT Error
     if (err.name === 'JsonWebTokenError') {
         return res.status(401).json({
             success: false,
             message: 'Invalid token'
         });
     }
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-    customCss: `
-        .swagger-ui .topbar { display: none }
-        .swagger-ui .info .title { font-size: 2.2em; color: #0a4b6e; }
-        .swagger-ui .scheme-container { background: #f8f9fa; }
-        .swagger-ui .opblock-tag { font-size: 1.3em; }
-        body { background: #f4f7f9; }
-    `,
-    customSiteTitle: 'Housing API Docs',
-    customfavIcon: 'https://img.icons8.com/color/48/university.png'
-}));
-    // خطأ عام
+
     const statusCode = err.status || 500;
     res.status(statusCode).json({
         success: false,
         message: err.message || 'Internal Server Error',
-        // بنبعت تفاصيل أكتر في الـ Development بس
         ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
     });
 });
