@@ -306,4 +306,4 @@ userSchema.index({ role: 1, isActive: 1 });
 studentSchema.index({ housingStatus: 1, assignedRoomId: 1 });
 studentSchema.index({ faculty: 1, universityYear: 1 });
 
-module.exports = { User, Student, FloorAdmin, Supervisor };
+module.exports = { User, Student, FloorAdmin, Supervisor, Admin, MealAdmin };
