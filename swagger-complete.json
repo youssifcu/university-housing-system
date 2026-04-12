@@ -307,7 +307,7 @@
                 "faculty": { "type": "string", "example": "Computer Science" }
                             }
 
-                }
+                
               }
             }
           }
@@ -1915,3 +1915,4 @@
     }
   }
 }
+
