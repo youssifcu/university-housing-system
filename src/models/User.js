@@ -232,8 +232,76 @@ const supervisorSchema = new mongoose.Schema({
 const Supervisor = User.discriminator('supervisor', supervisorSchema);
 
 // ==========================================
-// Indexes (مركبة لتحسين الأداء)
+// Admin Schema (Discriminator)
 // ==========================================
+const adminSchema = new mongoose.Schema({
+    adminType: {
+        type: String,
+        enum: {
+            values: ['super_admin', 'system_admin', 'operations_admin'],
+            message: 'Invalid admin type'
+        },
+        default: 'system_admin',
+        description: 'Type of admin access'
+    },
+    department: {
+        type: String,
+        trim: true,
+        default: 'Administration'
+    },
+    permissions: [{
+        type: String,
+        enum: ['manage_users', 'manage_buildings', 'manage_payments', 'manage_reports', 'manage_announcements', 'system_config'],
+        default: ['manage_users', 'manage_buildings', 'manage_reports', 'manage_announcements']
+    }],
+    lastAuditLog: {
+        action: String,
+        timestamp: Date,
+        details: String
+    }
+});
+
+const Admin = User.discriminator('admin', adminSchema);
+
+// ==========================================
+// Meal Admin Schema (Discriminator)
+// ==========================================
+const mealAdminSchema = new mongoose.Schema({
+    mealAdminType: {
+        type: String,
+        enum: {
+            values: ['head_chef', 'cook', 'server', 'manager'],
+            message: 'Invalid meal admin type'
+        },
+        required: [true, 'Meal admin type is required'],
+        description: 'Role in meal service operations'
+    },
+    kitchenAssignment: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Building',
+        description: 'Kitchen location (building)'
+    },
+    workShift: {
+        type: String,
+        enum: {
+            values: ['morning', 'afternoon', 'evening', 'night', 'full_day'],
+            message: 'Invalid work shift'
+        },
+        default: 'full_day'
+    },
+    specialization: [{
+        type: String,
+        trim: true
+    }],
+    mealBudgetAllowance: {
+        type: Number,
+        min: [0, 'Budget cannot be negative'],
+        default: 0,
+        description: 'Monthly meal budget allowance'
+    }
+});
+
+const MealAdmin = User.discriminator('meal_admin', mealAdminSchema);
 userSchema.index({ role: 1, isActive: 1 });
 studentSchema.index({ housingStatus: 1, assignedRoomId: 1 });
 studentSchema.index({ faculty: 1, universityYear: 1 });
