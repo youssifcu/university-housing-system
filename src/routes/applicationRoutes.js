@@ -57,7 +57,7 @@ router.get(
 router.patch(
     '/:id/approve',
     verifyToken,
-    isAdmin,
+    isAdminOrSupervisor,
     applicationController.approveApplication
 );
 
@@ -65,7 +65,7 @@ router.patch(
 router.patch(
     '/:id/reject',
     verifyToken,
-    isAdmin,
+    isAdminOrSupervisor,
     applicationController.rejectApplication
 );
 
