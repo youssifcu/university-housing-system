@@ -44,7 +44,6 @@ const applicationSchema = new mongoose.Schema(
             required: [true, 'Date of birth is required'],
             validate: {
                 validator: function(value) {
-                    // يجب أن يكون العمر 16 سنة على الأقل
                     const today = new Date();
                     const birthDate = new Date(value);
                     let age = today.getFullYear() - birthDate.getFullYear();
@@ -74,30 +73,6 @@ const applicationSchema = new mongoose.Schema(
             required: [true, 'Residence address is required'],
             trim: true,
             maxlength: [200, 'Address cannot exceed 200 characters']
-        },
-
-        // Family Information
-        fatherName: {
-            type: String,
-            required: [true, 'Father name is required'],
-            trim: true,
-            maxlength: [100, 'Father name cannot exceed 100 characters']
-        },
-        fatherNationalId: {
-            type: String,
-            required: [true, 'Father national ID is required'],
-            trim: true,
-            match: [/^\d{14}$/, 'Father national ID must be 14 digits']
-        },
-        fatherPhone: {
-            type: String,
-            trim: true,
-            match: [/^01[0-2,5]{1}[0-9]{8}$/, 'Please enter a valid Egyptian phone number']
-        },
-        motherName: {
-            type: String,
-            trim: true,
-            maxlength: [100, 'Mother name cannot exceed 100 characters']
         },
         emergencyContact: {
             name: { type: String, trim: true },
@@ -176,38 +151,14 @@ const applicationSchema = new mongoose.Schema(
             trim: true
         },
 
-        // Files (store PDFs as buffers in DB, not URLs)
+        // Files
         documents: {
-            nationalIdCard: {
-                data: Buffer,
-                contentType: String,
-                originalName: String,
-                uploadedAt: Date
-            },
-            personalPhoto: {
-                data: Buffer,
-                contentType: String,
-                originalName: String,
-                uploadedAt: Date
-            },
-            medicalReport: {
-                data: Buffer,
-                contentType: String,
-                originalName: String,
-                uploadedAt: Date
-            },
-            universityIdCard: {
-                data: Buffer,
-                contentType: String,
-                originalName: String,
-                uploadedAt: Date
-            },
+            nationalIdCard: { data: Buffer, contentType: String, originalName: String, uploadedAt: Date },
+            personalPhoto: { data: Buffer, contentType: String, originalName: String, uploadedAt: Date },
+            medicalReport: { data: Buffer, contentType: String, originalName: String, uploadedAt: Date },
+            universityIdCard: { data: Buffer, contentType: String, originalName: String, uploadedAt: Date },
             additionalDocuments: [{
-                name: String,
-                data: Buffer,
-                contentType: String,
-                originalName: String,
-                uploadedAt: Date
+                name: String, data: Buffer, contentType: String, originalName: String, uploadedAt: Date
             }]
         },
 
@@ -225,9 +176,7 @@ const applicationSchema = new mongoose.Schema(
     }
 );
 
-// ==========================================
 // Virtuals
-// ==========================================
 applicationSchema.virtual('age').get(function() {
     if (!this.dateOfBirth) return null;
     const today = new Date();
@@ -241,10 +190,9 @@ applicationSchema.virtual('age').get(function() {
 });
 
 applicationSchema.virtual('isComplete').get(function() {
-    // التحقق من وجود جميع الحقول المطلوبة والملفات
     return !!(
         this.fullName && this.nationalId && this.gender && this.dateOfBirth &&
-        this.phoneNumber && this.address && this.fatherName && this.fatherNationalId &&
+        this.phoneNumber && this.address &&
         this.college && this.academicYear &&
         this.documents?.nationalIdCard?.data && this.documents?.personalPhoto?.data
     );
@@ -254,56 +202,33 @@ applicationSchema.virtual('canBeReviewed').get(function() {
     return this.status === 'pending' && this.isComplete;
 });
 
-// ==========================================
 // Indexes
-// ==========================================
 applicationSchema.index({ status: 1, createdAt: -1 });
 applicationSchema.index({ userId: 1, status: 1 });
 applicationSchema.index({ college: 1, academicYear: 1 });
 applicationSchema.index({ 'documents.nationalIdCard.uploadedAt': 1 });
 
-// ==========================================
 // Static Methods
-// ==========================================
 applicationSchema.statics.findPending = function() {
     return this.find({ status: 'pending' }).sort({ createdAt: 1 });
 };
-
 applicationSchema.statics.findByCollege = function(college) {
     return this.find({ college, status: { $ne: 'rejected' } });
 };
-
 applicationSchema.statics.getStats = async function() {
-    return this.aggregate([
-        {
-            $group: {
-                _id: '$status',
-                count: { $sum: 1 }
-            }
-        }
-    ]);
+    return this.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]);
 };
 
-// ==========================================
 // Pre-save Middleware
-// ==========================================
 applicationSchema.pre('save', function(next) {
-    // تحديث reviewedAt تلقائياً عند تغيير الحالة
     if (this.isModified('status') && ['approved', 'rejected', 'needs_update'].includes(this.status)) {
         this.reviewedAt = new Date();
     }
-    
-    // تطبيع رقم الهاتف (إزالة المسافات)
     if (this.phoneNumber) {
         this.phoneNumber = this.phoneNumber.replace(/\s+/g, '');
     }
-    if (this.fatherPhone) {
-        this.fatherPhone = this.fatherPhone.replace(/\s+/g, '');
-    }
-    
     next();
 });
 
 const Application = mongoose.model('Application', applicationSchema);
-
 module.exports = Application;

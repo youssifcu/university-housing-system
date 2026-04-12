@@ -41,14 +41,24 @@ exports.submitApplication = async (req, res) => {
             return sendError(res, 400, 'You already have an active application.');
         }
 
-        // 2. قائمة الحقول المسموح بها في الطلب (منع الـ Mass Assignment)
+        // 2. تحديث قائمة الحقول المسموح بها (بدون بيانات الأب)
         const allowedFields = [
-            'fullName', 'nationalId', 'gender', 'dateOfBirth', 
-            'phoneNumber', 'email', 'academicYear', 'college', 
-            'department', 'gpa', 'address', 'emergencyContact'
+            'studentType', 'fullName', 'nationalId', 'gender', 'dateOfBirth', 
+            'phoneNumber', 'email', 'address', 'emergencyContact',
+            'college', 'department', 'academicYear', 'gpa',
+            'housingType', 'specialNeeds', 'preferredRoommate'
         ];
         
         const applicationData = {};
+        
+        // لو الـ nested object مبعوت كـ JSON string من الـ form-data، بنعمله parse
+        if (req.body.emergencyContact && typeof req.body.emergencyContact === 'string') {
+            try { req.body.emergencyContact = JSON.parse(req.body.emergencyContact); } catch (e) {}
+        }
+        if (req.body.specialNeeds && typeof req.body.specialNeeds === 'string') {
+            try { req.body.specialNeeds = JSON.parse(req.body.specialNeeds); } catch (e) {}
+        }
+
         allowedFields.forEach(field => {
             if (req.body[field] !== undefined) {
                 applicationData[field] = req.body[field];
@@ -77,8 +87,12 @@ exports.submitApplication = async (req, res) => {
             if (universityIdCard) applicationData.documents.universityIdCard = universityIdCard;
         }
 
-        // 3. التحقق من وجود الحقول المطلوبة
-        const requiredFields = ['fullName', 'nationalId', 'gender', 'academicYear', 'college'];
+        // 3. التحقق من الحقول الإجبارية (المطابقة للموديل الجديد)
+        const requiredFields = [
+            'studentType', 'fullName', 'nationalId', 'gender', 'dateOfBirth', 
+            'phoneNumber', 'address', 'college', 'academicYear'
+        ];
+        
         const missingFields = requiredFields.filter(field => !applicationData[field]);
         if (missingFields.length > 0) {
             return sendError(res, 400, `Missing required fields: ${missingFields.join(', ')}`);
