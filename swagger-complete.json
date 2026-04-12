@@ -481,8 +481,22 @@
             "multipart/form-data": {
               "schema": {
                 "type": "object",
-                "required": ["fullName", "nationalId", "gender", "college", "academicYear"],
+                "required": [
+                  "studentType",
+                  "fullName",
+                  "nationalId",
+                  "gender",
+                  "dateOfBirth",
+                  "phoneNumber",
+                  "address",
+                  "college",
+                  "academicYear"
+                ],
                 "properties": {
+                  "studentType": {
+                    "type": "string",
+                    "enum": ["new", "returning"]
+                  },
                   "fullName": {
                     "type": "string"
                   },
@@ -493,11 +507,22 @@
                     "type": "string",
                     "enum": ["male", "female"]
                   },
+                  "dateOfBirth": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "phoneNumber": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": "string"
+                  },
                   "college": {
                     "type": "string"
                   },
                   "academicYear": {
-                    "type": "number"
+                    "type": "string",
+                    "enum": ["1", "2", "3", "4", "5", "6", "preparatory"]
                   },
                   "gpa": {
                     "type": "number"
@@ -564,6 +589,7 @@
           }
         }
       }
+  
     },
     "/api/applications/my": {
       "get": {
