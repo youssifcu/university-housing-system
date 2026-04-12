@@ -60,8 +60,10 @@ exports.submitApplication = async (req, res) => {
             applicationData.documents = applicationData.documents || {};
 
             const mapFile = (file) => file && file[0] ? {
-                url: file[0].path || file[0].filename,
-                uploadedAt: file[0].uploadedAt || new Date()
+                data: file[0].buffer,
+                contentType: file[0].mimetype,
+                originalName: file[0].originalname,
+                uploadedAt: new Date()
             } : undefined;
 
             const nationalIdCard = mapFile(req.files.nationalIdCard);
@@ -128,9 +130,15 @@ exports.approveApplication = async (req, res) => {
             return sendError(res, 400, 'This application is already approved');
         }
 
-        // 2. البحث عن المباني المناسبة للجنس
-        const targetBuildings = await Building.find({ gender: application.gender })
-            .select('_id')
+        // 2. البحث عن المباني المناسبة للجنس والدرجة
+        // Get the student's grade from application GPA or default to 5
+        const studentGrade = Math.ceil(application.gpa || 5);
+        
+        const targetBuildings = await Building.find({ 
+            gender: application.gender,
+            grade: { $gte: studentGrade }
+        })
+            .select('_id name grade')
             .lean()
             .session(session);
         
@@ -138,7 +146,7 @@ exports.approveApplication = async (req, res) => {
         if (buildingIds.length === 0) {
             await session.abortTransaction();
             session.endSession();
-            return sendError(res, 400, `No buildings found for ${application.gender} students`);
+            return sendError(res, 400, `No buildings found matching your grade level (${studentGrade}) for ${application.gender} students. You may need to improve your academic grade.`);
         }
 
         // 3. البحث عن أول غرفة متاحة (مع قفل الصف لمنع التعارض)
@@ -157,9 +165,7 @@ exports.approveApplication = async (req, res) => {
         }
 
         // 4. توليد أكواد QR
-        const uniqueHash = crypto.randomBytes(3).toString('hex').toUpperCase();
-        const attendanceCode = `ATT-${application.nationalId.slice(-4)}-${uniqueHash}`;
-        const mealCode = `MEAL-${application.nationalId.slice(-4)}-${uniqueHash}`;
+        const userIdString = application.userId.toString();
 
         // 5. تحديث المستخدم (تحويله لطالب مفعل)
         const userUpdateResult = await User.findByIdAndUpdate(
@@ -169,12 +175,13 @@ exports.approveApplication = async (req, res) => {
                     nationalId: application.nationalId,
                     universityYear: application.academicYear,
                     faculty: application.college,
+                    grade: studentGrade,
                     housingStatus: 'active',
                     applicationId: application._id,
                     assignedRoomId: selectedRoom._id,
                     roomAllocationDate: new Date(),
-                    'qrCode.attendanceCode': attendanceCode,
-                    'qrCode.mealCode': mealCode
+                    'qrCode.attendanceCode': userIdString,
+                    'qrCode.mealCode': userIdString
                 }
             },
             { new: true, session }

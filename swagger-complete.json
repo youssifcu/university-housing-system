@@ -293,27 +293,20 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email", "password", "name"],
+                "required": ["email", "password", "name", "firebaseUid", "studentId", "nationalId", "universityYear", "faculty"],
                 "properties": {
-                  "email": {
-                    "type": "string",
-                    "example": "student@university.edu"
-                  },
-                  "password": {
-                    "type": "string",
-                    "example": "Password123!"
-                  },
-                  "name": {
-                    "type": "string",
-                    "example": "Ahmed Mohamed"
-                  },
-                  "phoneNumber": {
-                    "type": "string"
-                  },
-                  "gender": {
-                    "type": "string",
-                    "enum": ["male", "female"]
-                  }
+                "email": { "type": "string", "example": "student@university.edu" },
+                "password": { "type": "string", "example": "Password123!" },
+                "name": { "type": "string", "example": "Ahmed Mohamed" },
+                "phoneNumber": { "type": "string", "example": "01012345678" },
+                "gender": { "type": "string", "enum": ["male", "female"] },
+                "firebaseUid": { "type": "string", "example": "test_uid_12345" },
+                "studentId": { "type": "string", "example": "20240001" },
+                "nationalId": { "type": "string", "example": "12345678901234" },
+                "universityYear": { "type": "number", "example": 3 },
+                "faculty": { "type": "string", "example": "Computer Science" }
+                            }
+
                 }
               }
             }

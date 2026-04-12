@@ -230,15 +230,12 @@ exports.generateMyQRCode = async (req, res) => {
             return sendError(res, 404, 'Student record not found');
         }
 
-        // إنشاء سلسلة فريدة للـ QR لكل نوع
-        const uniqueId = student.universityId || student.nationalId || student._id.toString();
-        const timestamp = Date.now().toString(36);
-        const attendanceCode = `ATT-${uniqueId}-${timestamp}-${Math.floor(Math.random() * 100000)}`;
-        const mealCode = `MEAL-${uniqueId}-${timestamp}-${Math.floor(Math.random() * 100000)}`;
+        // استخدام ID الطالب ككود QR
+        const userIdString = student._id.toString();
 
         student.qrCode = {
-            attendanceCode,
-            mealCode,
+            attendanceCode: userIdString,
+            mealCode: userIdString,
             generatedAt: new Date()
         };
         await student.save();
@@ -262,12 +259,17 @@ exports.validateQRCode = async (req, res) => {
             return sendError(res, 400, 'QR code string is required');
         }
 
+        // التحقق من صحة ObjectId
+        if (!mongoose.Types.ObjectId.isValid(qrCode)) {
+            return sendSuccess(res, 200, 'QR code invalid', {
+                valid: false,
+                status: 'invalid_format'
+            });
+        }
+
         const student = await User.findOne({
-            role: 'student',
-            $or: [
-                { 'qrCode.attendanceCode': qrCode.trim() },
-                { 'qrCode.mealCode': qrCode.trim() }
-            ]
+            _id: qrCode,
+            role: 'student'
         })
             .select('_id userId housingStatus')
             .lean();
@@ -275,7 +277,7 @@ exports.validateQRCode = async (req, res) => {
         if (!student) {
             return sendSuccess(res, 200, 'QR code invalid', {
                 valid: false,
-                status: 'pending'
+                status: 'not_found'
             });
         }
 

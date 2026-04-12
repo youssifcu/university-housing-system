@@ -308,7 +308,7 @@ describe('University Housing System - API Tests (v2.0.0)', () => {
             .post('/api/meals/scan')
             .set('Authorization', `Bearer ${supervisorToken}`)
             .send({
-                qrCodeString: 'MEAL-testcode',
+                qrCodeString: studentId.toString(),
                 mealId: mealId.toString()
             });
 
@@ -321,7 +321,7 @@ describe('University Housing System - API Tests (v2.0.0)', () => {
             .post('/api/attendance/scan')
             .set('Authorization', `Bearer ${supervisorToken}`)
             .send({
-                qrCodeString: 'ATT-testcode',
+                qrCodeString: studentId.toString(),
                 buildingId: buildingId.toString()
             });
 

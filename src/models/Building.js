@@ -24,6 +24,13 @@ const buildingSchema = new mongoose.Schema(
             },
             required: [true, 'Building gender specification is required']
         },
+        grade: {
+            type: Number,
+            required: [true, 'Building grade is required'],
+            min: [1, 'Building grade must be at least 1'],
+            max: [10, 'Building grade cannot exceed 10'],
+            description: 'Grade level required for housing in this building (students with grade <= building grade can request)'
+        },
         type: {
             type: String,
             enum: {

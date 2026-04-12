@@ -21,21 +21,7 @@ const getDatedFolder = () => {
 };
 
 // إعدادات التخزين
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const uploadPath = getDatedFolder();
-        cb(null, uploadPath);
-    },
-    filename: function (req, file, cb) {
-        // توليد اسم فريد: time_random.ext
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        const cleanName = path.basename(file.originalname, ext)
-            .replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '_') // يدعم العربية
-            .substring(0, 50);
-        cb(null, `${cleanName}-${uniqueSuffix}${ext}`);
-    }
-});
+const storage = multer.memoryStorage();
 
 // فلتر الملفات: PDF فقط
 const fileFilter = (req, file, cb) => {

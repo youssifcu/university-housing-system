@@ -116,6 +116,13 @@ const studentSchema = new mongoose.Schema({
         type: String,
         trim: true
     },
+    grade: {
+        type: Number,
+        min: [1, 'Student grade must be at least 1'],
+        max: [10, 'Student grade cannot exceed 10'],
+        default: 5,
+        description: 'Academic grade level (1-10, determines eligible buildings)'
+    },
     housingStatus: {
         type: String,
         enum: {

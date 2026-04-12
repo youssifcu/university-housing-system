@@ -176,27 +176,37 @@ const applicationSchema = new mongoose.Schema(
             trim: true
         },
 
-        // Files (روابط بدلاً من Buffer)
+        // Files (store PDFs as buffers in DB, not URLs)
         documents: {
             nationalIdCard: {
-                url: String,
+                data: Buffer,
+                contentType: String,
+                originalName: String,
                 uploadedAt: Date
             },
             personalPhoto: {
-                url: String,
+                data: Buffer,
+                contentType: String,
+                originalName: String,
                 uploadedAt: Date
             },
             medicalReport: {
-                url: String,
+                data: Buffer,
+                contentType: String,
+                originalName: String,
                 uploadedAt: Date
             },
             universityIdCard: {
-                url: String,
+                data: Buffer,
+                contentType: String,
+                originalName: String,
                 uploadedAt: Date
             },
             additionalDocuments: [{
                 name: String,
-                url: String,
+                data: Buffer,
+                contentType: String,
+                originalName: String,
                 uploadedAt: Date
             }]
         },
@@ -236,7 +246,7 @@ applicationSchema.virtual('isComplete').get(function() {
         this.fullName && this.nationalId && this.gender && this.dateOfBirth &&
         this.phoneNumber && this.address && this.fatherName && this.fatherNationalId &&
         this.college && this.academicYear &&
-        this.documents?.nationalIdCard?.url && this.documents?.personalPhoto?.url
+        this.documents?.nationalIdCard?.data && this.documents?.personalPhoto?.data
     );
 });
 

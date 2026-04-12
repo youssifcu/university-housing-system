@@ -80,12 +80,26 @@ exports.submitRequest = async (req, res) => {
             if (!mongoose.Types.ObjectId.isValid(toRoomId)) {
                 return sendError(res, 400, 'Invalid room ID format');
             }
-            const targetRoom = await Room.findById(toRoomId).select('_id status').lean();
+            
+            // جلب غرفة الهدف مع بناؤها
+            const targetRoom = await Room.findById(toRoomId)
+                .select('_id status buildingId')
+                .populate('buildingId', 'name grade')
+                .lean();
+            
             if (!targetRoom) {
                 return sendError(res, 404, 'Target room not found');
             }
             if (targetRoom.status === 'full') {
                 return sendError(res, 400, 'Target room is already full');
+            }
+
+            // التحقق من تطابق درجة الطالب مع متطلبات المبنى
+            if (targetRoom.buildingId && targetRoom.buildingId.grade) {
+                if (req.userDoc.grade > targetRoom.buildingId.grade) {
+                    return sendError(res, 403, 
+                        `Your grade (${req.userDoc.grade}) is higher than the required grade for ${targetRoom.buildingId.name} (grade ${targetRoom.buildingId.grade}). You cannot request this building.`);
+                }
             }
         }
 

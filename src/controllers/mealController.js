@@ -160,9 +160,14 @@ exports.scanMeal = async (req, res) => {
             return sendError(res, 400, 'Invalid meal ID format');
         }
 
-        // البحث عن الطالب بكود الوجبات
+        // التحقق من صحة ObjectId
+        if (!mongoose.Types.ObjectId.isValid(qrCodeString)) {
+            return sendError(res, 400, 'Invalid QR Code format');
+        }
+
+        // البحث عن الطالب بالـ ID مباشرة
         const student = await User.findOne({
-            'qrCode.mealCode': qrCodeString.trim(),
+            _id: qrCodeString,
             role: 'student'
         }).select('_id name studentId housingStatus').lean();
 

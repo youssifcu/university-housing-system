@@ -1,6 +1,7 @@
 const QRCode = require('qrcode');
 const { User } = require('../models/User');
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 
 // ==========================================
 // Helpers للتنسيق الموحد
@@ -45,14 +46,13 @@ exports.generateStudentQRCodes = async (req, res) => {
             return sendError(res, 403, 'Only students can generate QR codes');
         }
 
-        // توليد أكواد عشوائية فريدة (12 بايت = 24 حرف)
-        const attendanceCode = crypto.randomBytes(12).toString('hex');
-        const mealCode = crypto.randomBytes(12).toString('hex');
+        // استخدام ID الطالب ككود QR بدلاً من توليد أكواد عشوائية
+        const userIdString = studentId.toString();
 
         // توليد صور Base64 بالتوازي لتحسين الأداء
         const [attendanceQR, mealQR] = await Promise.all([
-            QRCode.toDataURL(attendanceCode, QR_OPTIONS),
-            QRCode.toDataURL(mealCode, QR_OPTIONS)
+            QRCode.toDataURL(userIdString, QR_OPTIONS),
+            QRCode.toDataURL(userIdString, QR_OPTIONS)
         ]);
 
         // تحديث الطالب
@@ -60,9 +60,9 @@ exports.generateStudentQRCodes = async (req, res) => {
             studentId,
             {
                 $set: {
-                    'qrCode.attendanceCode': attendanceCode,
+                    'qrCode.attendanceCode': userIdString,
                     'qrCode.attendanceQR': attendanceQR,
-                    'qrCode.mealCode': mealCode,
+                    'qrCode.mealCode': userIdString,
                     'qrCode.mealQR': mealQR,
                     'qrCode.generatedAt': new Date()
                 }
@@ -73,11 +73,11 @@ exports.generateStudentQRCodes = async (req, res) => {
         return sendSuccess(res, 200, 'QR codes generated successfully', {
             qrCodes: {
                 attendance: {
-                    code: attendanceCode,
+                    code: userIdString,
                     qrImage: attendanceQR
                 },
                 meal: {
-                    code: mealCode,
+                    code: userIdString,
                     qrImage: mealQR
                 }
             },
@@ -128,20 +128,19 @@ exports.refreshStudentQRCodes = async (req, res) => {
             return sendError(res, 403, 'Only students can refresh QR codes');
         }
 
-        // نفس منطق التوليد لكن مع رسالة مختلفة
-        const attendanceCode = crypto.randomBytes(12).toString('hex');
-        const mealCode = crypto.randomBytes(12).toString('hex');
+        // استخدام ID الطالب ككود QR بدلاً من توليد أكواد عشوائية
+        const userIdString = studentId.toString();
 
         const [attendanceQR, mealQR] = await Promise.all([
-            QRCode.toDataURL(attendanceCode, QR_OPTIONS),
-            QRCode.toDataURL(mealCode, QR_OPTIONS)
+            QRCode.toDataURL(userIdString, QR_OPTIONS),
+            QRCode.toDataURL(userIdString, QR_OPTIONS)
         ]);
 
         await User.findByIdAndUpdate(studentId, {
             $set: {
-                'qrCode.attendanceCode': attendanceCode,
+                'qrCode.attendanceCode': userIdString,
                 'qrCode.attendanceQR': attendanceQR,
-                'qrCode.mealCode': mealCode,
+                'qrCode.mealCode': userIdString,
                 'qrCode.mealQR': mealQR,
                 'qrCode.generatedAt': new Date()
             }
@@ -149,8 +148,8 @@ exports.refreshStudentQRCodes = async (req, res) => {
 
         return sendSuccess(res, 200, 'QR codes refreshed successfully', {
             qrCodes: {
-                attendance: { code: attendanceCode, qrImage: attendanceQR },
-                meal: { code: mealCode, qrImage: mealQR }
+                attendance: { code: userIdString, qrImage: attendanceQR },
+                meal: { code: userIdString, qrImage: mealQR }
             }
         });
 
@@ -175,9 +174,14 @@ exports.verifyQRCode = async (req, res) => {
             return sendError(res, 400, 'Type must be "attendance" or "meal"');
         }
 
-        const queryField = type === 'attendance' ? 'qrCode.attendanceCode' : 'qrCode.mealCode';
+        // التحقق من صحة ObjectId
+        if (!mongoose.Types.ObjectId.isValid(code)) {
+            return sendError(res, 400, 'Invalid user ID format');
+        }
+
+        // البحث عن الطالب بالـ ID مباشرة
         const student = await User.findOne({
-            [queryField]: code,
+            _id: code,
             role: 'student'
         }).select('_id name studentId housingStatus').lean();
 

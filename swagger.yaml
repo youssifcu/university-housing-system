@@ -153,8 +153,10 @@ components:
         type:
           type: string
           enum: [transfer, leave, vacate, maintenance]
+          description: Type of housing request (transfer requests validate student grade against target building)
         toRoomId:
           type: string
+          description: Required for transfer requests. Target room must be in a building matching student's grade level.
         reason:
           type: string
         startDate:
@@ -169,6 +171,7 @@ components:
         - name
         - gender
         - floors
+        - grade
       properties:
         name:
           type: string
@@ -177,6 +180,11 @@ components:
           enum: [male, female]
         floors:
           type: integer
+        grade:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: Required grade level for housing eligibility (1-10)
         description:
           type: string
         supervisorId:
@@ -458,6 +466,14 @@ paths:
     patch:
       tags: [Applications]
       summary: Approve application (Admin)
+      description: |
+        Approve housing application and assign room based on:
+        - Student's gender
+        - Student's academic grade (derived from GPA)
+        - Building grade requirements
+        
+        Student will be assigned to a building matching their grade level.
+        Their grade (1-10) determines eligible buildings for future room transfers.
       security: [{ bearerAuth: [] }]
       parameters:
         - name: id
@@ -466,9 +482,13 @@ paths:
           schema: { type: string }
       responses:
         '200':
-          description: Approved and assigned to room
+          description: Approved and assigned to room with grade level considered
         '400':
-          $ref: '#/components/responses/ErrorResponse'
+          description: No buildings found matching student's grade level
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/applications/{id}/reject:
     patch:
       tags: [Applications]
@@ -705,6 +725,10 @@ paths:
     post:
       tags: [Housing Requests]
       summary: Submit request (Student)
+      description: |
+        Submit transfer, leave, vacate, or maintenance request.
+        For transfer requests: Target room must be in a building matching student's grade level.
+        Students cannot request buildings with a higher grade requirement than their academic grade.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -715,6 +739,8 @@ paths:
       responses:
         '201':
           description: Created
+        '403':
+          description: Grade requirement not met for target building
   /api/housing-requests/my:
     get:
       tags: [Housing Requests]

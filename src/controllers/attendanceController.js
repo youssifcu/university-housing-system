@@ -32,9 +32,14 @@ exports.scanAttendance = async (req, res) => {
             return sendError(res, 400, 'QR Code string is required');
         }
 
-        // 1. البحث عن الطالب بكود الحضور (نستخدم .lean() لأننا مش هنعدل)
+        // 1. التحقق من صحة ObjectId
+        if (!mongoose.Types.ObjectId.isValid(qrCodeString)) {
+            return sendError(res, 400, 'Invalid QR Code format');
+        }
+
+        // 2. البحث عن الطالب بالـ ID مباشرة (نستخدم .lean() لأننا مش هنعدل)
         const student = await User.findOne({
-            'qrCode.attendanceCode': qrCodeString.trim(),
+            _id: qrCodeString,
             role: 'student'
         })
         .select('_id name studentId housingStatus assignedRoomId')
