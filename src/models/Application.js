@@ -227,7 +227,6 @@ applicationSchema.pre('save', function(next) {
     if (this.phoneNumber) {
         this.phoneNumber = this.phoneNumber.replace(/\s+/g, '');
     }
-    next();
 });
 
 const Application = mongoose.model('Application', applicationSchema);
