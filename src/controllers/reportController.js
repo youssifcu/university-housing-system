@@ -35,37 +35,32 @@ const canManageReports = (role) => ['admin', 'floor_admin', 'supervisor'].includ
 // ==========================================
 exports.createReport = async (req, res) => {
     try {
-        const { type, description, severity, imageUrl } = req.body;
+        const { type, description, severity, imageUrls, location } = req.body; // نستخدم imageUrls كـ Array
         const studentId = req.userDoc._id;
 
-        // التحقق من الحقول المطلوبة
+        // 1. التحقق من الحقول المطلوبة
         if (!type || !description?.trim()) {
             return sendError(res, 400, 'Type and description are required');
         }
 
-        if (!ALLOWED_REPORT_TYPES.includes(type)) {
-            return sendError(res, 400, `Invalid report type. Allowed: ${ALLOWED_REPORT_TYPES.join(', ')}`);
-        }
-
-        if (severity && !ALLOWED_SEVERITIES.includes(severity)) {
-            return sendError(res, 400, `Invalid severity. Allowed: ${ALLOWED_SEVERITIES.join(', ')}`);
+        // 2. مزامنة أنواع البلاغات مع الموديل (ضفنا malfunction)
+        const MODEL_TYPES = ['maintenance', 'complaint', 'emergency', 'malfunction', 'other'];
+        if (!MODEL_TYPES.includes(type)) {
+            return sendError(res, 400, `Invalid type. Allowed: ${MODEL_TYPES.join(', ')}`);
         }
 
         const report = await Report.create({
             type,
             description: description.trim(),
             severity: severity || 'low',
-            imageUrl,
+            imageUrls: imageUrls || [], // مصفوفة صور
             studentId,
             reportedBy: studentId,
+            location: location || {}, // دعم بيانات الموقع (Building/Room)
             status: 'open'
         });
 
-        return sendSuccess(res, 201, 'Report submitted successfully', {
-            id: report._id,
-            status: report.status
-        });
-
+        return sendSuccess(res, 201, 'Report submitted successfully', { id: report._id });
     } catch (error) {
         console.error('Create Report Error:', error);
         if (error.name === 'ValidationError') {
