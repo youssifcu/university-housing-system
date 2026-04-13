@@ -160,7 +160,7 @@ exports.approveApplication = async (req, res) => {
         const { id } = req.params;
         const reviewerId = req.userDoc._id;
 
-        // 1. جلب الطلب
+        // 1. جلب الطلب والتأكد من وجود بيانات الجنس
         const application = await Application.findById(id).session(session);
         if (!application) {
             await session.abortTransaction();
@@ -174,57 +174,67 @@ exports.approveApplication = async (req, res) => {
             return sendError(res, 400, 'This application is already approved');
         }
 
-        // 2. البحث عن المباني المناسبة للجنس والدرجة
-        // تحويل الـ GPA (من 4) لمقياس الـ Grade (من 10)
-        const MAX_GPA = 4.0; // لو نظام الكلية من 5، غير الرقم ده لـ 5.0
-        let studentGrade = 5; // الدرجة الافتراضية (النص) لو الطالب جديد وملوش GPA
+        if (!application.gender) {
+            await session.abortTransaction();
+            session.endSession();
+            return sendError(res, 400, 'Student gender is missing in the application');
+        }
+
+        // 2. حساب درجة الطالب الأكاديمية (GPA to Grade 1-10)
+        const MAX_GPA = 4.0;
+        let studentGrade = 5; 
         
         if (application.gpa) {
-            // تحويل المقياس والتقريب لأقرب رقم صحيح
             studentGrade = Math.ceil((application.gpa / MAX_GPA) * 10); 
-            
-            // تأمين إضافي: عشان لو في غلطة والـ GPA معدي الـ 4، الجريد ميكسرش الـ 10
             if (studentGrade > 10) studentGrade = 10;
             if (studentGrade < 1) studentGrade = 1;
         }
         
+        // 3. البحث عن المباني (فلترة صارمة بالجنس والدرجة والحالة)
         const targetBuildings = await Building.find({ 
-            gender: application.gender,
-            grade: { $lte: studentGrade } // زي ما صلحناها المرة اللي فاتت
-        })
+            gender: application.gender, // 🛡️ الشرط الأساسي: منع الاختلاط
+            grade: { $lte: studentGrade }, 
+            status: 'active' 
+        }).session(session);
         
         const buildingIds = targetBuildings.map(b => b._id);
         if (buildingIds.length === 0) {
             await session.abortTransaction();
             session.endSession();
-            return sendError(res, 400, `No buildings found matching your grade level (${studentGrade}) for ${application.gender} students. You may need to improve your academic grade.`);
+            return sendError(res, 400, `No active buildings found matching Gender: ${application.gender} and Grade: ${studentGrade}`);
         }
 
-        // 3. البحث عن أول غرفة متاحة (مع قفل الصف لمنع التعارض)
+        // 4. البحث عن أول غرفة متاحة داخل المباني المحددة فقط
         const selectedRoom = await Room.findOne({
             buildingId: { $in: buildingIds },
             status: 'available'
         })
         .sort({ floorNumber: 1, roomNumber: 1 })
-        .populate('buildingId', 'name')
+        .populate('buildingId') // مهم جداً عشان التشييك الأخير
         .session(session);
 
         if (!selectedRoom) {
             await session.abortTransaction();
             session.endSession();
-            return sendError(res, 400, 'Housing is full. No available rooms for this gender.');
+            return sendError(res, 400, `Housing is full for ${application.gender} students in this grade level.`);
         }
 
-        // 4. توليد أكواد QR
+        // 🛡️ صمام أمان أخير: التأكد يدويًا من مطابقة جنس المبنى لجنس الطالب
+        if (selectedRoom.buildingId.gender !== application.gender) {
+            await session.abortTransaction();
+            session.endSession();
+            return sendError(res, 500, 'Critical Logic Error: Room gender mismatch detected!');
+        }
+
         const userIdString = application.userId.toString();
 
-        // 5. تحديث المستخدم (تحويله لطالب مفعل) بالطريقة الآمنة
+        // 5. تحديث بيانات المستخدم وتحويله لطالب مفعل
         const student = await User.findById(application.userId).session(session);
         
         if (!student) {
             await session.abortTransaction();
             session.endSession();
-            return sendError(res, 404, 'Student record not found');
+            return sendError(res, 404, 'Student user record not found');
         }
 
         student.nationalId = application.nationalId;
@@ -236,34 +246,35 @@ exports.approveApplication = async (req, res) => {
         student.assignedRoomId = selectedRoom._id;
         student.roomAllocationDate = new Date();
         
-        // التأكد من وجود كائن الـ qrCode قبل الإضافة جواه
-        if (!student.qrCode) {
-            student.qrCode = {};
-        }
+        if (!student.qrCode) student.qrCode = {};
         student.qrCode.attendanceCode = userIdString;
         student.qrCode.mealCode = userIdString;
 
-        // الحفظ (دي بتضمن إن المونجو يكتب الداتا كلها وميطنش حاجة)
         await student.save({ session });
 
-
-        // 6. تحديث الغرفة (إضافة الطالب)
+        // 6. تحديث الغرفة (إضافة الطالب لقائمة الساكنين)
         selectedRoom.currentOccupants.push(application.userId);
+        
+        // إذا وصلت الغرفة لسعتها القصوى، نغير حالتها (اختياري حسب الموديل عندك)
+        if (selectedRoom.currentOccupants.length >= selectedRoom.capacity) {
+            selectedRoom.status = 'full';
+        }
+        
         await selectedRoom.save({ session });
 
-        // 7. تحديث الطلب
+        // 7. تحديث حالة الطلب
         application.status = 'approved';
         application.reviewedBy = reviewerId;
         await application.save({ session });
 
-        // تم كل شيء بنجاح -> commit
+        // تنفيذ كافة العمليات بنجاح
         await session.commitTransaction();
         session.endSession();
 
-        return sendSuccess(res, 200, 'Application approved and student assigned', {
+        return sendSuccess(res, 200, 'Application approved successfully', {
             roomNumber: selectedRoom.roomNumber,
-            floor: selectedRoom.floorNumber,
-            buildingName: selectedRoom.buildingId?.name || null
+            buildingName: selectedRoom.buildingId.name,
+            gender: selectedRoom.buildingId.gender
         });
 
     } catch (error) {
