@@ -22,10 +22,12 @@ const sendError = (res, statusCode, message, errorDetails = null) => {
 };
 
 // ==========================================
-// GET /api/rooms (Admin/Supervisor)
+// GET /api/rooms
 // ==========================================
 exports.getAllRooms = async (req, res) => {
     try {
+        const userRole = req.userDoc.role; // 🚀 معرفة وظيفة المستخدم الحالي
+
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
@@ -35,16 +37,26 @@ exports.getAllRooms = async (req, res) => {
         if (req.query.status) filter.status = req.query.status;
         if (req.query.floorNumber) filter.floorNumber = parseInt(req.query.floorNumber);
 
+        // بناء الـ Query الأساسي
+        let query = Room.find(filter).populate('buildingId', 'name gender');
+
+        // 🚀 لو أدمن أو مشرف، هات تفاصيل الطلبة اللي في الأوضة
+        if (userRole === 'admin' || userRole === 'supervisor') {
+            query = query.populate('currentOccupants', 'name email studentId');
+        }
+
         const [rooms, total] = await Promise.all([
-            Room.find(filter)
-                .populate('buildingId', 'name gender')
-                .populate('currentOccupants', 'name email studentId')
-                .sort({ buildingId: 1, roomNumber: 1 })
-                .skip(skip)
-                .limit(limit)
-                .lean(),
+            query.sort({ buildingId: 1, roomNumber: 1 })
+                 .skip(skip)
+                 .limit(limit)
+                 .lean(),
             Room.countDocuments(filter)
         ]);
+
+        // 🚀 لو طالب، امسح حقل الساكنين تماماً عشان ميشوفش حتى الـ IDs
+        if (userRole === 'student') {
+            rooms.forEach(room => delete room.currentOccupants);
+        }
 
         return sendSuccess(res, 200, 'Rooms fetched successfully', {
             rooms,
@@ -62,7 +74,9 @@ exports.getAllRooms = async (req, res) => {
 // ==========================================
 exports.getAvailableRooms = async (req, res) => {
     try {
+        const userRole = req.userDoc.role; // 🚀 معرفة وظيفة المستخدم الحالي
         const filter = { status: 'available' };
+        
         if (req.query.buildingId) filter.buildingId = req.query.buildingId;
         if (req.query.floorNumber) filter.floorNumber = parseInt(req.query.floorNumber);
 
@@ -70,6 +84,11 @@ exports.getAvailableRooms = async (req, res) => {
             .populate('buildingId', 'name gender')
             .sort({ buildingId: 1, roomNumber: 1 })
             .lean();
+
+        // 🚀 لو طالب، امسح حقل الساكنين تماماً
+        if (userRole === 'student') {
+            rooms.forEach(room => delete room.currentOccupants);
+        }
 
         return sendSuccess(res, 200, 'Available rooms fetched', {
             rooms,
