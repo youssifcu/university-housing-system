@@ -529,16 +529,25 @@
                   },
                   "nationalIdCard": {
                     "type": "string",
-                    "format": "binary"
+                    "format": "binary",
+                    "description": "صورة فقط (JPG, PNG)"
                   },
                   "personalPhoto": {
                     "type": "string",
-                    "format": "binary"
+                    "format": "binary",
+                    "description": "صورة فقط (JPG, PNG)"
                   },
                   "medicalReport": {
                     "type": "string",
-                    "format": "binary"
+                    "format": "binary",
+                    "description": "ملف PDF فقط"
+                  },
+                  "universityIdCard": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "صورة فقط (JPG, PNG) - كارنيه الكلية"
                   }
+              
                 }
               }
             }
