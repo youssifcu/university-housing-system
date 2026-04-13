@@ -27,6 +27,7 @@ const sendError = (res, statusCode, message, errorDetails = null) => {
 // ==========================================
 // POST /api/applications (تقديم طلب جديد)
 // ==========================================
+
 exports.submitApplication = async (req, res) => {
     try {
         const userId = req.userDoc._id;
@@ -40,6 +41,34 @@ exports.submitApplication = async (req, res) => {
         if (existingApp) {
             return sendError(res, 400, 'You already have an active application.');
         }
+
+        // ==========================================
+        // 🚀 الجزء اللي كان ناقص: تعريف المتغير واستلام الداتا النصية
+        // ==========================================
+        const allowedFields = [
+            'studentType', 'fullName', 'nationalId', 'gender', 'dateOfBirth', 
+            'phoneNumber', 'email', 'address', 'emergencyContact',
+            'college', 'department', 'academicYear', 'gpa',
+            'housingType', 'specialNeeds', 'preferredRoommate'
+        ];
+        
+        const applicationData = {}; // المتغير اللي كان السيرفر بيعيط بسببه
+        
+        // لو الـ nested object مبعوت كـ JSON string من الـ form-data
+        if (req.body.emergencyContact && typeof req.body.emergencyContact === 'string') {
+            try { req.body.emergencyContact = JSON.parse(req.body.emergencyContact); } catch (e) {}
+        }
+        if (req.body.specialNeeds && typeof req.body.specialNeeds === 'string') {
+            try { req.body.specialNeeds = JSON.parse(req.body.specialNeeds); } catch (e) {}
+        }
+
+        // استخراج الداتا من الـ Request
+        allowedFields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                applicationData[field] = req.body[field];
+            }
+        });
+        // ==========================================
 
         // 2.b إضافة ملفات الطلب إذا تم رفعها (مع فحص الصيغ بدقة)
         if (req.files) {
@@ -88,7 +117,7 @@ exports.submitApplication = async (req, res) => {
             if (universityIdCard) applicationData.documents.universityIdCard = universityIdCard;
         }
 
-        // 3. التحقق من الحقول الإجبارية (المطابقة للموديل الجديد)
+        // 3. التحقق من الحقول الإجبارية 
         const requiredFields = [
             'studentType', 'fullName', 'nationalId', 'gender', 'dateOfBirth', 
             'phoneNumber', 'address', 'college', 'academicYear'
