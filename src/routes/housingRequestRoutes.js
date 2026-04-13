@@ -2,53 +2,51 @@ const express = require('express');
 const router = express.Router();
 const housingRequestController = require('../controllers/housingRequestController');
 const verifyToken = require('../middlewares/verifyFirebaseToken');
-const { isAdmin, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
+const { isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
 
 // ==========================================
-// مسارات الطالب (Student Only)
+// 1. مسارات مشتركة (Shared / Student Specific)
 // ==========================================
-// تقديم طلب جديد (نقل، إجازة، إخلاء، صيانة)
+
+// تقديم طلب جديد
 router.post(
     '/',
     verifyToken,
     housingRequestController.submitRequest
 );
 
-// عرض طلباتي (مع Pagination)
-router.get(
-    '/my',
-    verifyToken,
-    housingRequestController.getMyRequests
-);
-
-// ==========================================
-// مسارات الإدارة (Admin/Supervisor)
-// ==========================================
-// عرض جميع الطلبات (مع Pagination وفلترة)
+// عرض الطلبات 
+// (الكنترولر الآن ذكي: الطالب بيشوف حاجته بس، والأدمن بيشوف الكل)
 router.get(
     '/',
     verifyToken,
-    isAdminOrSupervisor,
     housingRequestController.getAllRequests
 );
 
-// عرض تفاصيل طلب محدد
+// عرض تفاصيل طلب محدد (محمي داخل الكنترولر للأدمن أو صاحب الطلب)
 router.get(
     '/:id',
     verifyToken,
-    isAdminOrSupervisor,
     housingRequestController.getRequestById
 );
 
-// تحديث حالة الطلب (موافقة/رفض) - مع تنفيذ الإجراءات تلقائياً
+// 🚀 المسار الجديد: تعديل الطالب لطلبه المعلق (Pending)
+router.patch(
+    '/:id',
+    verifyToken,
+    housingRequestController.updateMyRequest
+);
+
+// ==========================================
+// 2. مسارات الإدارة (Admin/Supervisor Only)
+// ==========================================
+
+// تحديث حالة الطلب (موافقة/رفض) - مع دعم التسكين اليدوي overrideRoomId
 router.patch(
     '/:id/status',
     verifyToken,
     isAdminOrSupervisor,
     housingRequestController.updateStatus
 );
-
-// تعليق على طلب (اختياري - لو موجود في الكنترولر)
-// router.post('/:id/messages', verifyToken, isAdminOrSupervisor, housingRequestController.addRequestMessage);
 
 module.exports = router;

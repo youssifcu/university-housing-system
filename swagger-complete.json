@@ -1173,7 +1173,7 @@
                   },
                   "toRoomId": {
                     "type": "string",
-                    "description": "Required for transfer requests"
+                    "description": "Required for transfer requests (Target room ID)"
                   },
                   "reason": {
                     "type": "string"
@@ -1194,52 +1194,23 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "Request submitted successfully"
-          },
-          "400": {
-            "description": "Validation error"
-          }
+          "201": { "description": "Request submitted successfully" },
+          "400": { "description": "Validation error" }
         }
       },
       "get": {
         "tags": ["Housing Requests"],
-        "summary": "Get All Requests",
-        "description": "Retrieve all housing requests (Admin only)",
+        "summary": "Get Requests",
+        "description": "Retrieve housing requests. Students see only their own, Admins/Supervisors see all.",
         "parameters": [
-          {
-            "name": "page",
-            "in": "query",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "type",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
+          { "name": "page", "in": "query", "schema": { "type": "number", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "number", "default": 20 } },
+          { "name": "type", "in": "query", "schema": { "type": "string", "enum": ["transfer", "leave", "vacate", "maintenance"] } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending", "approved", "rejected", "cancelled"] } },
+          { "name": "studentId", "in": "query", "description": "Filter by student ID (Admin only)", "schema": { "type": "string" } }
         ],
         "responses": {
-          "200": {
-            "description": "Requests retrieved"
-          }
+          "200": { "description": "Requests retrieved successfully" }
         }
       }
     },
@@ -1247,37 +1218,50 @@
       "get": {
         "tags": ["Housing Requests"],
         "summary": "Get Request by ID",
+        "description": "Retrieve specific request details (Owner or Admin only)",
         "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
         "responses": {
-          "200": {
-            "description": "Request retrieved"
+          "200": { "description": "Request retrieved" },
+          "403": { "description": "Unauthorized access" }
+        }
+      },
+      "patch": {
+        "tags": ["Housing Requests"],
+        "summary": "Update My Request",
+        "description": "Edit a pending housing request (Student only)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": { "type": "string" },
+                  "startDate": { "type": "string", "format": "date-time" },
+                  "endDate": { "type": "string", "format": "date-time" },
+                  "toRoomId": { "type": "string", "description": "Applicable for transfer type only" }
+                }
+              }
+            }
           }
+        },
+        "responses": {
+          "200": { "description": "Request updated successfully" },
+          "404": { "description": "Request not found or not pending" }
         }
       }
     },
     "/api/housing-requests/{id}/status": {
       "patch": {
         "tags": ["Housing Requests"],
-        "summary": "Update Request Status",
-        "description": "Approve or reject housing request (Admin only)",
+        "summary": "Update Request Status (Review)",
+        "description": "Approve or reject housing request with optional manual room assignment (Admin only)",
         "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
         "requestBody": {
           "required": true,
@@ -1291,8 +1275,10 @@
                     "type": "string",
                     "enum": ["approved", "rejected", "cancelled"]
                   },
-                  "adminComment": {
-                    "type": "string"
+                  "adminComment": { "type": "string" },
+                  "overrideRoomId": { 
+                    "type": "string", 
+                    "description": "Optional: Admin can choose a different room ID than the one requested by the student" 
                   }
                 }
               }
@@ -1300,9 +1286,7 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Request status updated"
-          }
+          "200": { "description": "Request processed successfully" }
         }
       }
     },

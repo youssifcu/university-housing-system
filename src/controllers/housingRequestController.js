@@ -22,133 +22,78 @@ const sendError = (res, statusCode, message, errorDetails = null) => {
     return res.status(statusCode).json(response);
 };
 
-// أنواع الطلبات المسموحة
 const ALLOWED_REQUEST_TYPES = ['transfer', 'leave', 'vacate', 'maintenance'];
 const ALLOWED_STATUSES = ['pending', 'approved', 'rejected', 'cancelled'];
 
 // ==========================================
-// POST /api/housing-requests (Student)
+// 1. POST /api/housing-requests (Student)
 // ==========================================
 exports.submitRequest = async (req, res) => {
     try {
         const studentId = req.userDoc._id;
         const { type, toRoomId, reason, startDate, endDate } = req.body;
 
-        // 1. التحقق من وجود الطالب في غرفة (إلا إذا كان الطلب Maintenance)
         if (!req.userDoc.assignedRoomId) {
             return sendError(res, 400, 'You must be assigned to a room to submit a request');
         }
 
-        // 2. التحقق من صحة نوع الطلب
         if (!type || !ALLOWED_REQUEST_TYPES.includes(type)) {
-            return sendError(res, 400, `Invalid request type. Allowed: ${ALLOWED_REQUEST_TYPES.join(', ')}`);
+            return sendError(res, 400, `Invalid request type.`);
         }
 
-        // 3. التحقق من وجود طلب معلق من نفس النوع
         const existingRequest = await HousingRequest.findOne({
             studentId,
             type,
             status: 'pending'
-        }).select('_id').lean();
+        }).lean();
         
         if (existingRequest) {
             return sendError(res, 400, `You already have a pending ${type} request`);
         }
 
-        // 4. التحقق من التواريخ للطلبات الزمنية
-        if ((type === 'vacate' || type === 'leave') && (!startDate || !endDate)) {
-            return sendError(res, 400, 'startDate and endDate are required for this request type');
-        }
-
-        // التحقق من صحة التواريخ
-        if (startDate && endDate) {
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            if (isNaN(start) || isNaN(end)) {
-                return sendError(res, 400, 'Invalid date format');
-            }
-            if (start >= end) {
-                return sendError(res, 400, 'startDate must be before endDate');
-            }
-        }
-
-        // 5. التحقق من toRoomId إذا كان الطلب نقل
-        if (type === 'transfer') {
-            if (!toRoomId) {
-                return sendError(res, 400, 'toRoomId is required for transfer requests');
-            }
-            if (!mongoose.Types.ObjectId.isValid(toRoomId)) {
-                return sendError(res, 400, 'Invalid room ID format');
-            }
-            
-            // جلب غرفة الهدف مع بناؤها
-            const targetRoom = await Room.findById(toRoomId)
-                .select('_id status buildingId')
-                .populate('buildingId', 'name grade')
-                .lean();
-            
-            if (!targetRoom) {
-                return sendError(res, 404, 'Target room not found');
-            }
-            if (targetRoom.status === 'full') {
-                return sendError(res, 400, 'Target room is already full');
-            }
-
-            // التحقق من تطابق درجة الطالب مع متطلبات المبنى (التعديل الصح بتاعنا)
-            if (targetRoom.buildingId && targetRoom.buildingId.grade) {
-                if (req.userDoc.grade < targetRoom.buildingId.grade) {
-                    return sendError(res, 403, 
-                        `Your grade (${req.userDoc.grade}) is lower than the required grade for ${targetRoom.buildingId.name} (grade ${targetRoom.buildingId.grade}). You cannot request this building.`);
-                }
-            }
-        } // 🚀 القوس ده اللي كان ضايع وعامل المشكلة
-
-        // 6. إنشاء الطلب
         const newRequest = new HousingRequest({
             studentId,
             type,
             fromRoomId: req.userDoc.assignedRoomId,
             ...(toRoomId && { toRoomId }),
-            ...(reason && { reason: reason.trim() }),
-            ...(startDate && { startDate }),
-            ...(endDate && { endDate }),
+            reason: reason?.trim(),
+            startDate,
+            endDate,
             status: 'pending'
         });
 
         await newRequest.save();
-
-        return sendSuccess(res, 201, 'Request submitted successfully', {
-            id: newRequest._id,
-            status: newRequest.status
-        });
+        return sendSuccess(res, 201, 'Request submitted successfully', { id: newRequest._id });
 
     } catch (error) {
-        console.error('Submit Housing Request Error:', error);
-        if (error.name === 'ValidationError') {
-            const messages = Object.values(error.errors).map(e => e.message);
-            return sendError(res, 400, 'Validation failed', messages);
-        }
         return sendError(res, 500, 'Failed to submit request', error.message);
     }
 };
+
 // ==========================================
-// GET /api/housing-requests (Admin)
+// 2. GET /api/housing-requests (Admin/Supervisor Sees All, Student Sees Own)
 // ==========================================
 exports.getAllRequests = async (req, res) => {
     try {
+        const { role, _id } = req.userDoc;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
 
-        // Filtering
         const filter = {};
+        // 🚀 لو طالب، بنجبر الفلتر يشوف حاجته بس
+        if (role === 'student') {
+            filter.studentId = _id;
+        } else if (req.query.studentId) {
+            filter.studentId = req.query.studentId;
+        }
+
         if (req.query.type) filter.type = req.query.type;
         if (req.query.status) filter.status = req.query.status;
-        if (req.query.studentId) filter.studentId = req.query.studentId;
 
         const [requests, total] = await Promise.all([
             HousingRequest.find(filter)
-                .populate('studentId', 'name studentId')
+                .populate('studentId', 'name studentId email')
                 .populate('fromRoomId', 'roomNumber')
                 .populate('toRoomId', 'roomNumber')
                 .sort({ createdAt: -1 })
@@ -160,208 +105,124 @@ exports.getAllRequests = async (req, res) => {
 
         return sendSuccess(res, 200, 'Requests fetched successfully', {
             requests,
-            pagination: {
-                page,
-                limit,
-                total,
-                pages: Math.ceil(total / limit)
-            }
+            pagination: { page, limit, total, pages: Math.ceil(total / limit) }
         });
-
     } catch (error) {
-        console.error('Get All Housing Requests Error:', error);
         return sendError(res, 500, 'Failed to fetch requests', error.message);
     }
 };
 
 // ==========================================
-// GET /api/housing-requests/:id
+// 3. GET /api/housing-requests/:id (Admin/Supervisor/Owner Only)
 // ==========================================
 exports.getRequestById = async (req, res) => {
     try {
         const { id } = req.params;
-
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return sendError(res, 400, 'Invalid request ID format');
-        }
+        const { role, _id } = req.userDoc;
 
         const request = await HousingRequest.findById(id)
-            .populate('studentId', 'name email phoneNumber faculty studentId')
-            .populate('fromRoomId', 'roomNumber floorNumber buildingId')
-            .populate('toRoomId', 'roomNumber floorNumber buildingId')
-            .populate('reviewedBy', 'name role')
+            .populate('studentId', 'name email studentId faculty')
+            .populate('fromRoomId', 'roomNumber buildingId')
+            .populate('toRoomId', 'roomNumber buildingId')
             .lean();
 
-        if (!request) {
-            return sendError(res, 404, 'Request not found');
-        }
+        if (!request) return sendError(res, 404, 'Request not found');
 
-        // صلاحيات الوصول
-        const isAdmin = req.userDoc.role === 'admin';
-        const isOwner = request.studentId._id.toString() === req.userDoc._id.toString();
+        // 🚀 حماية: الأدمن والسوبرفايزر يشوفوا أي حاجة، الطالب يشوف ملكيته بس
+        const isOwner = request.studentId._id.toString() === _id.toString();
+        const hasAccess = ['admin', 'supervisor'].includes(role) || isOwner;
 
-        if (!isAdmin && !isOwner) {
-            return sendError(res, 403, 'You are not authorized to view this request');
-        }
+        if (!hasAccess) return sendError(res, 403, 'Unauthorized access');
 
-        return sendSuccess(res, 200, 'Request fetched successfully', { request });
-
+        return sendSuccess(res, 200, 'Request details', { request });
     } catch (error) {
-        console.error('Get Housing Request By ID Error:', error);
-        return sendError(res, 500, 'Failed to fetch request', error.message);
+        return sendError(res, 500, 'Error fetching request', error.message);
     }
 };
 
 // ==========================================
-// PATCH /api/housing-requests/:id/status (Admin)
+// 4. PATCH /api/housing-requests/:id (Student Edit Own Pending Request)
+// ==========================================
+exports.updateMyRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const studentId = req.userDoc._id;
+        const { reason, startDate, endDate, toRoomId } = req.body;
+
+        const request = await HousingRequest.findOne({ _id: id, studentId, status: 'pending' });
+        if (!request) return sendError(res, 404, 'Pending request not found or unauthorized');
+
+        if (reason) request.reason = reason.trim();
+        if (startDate) request.startDate = startDate;
+        if (endDate) request.endDate = endDate;
+        if (toRoomId && request.type === 'transfer') request.toRoomId = toRoomId;
+
+        await request.save();
+        return sendSuccess(res, 200, 'Request updated successfully');
+    } catch (error) {
+        return sendError(res, 500, 'Update failed', error.message);
+    }
+};
+
+// ==========================================
+// 5. PATCH /api/housing-requests/:id/status (Admin/Supervisor Only)
 // ==========================================
 exports.updateStatus = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
-
     try {
         const { id } = req.params;
-        const { status, adminComment } = req.body;
-        const reviewerId = req.userDoc._id;
+        const { status, adminComment, overrideRoomId } = req.body; // 🚀 overrideRoomId للنقل اليدوي
+        const { role, _id: reviewerId } = req.userDoc;
 
-        // 1. التحقق من المدخلات
-        if (!status || !ALLOWED_STATUSES.includes(status)) {
-            return sendError(res, 400, `Invalid status. Allowed: ${ALLOWED_STATUSES.join(', ')}`);
+        if (!['admin', 'supervisor'].includes(role)) {
+            return sendError(res, 403, 'Only admins or supervisors can review requests');
         }
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return sendError(res, 400, 'Invalid request ID format');
-        }
-
-        // 2. جلب الطلب
         const request = await HousingRequest.findById(id).session(session);
-        if (!request) {
-            await session.abortTransaction();
-            session.endSession();
-            return sendError(res, 404, 'Request not found');
+        if (!request || request.status !== 'pending') {
+            throw new Error('Request not found or already processed');
         }
 
-        if (request.status !== 'pending') {
-            await session.abortTransaction();
-            session.endSession();
-            return sendError(res, 400, `Request is already ${request.status}`);
-        }
-
-        // 3. تنفيذ الإجراءات عند الموافقة
         if (status === 'approved') {
             const student = await User.findById(request.studentId).session(session);
-            if (!student) {
-                await session.abortTransaction();
-                session.endSession();
-                return sendError(res, 404, 'Student not found');
-            }
+            
+            // 🚀 Logic النقل (يدوي أو أوتوماتيك)
+            if (request.type === 'transfer') {
+                const finalRoomId = overrideRoomId || request.toRoomId; // الأولوية للي الأدمن يختاره دلوقت
+                
+                const targetRoom = await Room.findById(finalRoomId).session(session);
+                if (!targetRoom || targetRoom.status === 'full') throw new Error('Target room is not available');
 
-            // ---- نقل الطالب ----
-            if (request.type === 'transfer' && request.toRoomId) {
-                const newRoom = await Room.findById(request.toRoomId).session(session);
-                if (!newRoom || newRoom.status === 'full') {
-                    await session.abortTransaction();
-                    session.endSession();
-                    return sendError(res, 400, 'Target room is not available');
-                }
+                // إخراج من القديم
+                await Room.findByIdAndUpdate(request.fromRoomId, { $pull: { currentOccupants: student._id } }, { session });
+                
+                // تسكين في الجديد
+                targetRoom.currentOccupants.push(student._id);
+                if (targetRoom.currentOccupants.length >= targetRoom.capacity) targetRoom.status = 'full';
+                await targetRoom.save({ session });
 
-                // إزالة من الغرفة القديمة
-                if (request.fromRoomId) {
-                    await Room.findByIdAndUpdate(
-                        request.fromRoomId,
-                        { $pull: { currentOccupants: student._id } },
-                        { session }
-                    );
-                }
-
-                // إضافة للغرفة الجديدة
-                newRoom.currentOccupants.push(student._id);
-                if (newRoom.currentOccupants.length >= newRoom.capacity) {
-                    newRoom.status = 'full';
-                }
-                await newRoom.save({ session });
-
-                student.assignedRoomId = newRoom._id;
-            }
-
-            // ---- إجازة مؤقتة ----
-            if (request.type === 'leave') {
-                student.housingStatus = 'suspended';
-            }
-
-            // ---- إخلاء نهائي ----
-            if (request.type === 'vacate') {
-                if (request.fromRoomId) {
-                    await Room.findByIdAndUpdate(
-                        request.fromRoomId,
-                        { $pull: { currentOccupants: student._id } },
-                        { session }
-                    );
-                }
-                student.housingStatus = 'inactive';
+                student.assignedRoomId = targetRoom._id;
+            } else if (request.type === 'vacate') {
+                await Room.findByIdAndUpdate(request.fromRoomId, { $pull: { currentOccupants: student._id } }, { session });
                 student.assignedRoomId = null;
+                student.housingStatus = 'inactive';
             }
-
             await student.save({ session });
         }
 
-        // 4. تحديث الطلب
         request.status = status;
+        request.adminComment = adminComment;
         request.reviewedBy = reviewerId;
         request.reviewedAt = new Date();
-        if (adminComment) {
-            request.adminComment = adminComment.trim();
-        }
         await request.save({ session });
 
         await session.commitTransaction();
-        session.endSession();
-
-        return sendSuccess(res, 200, `Request ${status} successfully`, {
-            requestId: request._id,
-            status: request.status
-        });
-
+        return sendSuccess(res, 200, `Request ${status} successfully`);
     } catch (error) {
         await session.abortTransaction();
+        return sendError(res, 500, error.message);
+    } finally {
         session.endSession();
-        console.error('Update Housing Request Status Error:', error);
-        return sendError(res, 500, 'Failed to update request status', error.message);
-    }
-};
-
-// ==========================================
-// GET /api/housing-requests/me (Student)
-// ==========================================
-exports.getMyRequests = async (req, res) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
-        const skip = (page - 1) * limit;
-
-        const [requests, total] = await Promise.all([
-            HousingRequest.find({ studentId: req.userDoc._id })
-                .populate('fromRoomId', 'roomNumber')
-                .populate('toRoomId', 'roomNumber')
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit)
-                .lean(),
-            HousingRequest.countDocuments({ studentId: req.userDoc._id })
-        ]);
-
-        return sendSuccess(res, 200, 'Your requests fetched successfully', {
-            requests,
-            pagination: {
-                page,
-                limit,
-                total,
-                pages: Math.ceil(total / limit)
-            }
-        });
-
-    } catch (error) {
-        console.error('Get My Requests Error:', error);
-        return sendError(res, 500, 'Failed to fetch your requests', error.message);
     }
 };
