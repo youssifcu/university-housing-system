@@ -118,7 +118,7 @@ exports.submitApplication = async (req, res) => {
 
         await User.findByIdAndUpdate(userId, {
             $set: { 
-                housingStatus: 'pending',
+                housingStatus: 'suspended',
                 applicationId: savedApplication._id 
             }
         });
