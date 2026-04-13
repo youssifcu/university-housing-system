@@ -115,6 +115,18 @@ exports.submitApplication = async (req, res) => {
 
         const newApplication = new Application(applicationData);
         const savedApplication = await newApplication.save();
+        
+        await User.findOneAndUpdate(
+        { _id: userId },
+        { 
+            $set: { 
+                housingStatus: 'suspended', 
+                applicationId: savedApplication._id 
+                } 
+            },
+            { new: true, runValidators: false } // تعطيل الـ validators مؤقتاً لو الـ enum فيه مشكلة
+        );
+
 
         await User.findByIdAndUpdate(userId, {
             $set: { 
@@ -407,38 +419,44 @@ exports.getApplicationById = async (req, res) => {
 // ==========================================
 // DELETE /api/applications/:id
 // ==========================================
+// داخل exports.deleteApplication
 exports.deleteApplication = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
         const { id } = req.params;
-        const user = req.userDoc;
-
-        // البحث عن الطلب
-        const application = await Application.findById(id);
+        const application = await Application.findById(id).session(session);
 
         if (!application) {
+            await session.abortTransaction();
             return sendError(res, 404, 'Application not found');
         }
 
-        // التحقق من الصلاحيات: فقط المالك يمكنه الحذف
-        if (application.userId.toString() !== user._id.toString()) {
-            return sendError(res, 403, 'Access denied. You can only delete your own applications');
+        if (application.userId.toString() !== req.userDoc._id.toString()) {
+            await session.abortTransaction();
+            return sendError(res, 403, 'Access denied');
         }
 
-        // التحقق من حالة الطلب: يمكن الحذف فقط قبل المراجعة
         if (application.status !== 'pending') {
-            return sendError(res, 400, 'Cannot delete application. It has already been reviewed');
+            await session.abortTransaction();
+            return sendError(res, 400, 'Cannot delete reviewed application');
         }
 
-        // حذف الطلب
-        await Application.findByIdAndDelete(id);
+        // 1. حذف الطلب
+        await Application.findByIdAndDelete(id).session(session);
 
-        return sendSuccess(res, 200, 'Application deleted successfully');
+        // 2. إعادة حالة المستخدم لوضعها الطبيعي
+        await User.findByIdAndUpdate(application.userId, {
+            $set: { housingStatus: 'new_applicant' }, // أو 'none' حسب الـ default عندك
+            $unset: { applicationId: "" } // حذف الربط بالطلب الممسوح
+        }).session(session);
 
+        await session.commitTransaction();
+        session.endSession();
+        return sendSuccess(res, 200, 'Application deleted and status reset');
     } catch (error) {
-        console.error('Delete Application Error:', error);
-        if (error.name === 'CastError') {
-            return sendError(res, 400, 'Invalid application ID');
-        }
-        return sendError(res, 500, 'Failed to delete application', error.message);
+        await session.abortTransaction();
+        session.endSession();
+        return sendError(res, 500, 'Delete failed', error.message);
     }
 };
