@@ -32,7 +32,6 @@ exports.submitApplication = async (req, res) => {
     try {
         const userId = req.userDoc._id;
 
-        // 1. التحقق من وجود طلب نشط
         const existingApp = await Application.findOne({
             userId,
             status: { $in: ['pending', 'approved', 'needs_update'] }
@@ -42,9 +41,6 @@ exports.submitApplication = async (req, res) => {
             return sendError(res, 400, 'You already have an active application.');
         }
 
-        // ==========================================
-        // 🚀 الجزء اللي كان ناقص: تعريف المتغير واستلام الداتا النصية
-        // ==========================================
         const allowedFields = [
             'studentType', 'fullName', 'nationalId', 'gender', 'dateOfBirth', 
             'phoneNumber', 'email', 'address', 'emergencyContact',
@@ -52,9 +48,8 @@ exports.submitApplication = async (req, res) => {
             'housingType', 'specialNeeds', 'preferredRoommate'
         ];
         
-        const applicationData = {}; // المتغير اللي كان السيرفر بيعيط بسببه
+        const applicationData = {}; 
         
-        // لو الـ nested object مبعوت كـ JSON string من الـ form-data
         if (req.body.emergencyContact && typeof req.body.emergencyContact === 'string') {
             try { req.body.emergencyContact = JSON.parse(req.body.emergencyContact); } catch (e) {}
         }
@@ -62,41 +57,34 @@ exports.submitApplication = async (req, res) => {
             try { req.body.specialNeeds = JSON.parse(req.body.specialNeeds); } catch (e) {}
         }
 
-        // استخراج الداتا من الـ Request
         allowedFields.forEach(field => {
             if (req.body[field] !== undefined) {
                 applicationData[field] = req.body[field];
             }
         });
-        // ==========================================
 
-        // 2.b إضافة ملفات الطلب إذا تم رفعها (مع فحص الصيغ بدقة)
         if (req.files) {
             const imageMimes = ['image/jpeg', 'image/png', 'image/jpg'];
             const pdfMimes = ['application/pdf'];
             const fileErrors = [];
 
-            // دالة مساعدة للتحقق من نوع الملف
             const validateFileType = (fileArray, allowedTypes, fieldName, expectedType) => {
                 if (fileArray && fileArray[0]) {
                     if (!allowedTypes.includes(fileArray[0].mimetype)) {
-                        fileErrors.push(`حقل ${fieldName} يجب أن يكون ${expectedType} فقط.`);
+                        fileErrors.push(`Field ${fieldName} must be ${expectedType} only.`);
                     }
                 }
             };
 
-            // تطبيق الفحص: الصور في مكانها، والـ PDF في مكانه
-            validateFileType(req.files.personalPhoto, imageMimes, 'personalPhoto', 'صورة (JPG, PNG)');
-            validateFileType(req.files.nationalIdCard, imageMimes, 'nationalIdCard', 'صورة (JPG, PNG)');
-            validateFileType(req.files.universityIdCard, imageMimes, 'universityIdCard', 'صورة (JPG, PNG)');
-            validateFileType(req.files.medicalReport, pdfMimes, 'medicalReport', 'ملف PDF');
+            validateFileType(req.files.personalPhoto, imageMimes, 'personalPhoto', 'Image (JPG, PNG)');
+            validateFileType(req.files.nationalIdCard, imageMimes, 'nationalIdCard', 'Image (JPG, PNG)');
+            validateFileType(req.files.universityIdCard, imageMimes, 'universityIdCard', 'Image (JPG, PNG)');
+            validateFileType(req.files.medicalReport, pdfMimes, 'medicalReport', 'PDF File');
 
-            // لو الطالب رافع صيغة غلط في أي خانة، نوقف الطلب فوراً ونبلغه
             if (fileErrors.length > 0) {
-                return sendError(res, 400, 'صيغ الملفات غير صالحة', fileErrors);
+                return sendError(res, 400, 'Invalid file formats', fileErrors);
             }
 
-            // لو كل الملفات صيغتها صح، نكمل تجهيزها للحفظ
             applicationData.documents = applicationData.documents || {};
 
             const mapFile = (file) => file && file[0] ? {
@@ -106,18 +94,12 @@ exports.submitApplication = async (req, res) => {
                 uploadedAt: new Date()
             } : undefined;
 
-            const nationalIdCard = mapFile(req.files.nationalIdCard);
-            const personalPhoto = mapFile(req.files.personalPhoto);
-            const medicalReport = mapFile(req.files.medicalReport);
-            const universityIdCard = mapFile(req.files.universityIdCard);
-
-            if (nationalIdCard) applicationData.documents.nationalIdCard = nationalIdCard;
-            if (personalPhoto) applicationData.documents.personalPhoto = personalPhoto;
-            if (medicalReport) applicationData.documents.medicalReport = medicalReport;
-            if (universityIdCard) applicationData.documents.universityIdCard = universityIdCard;
+            if (req.files.nationalIdCard) applicationData.documents.nationalIdCard = mapFile(req.files.nationalIdCard);
+            if (req.files.personalPhoto) applicationData.documents.personalPhoto = mapFile(req.files.personalPhoto);
+            if (req.files.medicalReport) applicationData.documents.medicalReport = mapFile(req.files.medicalReport);
+            if (req.files.universityIdCard) applicationData.documents.universityIdCard = mapFile(req.files.universityIdCard);
         }
 
-        // 3. التحقق من الحقول الإجبارية 
         const requiredFields = [
             'studentType', 'fullName', 'nationalId', 'gender', 'dateOfBirth', 
             'phoneNumber', 'address', 'college', 'academicYear'
@@ -128,12 +110,18 @@ exports.submitApplication = async (req, res) => {
             return sendError(res, 400, `Missing required fields: ${missingFields.join(', ')}`);
         }
 
-        // 4. إنشاء الطلب
         applicationData.userId = userId;
         applicationData.status = 'pending';
 
         const newApplication = new Application(applicationData);
         const savedApplication = await newApplication.save();
+
+        await User.findByIdAndUpdate(userId, {
+            $set: { 
+                housingStatus: 'pending',
+                applicationId: savedApplication._id 
+            }
+        });
 
         return sendSuccess(res, 201, 'Application submitted successfully', {
             applicationId: savedApplication._id
