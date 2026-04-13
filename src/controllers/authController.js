@@ -109,6 +109,8 @@ exports.loginUser = async (req, res) => {
             return sendError(res, 404, 'User not found. Please register first.');
         }
 
+        
+        /*
         // 2. التحقق من صلاحية الدخول للطلاب
         if (user.role === 'student') {
             const blockedStatuses = ['new_applicant', 'banned', 'suspended'];
@@ -121,6 +123,7 @@ exports.loginUser = async (req, res) => {
                 return sendError(res, 403, messages[user.housingStatus] || 'Login denied');
             }
         }
+       */
 
         // 3. تحديث آخر دخول
         user.lastLogin = new Date();
