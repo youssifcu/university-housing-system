@@ -286,4 +286,41 @@ exports.updateBuilding = async (req, res) => {
         }
         return sendError(res, 500, 'Failed to update building', error.message);
     }
+
+
+
+};
+
+// ==========================================
+// DELETE /api/buildings/:id (Admin Only)
+// ==========================================
+exports.deleteBuilding = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendError(res, 400, 'Invalid building ID format');
+        }
+
+        // 🚀 تنفيذ الـ Soft Delete بناءً على الـ Schema بتاعك
+        const building = await Building.findByIdAndUpdate(
+            id,
+            { $set: { status: 'inactive' } }, // 'inactive' موجودة في الـ enum عندك
+            { new: true }
+        );
+
+        if (!building) {
+            return sendError(res, 404, 'Building not found');
+        }
+
+        // 🚀 قفل الأوض التابعة للمبنى (تحويلها لصيانة)
+        await Room.updateMany(
+            { buildingId: id },
+            { $set: { status: 'maintenance' } }
+        );
+
+        return sendSuccess(res, 200, `Building "${building.name}" deactivated successfully`);
+    } catch (error) {
+        return sendError(res, 500, 'Failed to deactivate building', error.message);
+    }
 };

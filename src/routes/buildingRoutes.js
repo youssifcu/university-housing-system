@@ -40,6 +40,14 @@ router.put(
     buildingController.updateBuilding
 );
 
+// حذف مبنى (أدمن فقط)
+router.delete(
+    '/:id',
+    verifyToken,
+    isAdmin, // أو حسب الميدل وير بتاعك
+    buildingController.deleteBuilding // التأكد إن الاسم ده هو اللي في الكنترولر
+);
+
 // حذف مبنى (اختياري - إن أردت إضافته للكنترولر)
 // router.delete('/:id', verifyToken, isAdmin, buildingController.deleteBuilding);
 
