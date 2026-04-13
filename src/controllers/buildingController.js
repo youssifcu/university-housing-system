@@ -216,7 +216,7 @@ exports.updateBuilding = async (req, res) => {
         }
 
         // تحديد الحقول المسموح بتحديثها فقط (منع Mass Assignment)
-        const allowedUpdates = ['name', 'gender', 'floors', 'description', 'supervisorId'];
+        const allowedUpdates = ['name', 'gender', 'floors', 'grade', 'description', 'supervisorId'];
         const updates = {};
 
         allowedUpdates.forEach(field => {
@@ -237,6 +237,10 @@ exports.updateBuilding = async (req, res) => {
         // التحقق من floors إذا تم تحديثها
         if (updates.floors !== undefined && (typeof updates.floors !== 'number' || updates.floors < 1)) {
             return sendError(res, 400, 'Floors must be a positive number');
+        }
+
+        if (updates.grade !== undefined && (typeof updates.grade !== 'number' || updates.grade < 1 || updates.grade > 10)) {
+            return sendError(res, 400, 'Grade must be a number between 1 and 10');
         }
 
         // التحقق من supervisorId إذا تم إرساله

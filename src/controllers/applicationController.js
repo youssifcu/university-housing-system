@@ -41,32 +41,33 @@ exports.submitApplication = async (req, res) => {
             return sendError(res, 400, 'You already have an active application.');
         }
 
-        // 2. تحديث قائمة الحقول المسموح بها (بدون بيانات الأب)
-        const allowedFields = [
-            'studentType', 'fullName', 'nationalId', 'gender', 'dateOfBirth', 
-            'phoneNumber', 'email', 'address', 'emergencyContact',
-            'college', 'department', 'academicYear', 'gpa',
-            'housingType', 'specialNeeds', 'preferredRoommate'
-        ];
-        
-        const applicationData = {};
-        
-        // لو الـ nested object مبعوت كـ JSON string من الـ form-data، بنعمله parse
-        if (req.body.emergencyContact && typeof req.body.emergencyContact === 'string') {
-            try { req.body.emergencyContact = JSON.parse(req.body.emergencyContact); } catch (e) {}
-        }
-        if (req.body.specialNeeds && typeof req.body.specialNeeds === 'string') {
-            try { req.body.specialNeeds = JSON.parse(req.body.specialNeeds); } catch (e) {}
-        }
-
-        allowedFields.forEach(field => {
-            if (req.body[field] !== undefined) {
-                applicationData[field] = req.body[field];
-            }
-        });
-
-        // 2.b إضافة ملفات الطلب إذا تم رفعها
+        // 2.b إضافة ملفات الطلب إذا تم رفعها (مع فحص الصيغ بدقة)
         if (req.files) {
+            const imageMimes = ['image/jpeg', 'image/png', 'image/jpg'];
+            const pdfMimes = ['application/pdf'];
+            const fileErrors = [];
+
+            // دالة مساعدة للتحقق من نوع الملف
+            const validateFileType = (fileArray, allowedTypes, fieldName, expectedType) => {
+                if (fileArray && fileArray[0]) {
+                    if (!allowedTypes.includes(fileArray[0].mimetype)) {
+                        fileErrors.push(`حقل ${fieldName} يجب أن يكون ${expectedType} فقط.`);
+                    }
+                }
+            };
+
+            // تطبيق الفحص: الصور في مكانها، والـ PDF في مكانه
+            validateFileType(req.files.personalPhoto, imageMimes, 'personalPhoto', 'صورة (JPG, PNG)');
+            validateFileType(req.files.nationalIdCard, imageMimes, 'nationalIdCard', 'صورة (JPG, PNG)');
+            validateFileType(req.files.universityIdCard, imageMimes, 'universityIdCard', 'صورة (JPG, PNG)');
+            validateFileType(req.files.medicalReport, pdfMimes, 'medicalReport', 'ملف PDF');
+
+            // لو الطالب رافع صيغة غلط في أي خانة، نوقف الطلب فوراً ونبلغه
+            if (fileErrors.length > 0) {
+                return sendError(res, 400, 'صيغ الملفات غير صالحة', fileErrors);
+            }
+
+            // لو كل الملفات صيغتها صح، نكمل تجهيزها للحفظ
             applicationData.documents = applicationData.documents || {};
 
             const mapFile = (file) => file && file[0] ? {

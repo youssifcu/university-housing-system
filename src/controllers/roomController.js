@@ -133,7 +133,7 @@ exports.createRoom = async (req, res) => {
 };
 
 // ==========================================
-// POST /api/rooms/:id/assign (Admin Only)
+// POST /api/rooms/:id/assign (Admin & Supervisor)
 // ==========================================
 exports.assignStudent = async (req, res) => {
     const session = await mongoose.startSession();
@@ -142,6 +142,9 @@ exports.assignStudent = async (req, res) => {
     try {
         const { id: roomId } = req.params;
         const { studentId } = req.body;
+        
+        // جلب بيانات المستخدم اللي بيعمل الطلب (أدمن أو مشرف)
+        const operatorRole = req.userDoc.role; 
 
         if (!studentId) {
             return sendError(res, 400, 'studentId is required');
@@ -150,7 +153,8 @@ exports.assignStudent = async (req, res) => {
             return sendError(res, 400, 'Invalid ID format');
         }
 
-        const room = await Room.findById(roomId).session(session);
+        // 1. جلب الغرفة + جلب بيانات المبنى المرتبط بيها عشان نجيب الـ grade
+        const room = await Room.findById(roomId).populate('buildingId').session(session);
         if (!room) {
             await session.abortTransaction();
             session.endSession();
@@ -163,6 +167,7 @@ exports.assignStudent = async (req, res) => {
             return sendError(res, 400, 'Room is full');
         }
 
+        // 2. جلب بيانات الطالب عشان نجيب الـ grade بتاعه
         const student = await User.findOne({ _id: studentId, role: 'student' }).session(session);
         if (!student) {
             await session.abortTransaction();
@@ -176,13 +181,34 @@ exports.assignStudent = async (req, res) => {
             return sendError(res, 400, 'Student is already assigned to a room');
         }
 
-        // إضافة الطالب للغرفة
+        // ========================================================
+        // 🚀 الـ Business Logic الجديد: فحص الصلاحيات والتقدير
+        // ========================================================
+        if (operatorRole === 'supervisor') {
+            const buildingGrade = room.buildingId.grade;
+            const studentGrade = student.grade || 5; // لو ملوش تقدير بنعتبره 5 كافتراضي
+
+            // بناءً على منطق التسكين بتاعك: تقدير المبنى لازم يكون أكبر من أو يساوي تقدير الطالب
+            if (buildingGrade < studentGrade) {
+                await session.abortTransaction();
+                session.endSession();
+                return sendError(
+                    res, 
+                    403, 
+                    `Access Denied: Supervisor cannot assign this student. Student's grade (${studentGrade}) does not match the building's minimum requirement (${buildingGrade}).`
+                );
+            }
+        }
+        // لو operatorRole === 'admin' هيكمل عادي جداً ومش هيدخل في الشرط ده
+        // ========================================================
+
+        // 3. إضافة الطالب للغرفة
         if (!room.currentOccupants.includes(studentId)) {
             room.currentOccupants.push(studentId);
             await room.save({ session });
         }
 
-        // تحديث الطالب
+        // 4. تحديث حالة الطالب
         student.assignedRoomId = room._id;
         student.roomAllocationDate = new Date();
         student.housingStatus = 'active';
@@ -201,84 +227,6 @@ exports.assignStudent = async (req, res) => {
         session.endSession();
         console.error('Assign Student Error:', error);
         return sendError(res, 500, 'Failed to assign student', error.message);
-    }
-};
-
-// ==========================================
-// POST /api/rooms/:id/remove (Admin Only)
-// ==========================================
-exports.removeStudent = async (req, res) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-        const { id: roomId } = req.params;
-        const { studentId } = req.body;
-
-        if (!studentId) {
-            return sendError(res, 400, 'studentId is required');
-        }
-        if (!mongoose.Types.ObjectId.isValid(roomId) || !mongoose.Types.ObjectId.isValid(studentId)) {
-            return sendError(res, 400, 'Invalid ID format');
-        }
-
-        const room = await Room.findById(roomId).session(session);
-        if (!room) {
-            await session.abortTransaction();
-            session.endSession();
-            return sendError(res, 404, 'Room not found');
-        }
-
-        // إزالة الطالب من الغرفة
-        room.currentOccupants = room.currentOccupants.filter(id => id.toString() !== studentId);
-        await room.save({ session });
-
-        // تحديث الطالب
-        await User.findByIdAndUpdate(
-            studentId,
-            {
-                assignedRoomId: null,
-                roomAllocationDate: null,
-                housingStatus: 'inactive'
-            },
-            { session }
-        );
-
-        await session.commitTransaction();
-        session.endSession();
-
-        return sendSuccess(res, 200, 'Student removed from room successfully');
-
-    } catch (error) {
-        await session.abortTransaction();
-        session.endSession();
-        console.error('Remove Student Error:', error);
-        return sendError(res, 500, 'Failed to remove student', error.message);
-    }
-};
-
-// ==========================================
-// GET /api/rooms/my (Student)
-// ==========================================
-exports.getMyRoom = async (req, res) => {
-    try {
-        const room = await Room.findOne({ currentOccupants: req.userDoc._id })
-            .populate({
-                path: 'buildingId',
-                populate: { path: 'supervisorId', select: 'name phoneNumber email' }
-            })
-            .populate('currentOccupants', 'name email phoneNumber profilePicture studentId')
-            .lean();
-
-        if (!room) {
-            return sendError(res, 404, 'No room assigned to you yet');
-        }
-
-        return sendSuccess(res, 200, 'Your room details fetched', { room });
-
-    } catch (error) {
-        console.error('Get My Room Error:', error);
-        return sendError(res, 500, 'Failed to fetch your room', error.message);
     }
 };
 

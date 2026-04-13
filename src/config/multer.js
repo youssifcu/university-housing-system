@@ -23,13 +23,16 @@ const getDatedFolder = () => {
 // إعدادات التخزين
 const storage = multer.memoryStorage();
 
-// فلتر الملفات: PDF فقط
+// 🚀 التعديل هنا: فلتر الملفات يقبل PDF وصور
 const fileFilter = (req, file, cb) => {
-    const allowedMimes = ['application/pdf'];
+    // ضفنا صيغ الصور الشائعة جنب الـ PDF
+    const allowedMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    
     if (allowedMimes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error('مسموح فقط بملفات PDF'), false);
+        // عدلنا رسالة الخطأ عشان توضح المسموح بيه
+        cb(new Error('مسموح فقط بملفات PDF أو الصور (JPG, PNG)'), false); 
     }
 };
 
