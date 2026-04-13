@@ -92,7 +92,6 @@ roomSchema.pre('save', function(next) {
     } else {
         this.status = 'available';
     }
-    next();
 });
 
 const Room = mongoose.model('Room', roomSchema);
