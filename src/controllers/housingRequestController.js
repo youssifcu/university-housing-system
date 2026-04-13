@@ -94,14 +94,14 @@ exports.submitRequest = async (req, res) => {
                 return sendError(res, 400, 'Target room is already full');
             }
 
-            // التحقق من تطابق درجة الطالب مع متطلبات المبنى
+            // التحقق من تطابق درجة الطالب مع متطلبات المبنى (التعديل الصح بتاعنا)
             if (targetRoom.buildingId && targetRoom.buildingId.grade) {
-                // ✅ اتعدلت لـ (أصغر من) عشان نرفض بس لو الطالب درجته أقل من المطلوب
-                if (req.userDoc.grade < targetRoom.buildingId.grade) { 
+                if (req.userDoc.grade < targetRoom.buildingId.grade) {
                     return sendError(res, 403, 
                         `Your grade (${req.userDoc.grade}) is lower than the required grade for ${targetRoom.buildingId.name} (grade ${targetRoom.buildingId.grade}). You cannot request this building.`);
                 }
             }
+        } // 🚀 القوس ده اللي كان ضايع وعامل المشكلة
 
         // 6. إنشاء الطلب
         const newRequest = new HousingRequest({
@@ -131,7 +131,6 @@ exports.submitRequest = async (req, res) => {
         return sendError(res, 500, 'Failed to submit request', error.message);
     }
 };
-
 // ==========================================
 // GET /api/housing-requests (Admin)
 // ==========================================
