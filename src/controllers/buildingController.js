@@ -147,24 +147,27 @@ exports.getBuildingById = async (req, res) => {
 // ==========================================
 exports.createBuilding = async (req, res) => {
     try {
-        const { name, gender, floors, description, supervisorId } = req.body;
+        // 1. ضفنا الـ grade هنا عشان نستلمه
+        const { name, gender, floors, description, supervisorId, grade } = req.body;
 
-        // التحقق من الحقول المطلوبة
-        if (!name || !gender || !floors) {
-            return sendError(res, 400, 'Name, gender, and floors are required');
+        // 2. ضفنا الـ grade في التحقق المبدئي
+        if (!name || !gender || !floors || grade === undefined) {
+            return sendError(res, 400, 'Name, gender, floors, and grade are required');
         }
 
-        // التحقق من صحة gender
         if (!['male', 'female'].includes(gender)) {
             return sendError(res, 400, 'Gender must be either "male" or "female"');
         }
 
-        // التحقق من أن floors عدد صحيح موجب
         if (typeof floors !== 'number' || floors < 1) {
             return sendError(res, 400, 'Floors must be a positive number');
         }
 
-        // التحقق من وجود مبنى بنفس الاسم (case-insensitive)
+        // 3. التحقق من أن الـ grade رقم بين 1 و 10 (زي ما الموديل طالب)
+        if (typeof grade !== 'number' || grade < 1 || grade > 10) {
+            return sendError(res, 400, 'Grade must be a number between 1 and 10');
+        }
+
         const existingBuilding = await Building.findOne({ 
             name: { $regex: new RegExp(`^${name.trim()}$`, 'i') } 
         }).select('_id').lean();
@@ -173,11 +176,12 @@ exports.createBuilding = async (req, res) => {
             return sendError(res, 400, 'A building with this name already exists');
         }
 
-        // تجهيز البيانات
+        // 4. أضفنا الـ grade للبيانات اللي هتتحفظ في الداتابيز ✅
         const buildingData = {
             name: name.trim(),
             gender,
             floors,
+            grade, 
             ...(description && { description: description.trim() }),
             ...(supervisorId && mongoose.Types.ObjectId.isValid(supervisorId) && { supervisorId })
         };
