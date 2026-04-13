@@ -212,7 +212,6 @@ buildingSchema.pre('save', function(next) {
             .substring(0, 6)
             .toUpperCase();
     }
-    next();
 });
 
 const Building = mongoose.model('Building', buildingSchema);
