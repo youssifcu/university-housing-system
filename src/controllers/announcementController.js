@@ -56,8 +56,9 @@ exports.createAnnouncement = async (req, res) => {
             content: content.trim(),
             priority: priority || 'medium',
             targetRole: targetRole || 'all',
-            createdBy: req.user.mongoId,
-            status: 'active' // افتراضي
+            // ✅ التعديل هنا: نستخدم _id من req.userDoc اللي جاي من الميدل وير
+            createdBy: req.userDoc._id, 
+            status: 'active'
         });
 
         // 4. إرسال إشعار Real-Time (نبعت بيانات الإعلان الأساسية مش الـ ID بس)

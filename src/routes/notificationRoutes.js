@@ -7,9 +7,9 @@ const { isAdmin, isAdminOrSupervisor } = require('../middlewares/roleMiddleware'
 // ==========================================
 // مسارات عامة (للمستخدمين المسجلين)
 // ==========================================
-// عرض إشعاراتي (مع Pagination)
+// 🚀 تعديل: خلي المسار الرئيسي هو اللي يجيب الإشعارات بدل /my
 router.get(
-    '/my',
+    '/',
     verifyToken,
     notificationController.getMyNotifications
 );
