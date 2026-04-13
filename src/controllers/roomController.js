@@ -53,11 +53,24 @@ exports.getAllRooms = async (req, res) => {
             Room.countDocuments(filter)
         ]);
 
-        // 🚀 لو طالب، امسح حقل الساكنين تماماً عشان ميشوفش حتى الـ IDs
+        // After your query and before sendSuccess
         if (userRole === 'student') {
-            rooms.forEach(room => delete room.currentOccupants);
+            const shapedRooms = rooms.map(room => ({
+                id: room._id,
+                roomNumber: room.roomNumber,
+                floorNumber: room.floorNumber,
+                capacity: room.capacity,
+                status: room.status,
+                building: room.buildingId
+                    ? { name: room.buildingId.name, gender: room.buildingId.gender }
+                    : null,
+                amenities: room.amenities || []
+            }));
+            return sendSuccess(res, 200, 'Rooms fetched successfully', {
+            rooms: shapedRooms,
+            pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+            });
         }
-
         return sendSuccess(res, 200, 'Rooms fetched successfully', {
             rooms,
             pagination: { page, limit, total, pages: Math.ceil(total / limit) }
@@ -85,15 +98,22 @@ exports.getAvailableRooms = async (req, res) => {
             .sort({ buildingId: 1, roomNumber: 1 })
             .lean();
 
-        // 🚀 لو طالب، امسح حقل الساكنين تماماً
-        if (userRole === 'student') {
-            rooms.forEach(room => delete room.currentOccupants);
-        }
+if (userRole === 'student') {
+    const shapedRooms = rooms.map(room => ({
+        id: room._id,
+        roomNumber: room.roomNumber,
+        floorNumber: room.floorNumber,
+        capacity: room.capacity,
+        building: room.buildingId
+            ? { name: room.buildingId.name, gender: room.buildingId.gender }
+            : null,
+    }));
+    return sendSuccess(res, 200, 'Available rooms fetched', {
+        rooms: shapedRooms,
+        count: shapedRooms.length
+    });
+}
 
-        return sendSuccess(res, 200, 'Available rooms fetched', {
-            rooms,
-            count: rooms.length
-        });
 
     } catch (error) {
         console.error('Get Available Rooms Error:', error);
@@ -383,23 +403,31 @@ exports.getRoomById = async (req, res) => {
                 populate: { path: 'supervisorId', select: 'name phoneNumber email' }
             });
 
-        // 🚀 2. لو أدمن أو مشرف، نعمل Populate لبيانات الساكنين
-        if (userRole === 'admin' || userRole === 'supervisor') {
-            query = query.populate('currentOccupants', 'name email phoneNumber profilePicture studentId');
-        }
+if (userRole === 'student') {
+    const shapedRoom = {
+        id: room._id,
+        roomNumber: room.roomNumber,
+        floorNumber: room.floorNumber,
+        capacity: room.capacity,
+        status: room.status,
+        building: room.buildingId
+            ? { 
+                name: room.buildingId.name,
+                gender: room.buildingId.gender,
+                supervisor: room.buildingId.supervisorId
+                    ? {
+                        name: room.buildingId.supervisorId.name,
+                        phoneNumber: room.buildingId.supervisorId.phoneNumber
+                    }
+                    : null
+            } 
+            : null,
+        amenities: room.amenities || []
+    };
 
-        const room = await query.lean();
+    return sendSuccess(res, 200, 'Room details fetched successfully', { room: shapedRoom });
+}
 
-        if (!room) {
-            return sendError(res, 404, 'Room not found');
-        }
-
-        // 🚀 3. لو طالب، نمسح الحقل تماماً عشان ميشوفش حتى الـ IDs بتاعت زمايله
-        if (userRole === 'student') {
-            delete room.currentOccupants;
-        }
-
-        return sendSuccess(res, 200, 'Room details fetched successfully', { room });
 
     } catch (error) {
         console.error('Get Room By ID Error:', error);
