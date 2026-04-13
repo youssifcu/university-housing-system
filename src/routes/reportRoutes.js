@@ -17,7 +17,7 @@ router.post(
 
 // عرض بلاغاتي
 router.get(
-    '/my',
+    '/me',
     verifyToken,
     isStudent,
     reportController.getMyReports
