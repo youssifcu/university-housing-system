@@ -117,7 +117,6 @@ notificationSchema.pre('save', function(next) {
     if (this.targetUser) {
         this.targetRole = undefined;
     }
-    next();
 });
 
 const Notification = mongoose.model('Notification', notificationSchema);

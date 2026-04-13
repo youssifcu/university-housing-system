@@ -370,20 +370,33 @@ exports.getRoomsByBuilding = async (req, res) => {
 // ==========================================
 // GET /api/rooms/:id
 // ==========================================
+
 exports.getRoomById = async (req, res) => {
     try {
         const { id } = req.params;
+        const userRole = req.userDoc.role; // 🚀 1. نعرف مين اللي بيطلب الداتا
 
-        const room = await Room.findById(id)
+        // بناء الـ Query الأساسي
+        let query = Room.findById(id)
             .populate({
                 path: 'buildingId',
                 populate: { path: 'supervisorId', select: 'name phoneNumber email' }
-            })
-            .populate('currentOccupants', 'name email phoneNumber profilePicture studentId')
-            .lean();
+            });
+
+        // 🚀 2. لو أدمن أو مشرف، نعمل Populate لبيانات الساكنين
+        if (userRole === 'admin' || userRole === 'supervisor') {
+            query = query.populate('currentOccupants', 'name email phoneNumber profilePicture studentId');
+        }
+
+        const room = await query.lean();
 
         if (!room) {
             return sendError(res, 404, 'Room not found');
+        }
+
+        // 🚀 3. لو طالب، نمسح الحقل تماماً عشان ميشوفش حتى الـ IDs بتاعت زمايله
+        if (userRole === 'student') {
+            delete room.currentOccupants;
         }
 
         return sendSuccess(res, 200, 'Room details fetched successfully', { room });

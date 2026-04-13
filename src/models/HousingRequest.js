@@ -169,7 +169,6 @@ housingRequestSchema.pre('save', function(next) {
         }
     }
 
-    next();
 });
 
 const HousingRequest = mongoose.model('HousingRequest', housingRequestSchema);

@@ -160,7 +160,6 @@ mealSchema.pre('save', function(next) {
     if (this.maxBookings > 0 && this.currentBookings >= this.maxBookings) {
         this.isAvailable = false;
     }
-    next();
 });
 
 const Meal = mongoose.model('Meal', mealSchema);

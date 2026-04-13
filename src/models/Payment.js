@@ -163,7 +163,6 @@ paymentSchema.pre('save', function(next) {
         this.refundedAt = new Date();
     }
     
-    next();
 });
 
 const Payment = mongoose.model('Payment', paymentSchema);

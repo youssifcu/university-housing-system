@@ -146,7 +146,6 @@ mealBookingSchema.pre('save', function(next) {
         this.status = 'booked';
     }
     
-    next();
 });
 
 const MealBooking = mongoose.model('MealBooking', mealBookingSchema);

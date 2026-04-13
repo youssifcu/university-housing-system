@@ -140,7 +140,6 @@ reportSchema.pre('save', function(next) {
     if (this.isModified('status') && this.status === 'reopened') {
         this.resolvedAt = undefined;
     }
-    next();
 });
 
 const Report = mongoose.model('Report', reportSchema);
