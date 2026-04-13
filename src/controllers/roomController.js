@@ -229,6 +229,83 @@ exports.assignStudent = async (req, res) => {
         return sendError(res, 500, 'Failed to assign student', error.message);
     }
 };
+// ==========================================
+// POST /api/rooms/:id/remove (Admin Only)
+// ==========================================
+exports.removeStudent = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const { id: roomId } = req.params;
+        const { studentId } = req.body;
+
+        if (!studentId) {
+            return sendError(res, 400, 'studentId is required');
+        }
+        if (!mongoose.Types.ObjectId.isValid(roomId) || !mongoose.Types.ObjectId.isValid(studentId)) {
+            return sendError(res, 400, 'Invalid ID format');
+        }
+
+        const room = await Room.findById(roomId).session(session);
+        if (!room) {
+            await session.abortTransaction();
+            session.endSession();
+            return sendError(res, 404, 'Room not found');
+        }
+
+        // إزالة الطالب من الغرفة
+        room.currentOccupants = room.currentOccupants.filter(id => id.toString() !== studentId);
+        await room.save({ session });
+
+        // تحديث الطالب
+        await User.findByIdAndUpdate(
+            studentId,
+            {
+                assignedRoomId: null,
+                roomAllocationDate: null,
+                housingStatus: 'inactive'
+            },
+            { session }
+        );
+
+        await session.commitTransaction();
+        session.endSession();
+
+        return sendSuccess(res, 200, 'Student removed from room successfully');
+
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        console.error('Remove Student Error:', error);
+        return sendError(res, 500, 'Failed to remove student', error.message);
+    }
+};
+
+// ==========================================
+// GET /api/rooms/my (Student)
+// ==========================================
+exports.getMyRoom = async (req, res) => {
+    try {
+        const room = await Room.findOne({ currentOccupants: req.userDoc._id })
+            .populate({
+                path: 'buildingId',
+                populate: { path: 'supervisorId', select: 'name phoneNumber email' }
+            })
+            .populate('currentOccupants', 'name email phoneNumber profilePicture studentId')
+            .lean();
+
+        if (!room) {
+            return sendError(res, 404, 'No room assigned to you yet');
+        }
+
+        return sendSuccess(res, 200, 'Your room details fetched', { room });
+
+    } catch (error) {
+        console.error('Get My Room Error:', error);
+        return sendError(res, 500, 'Failed to fetch your room', error.message);
+    }
+};
 
 // ==========================================
 // GET /api/rooms/building/:buildingId
