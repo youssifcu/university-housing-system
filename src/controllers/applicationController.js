@@ -189,29 +189,34 @@ exports.approveApplication = async (req, res) => {
         // 4. توليد أكواد QR
         const userIdString = application.userId.toString();
 
-        // 5. تحديث المستخدم (تحويله لطالب مفعل)
-        const userUpdateResult = await User.findByIdAndUpdate(
-            application.userId,
-            {
-                $set: {
-                    nationalId: application.nationalId,
-                    universityYear: application.academicYear,
-                    faculty: application.college,
-                    grade: studentGrade,
-                    housingStatus: 'active',
-                    applicationId: application._id,
-                    assignedRoomId: selectedRoom._id,
-                    roomAllocationDate: new Date(),
-                    'qrCode.attendanceCode': userIdString,
-                    'qrCode.mealCode': userIdString
-                }
-            },
-            { new: true, session }
-        );
-
-        if (!userUpdateResult) {
-            throw new Error('Failed to update user record');
+        // 5. تحديث المستخدم (تحويله لطالب مفعل) بالطريقة الآمنة
+        const student = await User.findById(application.userId).session(session);
+        
+        if (!student) {
+            await session.abortTransaction();
+            session.endSession();
+            return sendError(res, 404, 'Student record not found');
         }
+
+        student.nationalId = application.nationalId;
+        student.universityYear = application.academicYear;
+        student.faculty = application.college;
+        student.grade = studentGrade;
+        student.housingStatus = 'active';
+        student.applicationId = application._id;
+        student.assignedRoomId = selectedRoom._id;
+        student.roomAllocationDate = new Date();
+        
+        // التأكد من وجود كائن الـ qrCode قبل الإضافة جواه
+        if (!student.qrCode) {
+            student.qrCode = {};
+        }
+        student.qrCode.attendanceCode = userIdString;
+        student.qrCode.mealCode = userIdString;
+
+        // الحفظ (دي بتضمن إن المونجو يكتب الداتا كلها وميطنش حاجة)
+        await student.save({ session });
+
 
         // 6. تحديث الغرفة (إضافة الطالب)
         selectedRoom.currentOccupants.push(application.userId);
