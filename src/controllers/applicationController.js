@@ -146,16 +146,23 @@ exports.approveApplication = async (req, res) => {
         }
 
         // 2. البحث عن المباني المناسبة للجنس والدرجة
-        // Get the student's grade from application GPA or default to 5
-        const studentGrade = Math.ceil(application.gpa || 5);
+        // تحويل الـ GPA (من 4) لمقياس الـ Grade (من 10)
+        const MAX_GPA = 4.0; // لو نظام الكلية من 5، غير الرقم ده لـ 5.0
+        let studentGrade = 5; // الدرجة الافتراضية (النص) لو الطالب جديد وملوش GPA
+        
+        if (application.gpa) {
+            // تحويل المقياس والتقريب لأقرب رقم صحيح
+            studentGrade = Math.ceil((application.gpa / MAX_GPA) * 10); 
+            
+            // تأمين إضافي: عشان لو في غلطة والـ GPA معدي الـ 4، الجريد ميكسرش الـ 10
+            if (studentGrade > 10) studentGrade = 10;
+            if (studentGrade < 1) studentGrade = 1;
+        }
         
         const targetBuildings = await Building.find({ 
             gender: application.gender,
-            grade: { $gte: studentGrade }
+            grade: { $lte: studentGrade } // زي ما صلحناها المرة اللي فاتت
         })
-            .select('_id name grade')
-            .lean()
-            .session(session);
         
         const buildingIds = targetBuildings.map(b => b._id);
         if (buildingIds.length === 0) {
