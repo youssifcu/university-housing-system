@@ -311,7 +311,7 @@ exports.updateStatus = async (req, res) => {
         request.reviewedBy = reviewerId;
         request.reviewedAt = new Date();
         if (adminComment) {
-            request.comments = adminComment.trim();
+            request.adminComment = adminComment.trim();
         }
         await request.save({ session });
 
