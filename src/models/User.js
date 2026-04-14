@@ -39,8 +39,8 @@ const userSchema = new mongoose.Schema(
             match: [/^01[0-2,5]{1}[0-9]{8}$/, 'Please enter a valid Egyptian phone number']
         },
         profilePicture: {
-            type: String,
-            default: ''
+            data: { type: Buffer, select: false },
+            contentType: String
         },
         role: {
             type: String,
@@ -67,7 +67,7 @@ userSchema.methods.toProfileJSON = function() {
         name: this.name,
         email: this.email,
         role: this.role,
-        profilePicture: this.profilePicture,
+        profilePicture: (this.profilePicture && this.profilePicture.contentType) ? `/api/users/${this._id}/profile-picture` : null,
         phoneNumber: this.phoneNumber
     };
 };

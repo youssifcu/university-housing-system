@@ -7,6 +7,12 @@ const { isAdmin, isAdminOrSupervisor } = require('../middlewares/roleMiddleware'
 // ==========================================
 // مسارات عامة (للمستخدمين المسجلين)
 // ==========================================
+// عرض الصورة الشخصية للمستخدم
+router.get(
+    '/:id/profile-picture',
+    userController.getProfilePicture
+);
+
 // عرض بروفايل مستخدم محدد (للإدارة) أو النفس
 router.get(
     '/:id',

@@ -88,6 +88,30 @@ exports.getUserById = async (req, res) => {
 };
 
 // ==========================================
+// GET /api/users/:id/profile-picture
+// ==========================================
+exports.getProfilePicture = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).send('Invalid user ID format');
+        }
+
+        const user = await User.findById(id).select('+profilePicture.data +profilePicture.contentType').lean();
+        
+        if (!user || !user.profilePicture || !user.profilePicture.data) {
+            return res.status(404).send('Profile picture not found');
+        }
+
+        res.set('Content-Type', user.profilePicture.contentType);
+        return res.send(user.profilePicture.data);
+    } catch (error) {
+        console.error('Get Profile Picture Error:', error);
+        return res.status(500).send('Failed to fetch profile picture');
+    }
+};
+
+// ==========================================
 // PUT /api/users/:id (Admin Only)
 // ==========================================
 exports.updateUser = async (req, res) => {

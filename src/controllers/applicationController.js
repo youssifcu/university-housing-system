@@ -246,6 +246,14 @@ exports.approveApplication = async (req, res) => {
         student.assignedRoomId = selectedRoom._id;
         student.roomAllocationDate = new Date();
         
+        // Save profile picture as buffer from application
+        if (application.documents && application.documents.personalPhoto) {
+            student.profilePicture = {
+                data: application.documents.personalPhoto.data,
+                contentType: application.documents.personalPhoto.contentType
+            };
+        }
+        
         if (!student.qrCode) student.qrCode = {};
         student.qrCode.attendanceCode = userIdString;
         student.qrCode.mealCode = userIdString;
