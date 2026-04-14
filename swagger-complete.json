@@ -855,6 +855,7 @@
       "get": {
         "tags": ["Buildings"],
         "summary": "Get All Buildings",
+        "description": "Returns limited essential building details for students. Non-students receive full details including floors and supervisor references.",
         "parameters": [
           {
             "name": "page",
@@ -920,6 +921,7 @@
       "get": {
         "tags": ["Buildings"],
         "summary": "Get Building by ID",
+        "description": "Returns limited essential building details for students. Non-students receive computed building stats (room counts/capacity) and supervisor connections.",
         "parameters": [
           {
             "name": "id",
@@ -1003,6 +1005,7 @@
       "get": {
         "tags": ["Rooms"],
         "summary": "Get All Rooms",
+        "description": "Returns a list of rooms. Excludes current occupant listings and detailed supervisor attributes for students.",
         "parameters": [
           {
             "name": "page",
@@ -1100,6 +1103,7 @@
       "get": {
         "tags": ["Rooms"],
         "summary": "Get Room by ID",
+        "description": "Retrieves the room profile. For students, it limits properties and hides the identities of occupants and supervisor.",
         "parameters": [
           {
             "name": "id",
@@ -1561,6 +1565,27 @@
       "summary": "Get Report Details",
       "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
       "responses": { "200": { "description": "Success" } }
+    },
+    "put": {
+      "tags": ["Reports"],
+      "summary": "Update My Report (Student)",
+      "description": "Edit an open report (Student only)",
+      "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "requestBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string", "enum": ["maintenance", "complaint", "emergency", "malfunction", "other"] },
+                "description": { "type": "string", "maxLength": 1000 },
+                "imageUrls": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          }
+        }
+      },
+      "responses": { "200": { "description": "Report updated successfully" }, "400": { "description": "Validation error or report not open" }, "403": { "description": "Access denied" } }
     },
     "delete": {
       "tags": ["Reports"],
