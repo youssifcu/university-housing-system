@@ -1868,13 +1868,22 @@
                 "required": ["title", "content"],
                 "properties": {
                   "title": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Important Maintenance Notice"
                   },
                   "content": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "The water supply will be cut off for maintenance on Friday from 10 AM to 2 PM."
                   },
                   "priority": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
+                    "example": "high"
+                  },
+                  "targetRole": {
+                    "type": "string",
+                    "enum": ["all", "student", "supervisor", "security", "admin"],
+                    "example": "all"
                   }
                 }
               }

@@ -92,11 +92,10 @@ announcementSchema.index({ createdBy: 1, createdAt: -1 });
 announcementSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL index for auto-deletion
 
 // Pre-save middleware to auto-update status if expired
-announcementSchema.pre('save', function(next) {
+announcementSchema.pre('save', function() {
     if (this.expiresAt && this.expiresAt < new Date() && this.status === 'active') {
         this.status = 'archived';
     }
-    next();
 });
 
 // Static method to get active announcements for a user
