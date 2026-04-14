@@ -203,7 +203,7 @@ buildingSchema.statics.getBuildingsWithStats = async function() {
 // ==========================================
 // Pre-save Middleware
 // ==========================================
-buildingSchema.pre('save', function(next) {
+buildingSchema.pre('save', function() {
     // Auto-generate code from name if not provided
     if (!this.code && this.name) {
         this.code = this.name

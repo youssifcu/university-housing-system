@@ -156,7 +156,7 @@ housingRequestSchema.statics.findActiveForStudent = function(studentId) {
 // ==========================================
 // Pre-save Middleware
 // ==========================================
-housingRequestSchema.pre('save', function(next) {
+housingRequestSchema.pre('save', function() {
     // تعيين reviewedAt تلقائياً عند تغيير الحالة إلى approved أو rejected
     if (this.isModified('status') && ['approved', 'rejected'].includes(this.status)) {
         this.reviewedAt = new Date();

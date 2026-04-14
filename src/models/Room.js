@@ -82,7 +82,7 @@ roomSchema.index({ currentOccupants: 1 });
 // ==========================================
 // Pre-save Middleware (تحديث الحالة تلقائياً)
 // ==========================================
-roomSchema.pre('save', function(next) {
+roomSchema.pre('save', function() {
     const occupantCount = this.currentOccupants ? this.currentOccupants.length : 0;
 
     if (this.status === 'maintenance') {

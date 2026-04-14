@@ -131,7 +131,7 @@ reportSchema.statics.getStats = async function() {
 // ==========================================
 // Pre-save Middleware
 // ==========================================
-reportSchema.pre('save', function(next) {
+reportSchema.pre('save', function() {
     // تعيين تاريخ الحل عند تغيير الحالة إلى resolved أو closed
     if (this.isModified('status') && ['resolved', 'closed'].includes(this.status) && !this.resolvedAt) {
         this.resolvedAt = new Date();

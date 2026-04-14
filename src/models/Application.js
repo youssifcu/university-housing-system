@@ -220,7 +220,7 @@ applicationSchema.statics.getStats = async function() {
 };
 
 // Pre-save Middleware
-applicationSchema.pre('save', function(next) {
+applicationSchema.pre('save', function() {
     if (this.isModified('status') && ['approved', 'rejected', 'needs_update'].includes(this.status)) {
         this.reviewedAt = new Date();
     }

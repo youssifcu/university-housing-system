@@ -134,7 +134,7 @@ mealBookingSchema.statics.getMealBookingSummary = async function(mealId) {
 // ==========================================
 // Pre-save Middleware
 // ==========================================
-mealBookingSchema.pre('save', function(next) {
+mealBookingSchema.pre('save', function() {
     // تعيين تاريخ الإلغاء عند تغيير الحالة إلى cancelled
     if (this.isModified('status') && this.status === 'cancelled') {
         this.cancelledAt = new Date();

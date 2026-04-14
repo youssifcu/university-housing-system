@@ -127,12 +127,11 @@ studentRequestSchema.statics.findAssignedToUser = function(userId) {
         .populate('studentId', 'name email');
 };
 
-studentRequestSchema.pre('save', function(next) {
+studentRequestSchema.pre('save', function() {
     if (this.isModified('status') && ['approved', 'rejected'].includes(this.status)) {
         this.reviewedAt = new Date();
     }
-    next();
-});
+    });
 
 const StudentRequest = mongoose.model('StudentRequest', studentRequestSchema);
 module.exports = StudentRequest;

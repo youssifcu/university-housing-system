@@ -147,7 +147,7 @@ paymentSchema.statics.getOverallStats = async function() {
 // ==========================================
 // Pre-save Middleware
 // ==========================================
-paymentSchema.pre('save', function(next) {
+paymentSchema.pre('save', function() {
     // توليد transactionId فريد إذا لم يكن موجوداً
     if (!this.transactionId) {
         this.transactionId = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;

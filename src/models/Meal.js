@@ -155,7 +155,7 @@ mealSchema.statics.getMealsForDate = async function(date) {
 // ==========================================
 // Pre-save Middleware
 // ==========================================
-mealSchema.pre('save', function(next) {
+mealSchema.pre('save', function() {
     // تحديث isAvailable تلقائياً إذا اكتمل الحجز
     if (this.maxBookings > 0 && this.currentBookings >= this.maxBookings) {
         this.isAvailable = false;

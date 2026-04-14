@@ -112,7 +112,7 @@ notificationSchema.statics.markAllAsRead = async function(userId, userRole) {
 // ==========================================
 // Pre-save Middleware
 // ==========================================
-notificationSchema.pre('save', function(next) {
+notificationSchema.pre('save', function() {
     // لا يمكن تحديد targetUser و targetRole معًا، targetUser له الأولوية
     if (this.targetUser) {
         this.targetRole = undefined;
