@@ -145,6 +145,20 @@ exports.getReportById = async (req, res) => {
             return sendError(res, 403, 'Access denied');
         }
 
+        if (req.userDoc.role === 'student') {
+            const shapedReport = {
+                id: report._id,
+                type: report.type,
+                description: report.description,
+                status: report.status,
+                imageUrls: report.imageUrls || [],
+                location: report.location || {},
+                createdAt: report.createdAt,
+                updatedAt: report.updatedAt
+            };
+            return sendSuccess(res, 200, 'Report fetched successfully', { report: shapedReport });
+        }
+
         return sendSuccess(res, 200, 'Report fetched successfully', { report });
 
     } catch (error) {
@@ -236,8 +250,18 @@ exports.getMyReports = async (req, res) => {
             Report.countDocuments(filter)
         ]);
 
+        const shapedReports = reports.map(report => ({
+            id: report._id,
+            type: report.type,
+            description: report.description,
+            status: report.status,
+            imageUrls: report.imageUrls || [],
+            createdAt: report.createdAt,
+            updatedAt: report.updatedAt
+        }));
+
         return sendSuccess(res, 200, 'Your reports fetched successfully', {
-            reports,
+            reports: shapedReports,
             pagination: { page, limit, total, pages: Math.ceil(total / limit) }
         });
 
