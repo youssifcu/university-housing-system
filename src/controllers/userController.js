@@ -135,3 +135,53 @@ exports.deleteUser = async (req, res) => {
         return sendError(res, 500, 'Failed', error.message);
     }
 };
+exports.getUserProfile = async (req, res) => {
+    try {
+        const { firebaseUid } = req.userDoc;
+
+        const baseUser = await User.findOne({ firebaseUid }).select('role').lean();
+
+        if (!baseUser) {
+            return sendError(res, 404, 'User not found');
+        }
+
+        const userRole = baseUser.role;
+        let query;
+
+        switch (userRole) {
+            case 'student': 
+                query = Student.findOne({ firebaseUid }).populate({ path: 'assignedRoomId', populate: { path: 'buildingId', select: 'name' } }); 
+                break;
+            case 'floor_admin': 
+                query = FloorAdmin.findOne({ firebaseUid }).populate('buildingId', 'name'); 
+                break;
+            case 'supervisor': 
+                query = Supervisor.findOne({ firebaseUid }).populate('assignedBuildings', 'name'); 
+                break;
+            case 'meal_admin': 
+                query = MealAdmin.findOne({ firebaseUid }).populate('kitchenAssignment', 'name'); 
+                break;
+            case 'admin': 
+                query = Admin.findOne({ firebaseUid }); 
+                break;
+            default: 
+                query = User.findOne({ firebaseUid });
+        }
+
+        const user = await query.select('+profilePicture.data').lean();
+
+        if (!user) {
+            return sendError(res, 404, 'Profile details not found');
+        }
+
+        if (user.profilePicture && user.profilePicture.data) {
+            const base64Image = user.profilePicture.data.toString('base64');
+            user.profilePicture.data = `data:${user.profilePicture.contentType};base64,${base64Image}`;
+        }
+
+        return sendSuccess(res, 200, 'Profile fetched successfully', { user });
+
+    } catch (error) {
+        return sendError(res, 500, 'Failed to fetch profile', error.message);
+    }
+};
