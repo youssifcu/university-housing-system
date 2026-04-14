@@ -15,6 +15,8 @@ import {
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { auth } from '../../config/firebase';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import BACKEND_URL from '../../config/backend';
 
 const COLORS = {
@@ -38,27 +40,49 @@ export default function ForgotPasswordScreen() {
       return;
     }
 
+    if (!auth) {
+      Alert.alert('Error', 'Firebase configuration missing');
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/forgot-password`, {
+      const verifyResponse = await fetch(`${BACKEND_URL}/api/auth/verify-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: cleanEmail }),
       });
 
-      const data = await response.json();
+      const verifyData = await verifyResponse.json();
 
-      if (response.ok) {
-        Alert.alert(
-          'Email Verified',
-          'A password reset link has been generated. Please check your inbox.',
-          [{ text: 'Back to Login', onPress: () => router.back() }]
-        );
-      } else {
-        throw new Error(data.message || 'Something went wrong');
+      if (!verifyResponse.ok || !verifyData.exists) {
+        throw new Error('No account found with this email address.');
       }
-    } catch (error: any) {
-      Alert.alert('Request Failed', error.message);
+
+      await sendPasswordResetEmail(auth, cleanEmail);
+      
+      Alert.alert(
+        'Email Sent',
+        'A password reset link has been sent to your email. Please check your inbox.',
+        [{ text: 'Back to Login', onPress: () => router.back() }]
+      );
+
+    } catch (error : any) {
+      console.error('Reset Password Error:', error);
+      
+      let message = 'Failed to send reset email. Please try again.';
+      
+      if (error.message === 'No account found with this email address.') {
+        message = 'No account found with this email address.';
+      } else if (error.code === 'auth/invalid-email') {
+        message = 'Please enter a valid email address.';
+      } else if (error.code === 'auth/too-many-requests') {
+        message = 'Too many attempts. Please try again later.';
+      } else if (error.message) {
+        message = error.message;
+      }
+      
+      Alert.alert('Request Failed', message);
     } finally {
       setLoading(false);
     }

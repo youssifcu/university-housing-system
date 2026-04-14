@@ -12,10 +12,14 @@ export const useAppStore = create((set) => ({
   announcements: [],
   applications: [],
 
-  setUser: (user) => set({ user, isAuthenticated: !!user }),
+  setUser: (user) => set({ 
+    user, 
+    isAuthenticated: !!user 
+  }),
   
-  setProfile: (profile) => set((state) => ({ 
-    profile: profile ? { ...state.profile, ...profile } : null 
+  setProfile: (profileData) => set((state) => ({ 
+    profile: profileData ? { ...state.profile, ...profileData } : null,
+    applicationStatus: profileData?.housingStatus || state.applicationStatus 
   })),
 
   setStudentProfile: (studentProfile) => set({ studentProfile }),
@@ -25,12 +29,15 @@ export const useAppStore = create((set) => ({
     profile: null, 
     studentProfile: null,
     isAuthenticated: false,
-    applicationStatus: null 
+    applicationStatus: null,
+    notifications: [],
+    bookings: [],
+    applications: []
   }),
 
   setNotifications: (notifications) =>
     set({
-      notifications,
+      notifications: Array.isArray(notifications) ? notifications : [],
       unreadCount: Array.isArray(notifications) ? notifications.filter((n) => !n.read).length : 0,
     }),
 
@@ -59,7 +66,7 @@ export const useAppStore = create((set) => ({
 
   setApplicationStatus: (status) => set({ applicationStatus: status }),
 
-  setBookings: (bookings) => set({ bookings }),
+  setBookings: (bookings) => set({ bookings: Array.isArray(bookings) ? bookings : [] }),
 
   updateBooking: (updatedBooking) =>
     set((state) => ({
@@ -73,18 +80,21 @@ export const useAppStore = create((set) => ({
       bookings: state.bookings.filter((b) => b._id !== id),
     })),
 
-  setAnnouncements: (announcements) => set({ announcements }),
+  setAnnouncements: (announcements) => set({ announcements: Array.isArray(announcements) ? announcements : [] }),
 
   setApplications: (applications) => set({ 
-    applications,
-    applicationStatus: applications.length > 0 ? applications[0].status : null
+    applications: Array.isArray(applications) ? applications : [],
+    applicationStatus: applications?.length > 0 ? applications[0].status : null
   }),
 
   updateApplication: (updated) =>
-    set((state) => ({
-      applications: state.applications.map((a) =>
+    set((state) => {
+      const updatedApps = state.applications.map((a) =>
         a._id === updated._id ? { ...a, ...updated } : a
-      ),
-      applicationStatus: updated.status 
-    })),
+      );
+      return {
+        applications: updatedApps,
+        applicationStatus: updated.status 
+      };
+    }),
 }));

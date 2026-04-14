@@ -2,13 +2,13 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth'; 
 const firebaseConfig = {
-  apiKey: "AIzaSyA8S0tEeRAoMNpY7z6hTVNARwhCXTgh_uo",
-  authDomain: "university-housing-syste-1b09f.firebaseapp.com",
-  projectId: "university-housing-syste-1b09f",
-  storageBucket: "university-housing-syste-1b09f.firebasestorage.app",
-  messagingSenderId: "975365542180",
-  appId: "1:975365542180:web:ba399ed734c731804ea3b1",
-  measurementId: "G-E91W036L9P"
+  apiKey: "AIzaSyBQFf6t0zBqraGFL3PGP8L6GXHVDjFkIPQ",
+  authDomain: "university-housing-d5c12.firebaseapp.com",
+  projectId: "university-housing-d5c12",
+  storageBucket: "university-housing-d5c12.firebasestorage.app",
+  messagingSenderId: "1047560552219",
+  appId: "1:1047560552219:web:0e4515f662664cdf125dbe",
+  measurementId: "G-PX70W35LWQ"
 };
 let app: FirebaseApp;
 let auth: Auth;

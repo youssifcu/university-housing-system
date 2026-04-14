@@ -13,18 +13,25 @@ import BACKEND_URL from '../../config/backend';
 const DEEP_BLUE = '#1A237E';
 const SOFT_WHITE = '#F8FAFC';
 const BORDER_COLOR = '#E2E8F0';
+const SLATE_GRAY = '#64748B';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-const [imageUri, setImageUri] = useState<string | null>(null);
+  const [step, setStep] = useState(1);
+  const [imageUri, setImageUri] = useState(null);
   const [imageBase64, setImageBase64] = useState('');
+
   const [form, setForm] = useState({
     email: '',
     password: '',
     confirmPassword: '',
-    fullName: '',
-    phoneNumber: ''
+    name: '',
+    phoneNumber: '',
+    studentId: '',
+    nationalId: '',
+    universityYear: '',
+    faculty: ''
   });
 
   const pickImage = async () => {
@@ -32,7 +39,7 @@ const [imageUri, setImageUri] = useState<string | null>(null);
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.6,
+      quality: 0.4,
       base64: true,
     });
 
@@ -42,16 +49,31 @@ const [imageUri, setImageUri] = useState<string | null>(null);
     }
   };
 
-  const handleRegister = async () => {
-    const { email, password, confirmPassword, fullName, phoneNumber } = form;
-
-    if (!email || !password || !fullName || !confirmPassword) {
-      Alert.alert('Error', 'Required fields are missing');
-      return;
+  const validateStep1 = () => {
+    const { name, email, password, confirmPassword, phoneNumber } = form;
+    if (!name || !email || !password || !confirmPassword || !phoneNumber) {
+      Alert.alert('Error', 'Please fill all account details');
+      return false;
     }
-
     if (password !== confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
+      return false;
+    }
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return false;
+    }
+    return true;
+  };
+
+  const handleRegister = async () => {
+    const {
+      email, password, name, phoneNumber, 
+      studentId, nationalId, universityYear, faculty
+    } = form;
+
+    if (!studentId || !nationalId || !universityYear || !faculty) {
+      Alert.alert('Error', 'Please fill all university details');
       return;
     }
 
@@ -59,10 +81,9 @@ const [imageUri, setImageUri] = useState<string | null>(null);
     let firebaseUser = null;
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
       firebaseUser = userCredential.user;
-
-      await updateProfile(firebaseUser, { displayName: fullName });
+      await updateProfile(firebaseUser, { displayName: name });
 
       const idToken = await firebaseUser.getIdToken();
 
@@ -73,88 +94,112 @@ const [imageUri, setImageUri] = useState<string | null>(null);
           'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
-          name: fullName,
-          uid: firebaseUser.uid, 
+          firebaseUid: firebaseUser.uid,
           email: firebaseUser.email,
-          phoneNumber: phoneNumber,
-          profilePicture: imageBase64
+          name: name.trim(),
+          phoneNumber,
+          studentId,
+          nationalId,
+          universityYear: parseInt(universityYear),
+          faculty: faculty.trim(),
+          profilePicture: imageBase64 || ''
         }),
       });
 
       const data = await response.json();
 
-      if (response.ok) {
-        router.replace('/(student)');
+      if (response.ok && data.success) {
+        Alert.alert('Success', 'Account created successfully!', [
+          { text: 'Continue', onPress: () => router.replace('/(student)') }
+        ]);
       } else {
         if (firebaseUser) await deleteUser(firebaseUser);
-        throw new Error(data.message || 'Server error');
+        throw new Error(data.message || 'Registration failed');
       }
-
-    } catch (error : any) {
+    } catch (error) {
+      if (firebaseUser) await deleteUser(firebaseUser).catch(() => {});
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  const renderInput = (label, value, key, placeholder, options = {}) => (
+    <View style={styles.inputGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        style={styles.input}
+        value={value}
+        onChangeText={(v) => setForm({ ...form, [key]: v })}
+        placeholder={placeholder}
+        {...options}
+      />
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          
+          <View style={styles.stepper}>
+            <View style={[styles.stepCircle, step >= 1 && styles.activeStep]}>
+              <Text style={styles.stepNum}>1</Text>
+            </View>
+            <View style={[styles.stepLine, step >= 2 && styles.activeLine]} />
+            <View style={[styles.stepCircle, step >= 2 && styles.activeStep]}>
+              <Text style={styles.stepNum}>2</Text>
+            </View>
+          </View>
+
           <View style={styles.header}>
             <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
               {imageUri ? (
                 <Image source={{ uri: imageUri }} style={styles.profileImage} />
               ) : (
                 <View style={styles.imagePlaceholder}>
-                  <MaterialCommunityIcons name="camera-plus" size={40} color={DEEP_BLUE} />
-                  <Text style={styles.imageText}>Photo</Text>
+                  <MaterialCommunityIcons name="camera-plus" size={30} color={DEEP_BLUE} />
                 </View>
               )}
             </TouchableOpacity>
-            <Text style={styles.title}>New Account</Text>
+            <Text style={styles.title}>{step === 1 ? 'Account Info' : 'University Info'}</Text>
+            <Text style={styles.subtitle}>{step === 1 ? 'Basic contact details' : 'Academic information'}</Text>
           </View>
 
           <View style={styles.form}>
-            <TextInput
-              style={styles.input}
-              value={form.fullName}
-              onChangeText={(v) => setForm({...form, fullName: v})}
-              placeholder="Full Name"
-            />
-            <TextInput
-              style={styles.input}
-              value={form.email}
-              onChangeText={(v) => setForm({...form, email: v})}
-              placeholder="Email"
-              autoCapitalize="none"
-            />
-            <TextInput
-              style={styles.input}
-              value={form.password}
-              onChangeText={(v) => setForm({...form, password: v})}
-              placeholder="Password"
-              secureTextEntry
-            />
-            <TextInput
-              style={styles.input}
-              value={form.confirmPassword}
-              onChangeText={(v) => setForm({...form, confirmPassword: v})}
-              placeholder="Confirm Password"
-              secureTextEntry
-            />
-            <TextInput
-              style={styles.input}
-              value={form.phoneNumber}
-              onChangeText={(v) => setForm({...form, phoneNumber: v})}
-              placeholder="Phone Number"
-              keyboardType="phone-pad"
-            />
-
-            <TouchableOpacity style={styles.btn} onPress={handleRegister} disabled={loading}>
-              {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Register</Text>}
-            </TouchableOpacity>
+            {step === 1 ? (
+              <>
+                {renderInput('Full Name', form.name, 'name', 'Enter your full name')}
+                {renderInput('Email Address', form.email, 'email', 'example@mail.com', { autoCapitalize: 'none', keyboardType: 'email-address' })}
+                {renderInput('Phone Number', form.phoneNumber, 'phoneNumber', '01xxxxxxxxx', { keyboardType: 'phone-pad' })}
+                {renderInput('Password', form.password, 'password', '••••••••', { secureTextEntry: true })}
+                {renderInput('Confirm Password', form.confirmPassword, 'confirmPassword', '••••••••', { secureTextEntry: true })}
+                
+                <TouchableOpacity style={styles.btn} onPress={() => validateStep1() && setStep(2)}>
+                  <Text style={styles.btnText}>Next Step</Text>
+                  <MaterialCommunityIcons name="arrow-right" size={20} color="#FFF" />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                {renderInput('Student ID', form.studentId, 'studentId', 'University ID Number')}
+                {renderInput('National ID', form.nationalId, 'nationalId', '14-digit number', { keyboardType: 'numeric', maxLength: 14 })}
+                {renderInput('University Year', form.universityYear, 'universityYear', 'e.g. 1, 2, 3', { keyboardType: 'numeric' })}
+                {renderInput('Faculty', form.faculty, 'faculty', 'e.g. Engineering')}
+                
+                <View style={styles.footerBtns}>
+                  <TouchableOpacity style={[styles.btn, styles.backBtn]} onPress={() => setStep(1)}>
+                    <Text style={[styles.btnText, { color: DEEP_BLUE }]}>Back</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity style={[styles.btn, { flex: 2 }]} onPress={handleRegister} disabled={loading}>
+                    {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Register Now</Text>}
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -163,15 +208,25 @@ const [imageUri, setImageUri] = useState<string | null>(null);
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: SOFT_WHITE },
-  scroll: { padding: 25, flexGrow: 1, justifyContent: 'center' },
-  header: { alignItems: 'center', marginBottom: 20 },
-  imagePicker: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#FFF', borderWidth: 1, borderColor: BORDER_COLOR, justifyContent: 'center', alignSelf: 'center', overflow: 'hidden', marginBottom: 10 },
+  scroll: { padding: 25, flexGrow: 1 },
+  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 30 },
+  stepCircle: { width: 30, height: 30, borderRadius: 15, backgroundColor: BORDER_COLOR, justifyContent: 'center', alignItems: 'center' },
+  activeStep: { backgroundColor: DEEP_BLUE },
+  stepNum: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
+  stepLine: { width: 40, height: 2, backgroundColor: BORDER_COLOR, marginHorizontal: 10 },
+  activeLine: { backgroundColor: DEEP_BLUE },
+  header: { alignItems: 'center', marginBottom: 25 },
+  imagePicker: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFF', borderWidth: 1, borderColor: BORDER_COLOR, justifyContent: 'center', alignSelf: 'center', overflow: 'hidden', marginBottom: 15 },
   profileImage: { width: '100%', height: '100%' },
   imagePlaceholder: { alignItems: 'center', justifyContent: 'center', flex: 1 },
-  imageText: { fontSize: 10, color: DEEP_BLUE, fontWeight: 'bold' },
-  title: { fontSize: 24, fontWeight: 'bold', color: DEEP_BLUE },
+  title: { fontSize: 22, fontWeight: '800', color: DEEP_BLUE },
+  subtitle: { fontSize: 14, color: SLATE_GRAY, marginTop: 5 },
   form: { width: '100%' },
-  input: { backgroundColor: '#FFF', borderRadius: 10, borderWidth: 1, borderColor: BORDER_COLOR, paddingHorizontal: 15, height: 50, marginBottom: 15 },
-  btn: { backgroundColor: DEEP_BLUE, borderRadius: 12, height: 55, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
-  btnText: { color: '#FFF', fontSize: 18, fontWeight: 'bold' }
+  inputGroup: { marginBottom: 18 },
+  label: { fontSize: 13, fontWeight: '700', color: DEEP_BLUE, marginBottom: 8, marginLeft: 4 },
+  input: { backgroundColor: '#FFF', borderRadius: 12, borderWidth: 1, borderColor: BORDER_COLOR, paddingHorizontal: 15, height: 52, fontSize: 15, color: DEEP_BLUE },
+  btn: { backgroundColor: DEEP_BLUE, borderRadius: 12, height: 55, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 10 },
+  backBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: DEEP_BLUE, flex: 1 },
+  btnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  footerBtns: { flexDirection: 'row', gap: 15, marginTop: 10 }
 });

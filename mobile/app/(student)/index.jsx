@@ -18,7 +18,9 @@ const COLORS = {
   SLATE_GRAY: '#475569',
   BORDER_COLOR: '#E2E8F0',
   SUCCESS: '#10B981',
-  WARNING: '#F59E0B'
+  WARNING: '#F59E0B',
+  DANGER: '#EF4444',
+  INFO: '#3B82F6'
 };
 
 export default function HomeScreen() {
@@ -29,7 +31,7 @@ export default function HomeScreen() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [appStatus, setAppStatus] = useState(null);
+  const [appData, setAppData] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -39,24 +41,24 @@ export default function HomeScreen() {
         fetch(`${BACKEND_URL}/api/auth/profile`, {
           headers: { 'Authorization': `Bearer ${idToken}` }
         }),
-        fetch(`${BACKEND_URL}/api/applications/my`, { 
+        fetch(`${BACKEND_URL}/api/applications/me`, { 
           headers: { 'Authorization': `Bearer ${idToken}` }
         })
       ]);
 
       if (profileRes.ok) {
-        const profileData = await profileRes.json();
-        setProfile(profileData.user);
+        const resData = await profileRes.json();
+        setProfile(resData.data.user);
       }
       
       if (appRes.ok) {
-        const apps = await appRes.json();
-        if (Array.isArray(apps) && apps.length > 0) {
-          setAppStatus(apps[0].status); 
-        }
+        const resData = await appRes.json();
+        setAppData(resData.data.application);
+      } else {
+        setAppData(null);
       }
     } catch (err) {
-      console.error('[HomeScreen] Fetch Error:', err.message);
+      console.error("Home Data Fetch Error:", err.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -74,58 +76,85 @@ export default function HomeScreen() {
 
   if (loading && !profile) return <LoadingSpinner fullscreen />;
 
+  // تصحيح الخطأ الإملائي هنا من prfile إلى profile
+  const status = profile?.housingStatus || 'no_application';
+  const isAccepted = status === 'active';
+  
+  const getStatusConfig = () => {
+    switch (status) {
+      case 'active':
+        return { label: 'Approved', color: COLORS.SUCCESS, icon: 'check-decagram' };
+      case 'pending':
+        return { label: 'Pending Review', color: COLORS.WARNING, icon: 'clock-outline' };
+      case 'rejected':
+        return { label: 'Rejected', color: COLORS.DANGER, icon: 'close-circle-outline' };
+      case 'needs_update':
+        return { label: 'Needs Update', color: COLORS.INFO, icon: 'alert-circle-outline' };
+      default:
+        return { label: 'No Application', color: COLORS.SLATE_GRAY, icon: 'home-off-outline' };
+    }
+  };
 
-  const hasNoApplication = !appStatus; 
-  const isPending = appStatus === 'pending';
-  const isAccepted = appStatus === 'approved' || appStatus === 'accepted';
-  const isRejected = appStatus === 'rejected';
+  const statusConfig = getStatusConfig();
 
   const SERVICES = [
     { 
       label: 'Housing Status', 
       icon: 'home-analytics', 
-      route: '/housing/StatusScreen', 
-      color: COLORS.SUCCESS, 
-      sub: appStatus?.toUpperCase() || 'NO APP',
-      
-      disabled: hasNoApplication 
+      route: '/(student)/(housing)/[id]/status', 
+      color: statusConfig.color, 
+      sub: statusConfig.label.toUpperCase(),
+      disabled: status === 'no_application' 
     },
     { 
-      label: 'Apply for Housing', 
+      label: 'Apply Housing', 
       icon: 'home-edit', 
-      route: '../housing/HousingApplyScreen', 
+      route: '/(student)/(housing)/HousingApplyScreen', 
       color: '#6C63FF', 
-      
-      disabled: isPending || isAccepted 
+      disabled: status === 'pending' || isAccepted || status === 'suspended'
     },
     { 
-      label: 'Meal Menu', 
-      icon: 'silverware-fork-knife', 
-      route: '/(student)/meals', 
+      label: 'Announcements', 
+      icon: 'bullhorn-outline', 
+      route: '/(student)/(info)/announcements', 
+      color: '#3B82F6', 
+      disabled: false 
+    },
+    { 
+      label: 'Meal Bookings', 
+      icon: 'food-fork-drink', 
+      route: '/(student)/(meals)/bookings', 
       color: '#F59E0B', 
       disabled: !isAccepted 
     },
     { 
-      label: 'Room Booking', 
-      icon: 'bed', 
-      route: '/housing/book-room', 
-      color: '#8B5CF6', 
+      label: 'Attendance', 
+      icon: 'calendar-check', 
+      route: '/(student)/(services)/attendance', 
+      color: '#8B5CF6',
       disabled: !isAccepted 
     },
     { 
-      label: 'My QR Code', 
-      icon: 'qrcode-scan', 
-      route: '/(student)/qrcode', 
-      color: '#14B8A6',
+      label: 'Payments', 
+      icon: 'credit-card-outline', 
+      route: '/(student)/(services)/payments', 
+      color: '#10B981',
+      disabled: !isAccepted 
+    },
+    { 
+      label: 'Maintenance', 
+      icon: 'hammer-wrench', 
+      route: '/(student)/(housing)/housing-request', 
+      color: '#EC4899',
       disabled: !isAccepted 
     },
     { 
       label: 'Reports', 
-      icon: 'alert-circle', 
-      route: '/complaints', 
-      color: '#EF4444',
+      icon: 'file-chart-outline', 
+      route: '/(student)/(services)/reports', 
+      color: '#64748B',
       disabled: !isAccepted 
-    },
+    }
   ];
 
   return (
@@ -137,7 +166,7 @@ export default function HomeScreen() {
       >
         <View style={styles.headerCard}>
           <View style={styles.headerTop}>
-            <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatarWrapper}>
+            <TouchableOpacity onPress={() => router.push('/(student)/profile')} style={styles.avatarWrapper}>
               {profile?.profilePicture ? (
                 <Image source={{ uri: profile.profilePicture }} style={styles.avatarImg} />
               ) : (
@@ -148,29 +177,27 @@ export default function HomeScreen() {
               <Text style={styles.helloText}>Welcome back,</Text>
               <Text style={styles.nameText} numberOfLines={1}>{profile?.name || 'Student'}</Text>
             </View>
-            {unreadCount > 0 && (
-              <TouchableOpacity style={styles.notifBadge} onPress={() => router.push('/(student)/notifications')}>
-                <Ionicons name="notifications" size={20} color={COLORS.WHITE} />
-                <View style={styles.notifCountDot}><Text style={styles.notifText}>{unreadCount}</Text></View>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity style={styles.notifBadge} onPress={() => router.push('/(student)/(info)/notifications')}>
+              <Ionicons name="notifications" size={20} color={COLORS.WHITE} />
+              {unreadCount > 0 && (
+                <View style={styles.notifCountDot}>
+                  <Text style={styles.notifText}>{unreadCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
-          <View style={[styles.statusPill, { backgroundColor: isAccepted ? COLORS.SUCCESS + '15' : COLORS.WARNING + '15' }]}>
-            <MaterialCommunityIcons 
-              name={isAccepted ? "check-decagram" : "clock-outline"} 
-              size={16} 
-              color={isAccepted ? COLORS.SUCCESS : COLORS.WARNING} 
-            />
-            <Text style={[styles.statusPillText, { color: isAccepted ? COLORS.SUCCESS : COLORS.WARNING }]}>
-              {isAccepted ? `Room: ${profile?.roomNumber || 'Assigned'}` : `Housing: ${appStatus || 'Not Applied'}`}
+          <View style={[styles.statusPill, { backgroundColor: statusConfig.color + '15' }]}>
+            <MaterialCommunityIcons name={statusConfig.icon} size={16} color={statusConfig.color} />
+            <Text style={[styles.statusPillText, { color: statusConfig.color }]}>
+              {isAccepted ? `Room: ${profile?.assignedRoomId?.roomNumber || 'Assigned'}` : `Status: ${statusConfig.label}`}
             </Text>
           </View>
         </View>
 
         <View style={styles.statsRow}>
-          <StatCard icon="school-outline" label="Department" value={profile?.department || '—'} />
-          <StatCard icon="fingerprint" label="Student ID" value={profile?.studentId || '—'} />
+          <StatCard icon="school-outline" label="Faculty" value={profile?.faculty || '—'} />
+          <StatCard icon="fingerprint" label="ID" value={profile?.studentId || '—'} />
         </View>
 
         <Text style={styles.sectionTitle}>Main Services</Text>
@@ -186,7 +213,7 @@ export default function HomeScreen() {
                 <MaterialCommunityIcons name={s.icon} size={28} color={s.disabled ? COLORS.SLATE_GRAY : s.color} />
               </View>
               <Text style={[styles.serviceLabel, s.disabled && { color: COLORS.SLATE_GRAY }]}>{s.label}</Text>
-              {s.sub && <Text style={styles.serviceSubText}>{s.sub}</Text>}
+              {s.sub && <Text style={[styles.serviceSubText, { color: s.color }]}>{s.sub}</Text>}
               {s.disabled && <MaterialCommunityIcons name="lock" size={14} color={COLORS.SLATE_GRAY} style={styles.lockIcon} />}
             </TouchableOpacity>
           ))}
@@ -200,7 +227,7 @@ function StatCard({ icon, label, value }) {
   return (
     <View style={styles.statCard}>
       <Ionicons name={icon} size={20} color={COLORS.DEEP_BLUE} />
-      <View>
+      <View style={{ flex: 1 }}>
         <Text style={styles.statLabel}>{label}</Text>
         <Text style={styles.statValue} numberOfLines={1}>{value}</Text>
       </View>
@@ -231,15 +258,15 @@ const styles = StyleSheet.create({
   statusPill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 15, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, alignSelf: 'flex-start' },
   statusPillText: { fontSize: 12, fontWeight: '700' },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 25 },
-  statCard: { flex: 1, backgroundColor: COLORS.WHITE, borderRadius: 16, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: COLORS.BORDER_COLOR },
+  statCard: { flex: 1, backgroundColor: COLORS.WHITE, borderRadius: 16, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: COLORS.BORDER_COLOR },
   statLabel: { fontSize: 10, color: COLORS.SLATE_GRAY, textTransform: 'uppercase', letterSpacing: 0.5 },
-  statValue: { fontSize: 14, fontWeight: '700', color: COLORS.DEEP_BLUE },
+  statValue: { fontSize: 13, fontWeight: '700', color: COLORS.DEEP_BLUE },
   sectionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.DEEP_BLUE, marginBottom: 15, marginLeft: 5 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  serviceCard: { width: '47%', backgroundColor: COLORS.WHITE, borderRadius: 18, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: COLORS.BORDER_COLOR, gap: 8, position: 'relative' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
+  serviceCard: { width: '48%', backgroundColor: COLORS.WHITE, borderRadius: 18, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: COLORS.BORDER_COLOR, gap: 8, position: 'relative' },
   disabledCard: { backgroundColor: '#F1F5F9', opacity: 0.6 },
-  iconBg: { width: 60, height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 5 },
+  iconBg: { width: 55, height: 55, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 5 },
   serviceLabel: { fontSize: 13, fontWeight: '700', color: COLORS.DEEP_BLUE, textAlign: 'center' },
-  serviceSubText: { fontSize: 10, fontWeight: '600', color: COLORS.SLATE_GRAY },
+  serviceSubText: { fontSize: 9, fontWeight: '600', color: COLORS.SLATE_GRAY },
   lockIcon: { position: 'absolute', top: 12, right: 12 }
 });

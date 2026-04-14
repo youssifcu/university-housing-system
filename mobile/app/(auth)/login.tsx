@@ -13,12 +13,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { auth }  from '../../config/firebase';
-import { signInWithEmailAndPassword, getIdToken } from 'firebase/auth';
+import { auth } from '../../config/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import BACKEND_URL from '../../config/backend';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-
 
 const COLORS = {
   DEEP_BLUE: '#1A237E',
@@ -31,7 +30,6 @@ const COLORS = {
 
 export default function LoginScreen() {
   const router = useRouter();
-  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -40,72 +38,70 @@ export default function LoginScreen() {
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
-
     if (!email.trim()) {
       newErrors.email = 'University email is required';
     } else if (!email.includes('@')) {
       newErrors.email = 'Please enter a valid email address';
     }
-
     if (!password) {
       newErrors.password = 'Password is required';
     } else if (password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleLogin = () => {
-  if (!validateForm()) return;
-  if (!auth) {
-    Alert.alert('Error', 'Firebase configuration missing');
-    return;
-  }
+    if (!validateForm()) return;
+    if (!auth) {
+      Alert.alert('Error', 'Firebase configuration missing');
+      return;
+    }
 
-  setLoading(true);
-  signInWithEmailAndPassword(auth, email.trim(), password)
-    .then(async (credential) => {
-      const user = credential.user;
-      const idToken = await user.getIdToken();
+    setLoading(true);
+    signInWithEmailAndPassword(auth, email.trim(), password)
+      .then(async (credential) => {
+        const user = credential.user;
+        const idToken = await user.getIdToken();
 
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}` 
-          },
-          body: JSON.stringify({ 
-            firebaseUID: user.uid 
-          })
-        });
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}` 
+            },
+            body: JSON.stringify({ 
+              firebaseUid: user.uid 
+            })
+          });
 
-        const data = await response.json();
+          const result = await response.json();
 
-        if (response.ok) {
-          setLoading(false);
-          const userRole = data.user.roles || data.user.role;
-          
-          if (userRole === 'floor_admin') {
-            router.replace('/(manager)');
+          if (response.ok) {
+            setLoading(false);
+            const userRole = result.data.user.role;
+            
+            if (userRole === 'student') {
+              router.replace('/(student)');
+            } else {
+              router.replace('/(manager)');
+            }
           } else {
-            router.replace('/(student)');
+            throw new Error(result.message || 'Login failed');
           }
-        } else {
-          throw new Error(data.message || 'Login failed');
+        } catch (err: any) {
+          setLoading(false);
+          Alert.alert('Error', err.message);
         }
-      } catch (err : any) {
+      })
+      .catch((err) => {
         setLoading(false);
-        Alert.alert('Error', err.message);
-      }
-    })
-    .catch((err) => {
-      setLoading(false);
-      Alert.alert('Login Error', err.message);
-    });
-};
+        Alert.alert('Login Error', 'Invalid email or password');
+      });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -172,7 +168,6 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.row}>
-            
               <TouchableOpacity onPress={() => router.push('/forgot-password')}>
                 <Text style={[styles.smallText, { color: COLORS.DEEP_BLUE, fontWeight: '700' }]}>Forgot Password?</Text>
               </TouchableOpacity>
@@ -247,7 +242,6 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 16, color: COLORS.DEEP_BLUE },
   errorText: { color: COLORS.ERROR_COLOR, fontSize: 12, marginTop: 5, marginLeft: 5 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
-  checkboxRow: { flexDirection: 'row', alignItems: 'center' },
   smallText: { fontSize: 14, color: COLORS.SLATE_GRAY, marginLeft: 8 },
   mainButton: {
     backgroundColor: COLORS.DEEP_BLUE,

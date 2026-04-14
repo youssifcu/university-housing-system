@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 
 const extras = (Constants.expoConfig || Constants.manifest)?.extra || {};
 
-const defaultLocal = Platform.OS === 'android' ? 'http://192.168.1.2:5000' : 'http://192.168.1.2:5000';
+const defaultLocal = Platform.OS === 'android' ? 'https://university-housing-system-production-64e5.up.railway.app' : 'http://192.168.1.2:5000';
 export const BACKEND_URL = extras.BACKEND_URL || defaultLocal;
 
 export default BACKEND_URL;

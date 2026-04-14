@@ -1,4 +1,4 @@
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, TextInput,
   TouchableOpacity, Alert, ActivityIndicator, ScrollView, Image
@@ -30,10 +30,12 @@ export default function ProfileScreen() {
   const profile = useAppStore((s) => s.profile);
   const setProfile = useAppStore((s) => s.setProfile);
 
-  const [fullName, setFullName] = useState(profile?.name || user?.displayName || '');
-  const [email, setEmail] = useState(profile?.email || user?.email || '');
-  const [studentInfo, setStudentInfo] = useState<any>(null);
-  const [imageBase64, setImageBase64] = useState<string>(profile?.profilePicture || user?.photoURL || '');
+  const [fullName, setFullName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
+  const [studentData, setStudentData] = useState<any>(null);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [tempImageUri, setTempImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
 
@@ -45,27 +47,23 @@ export default function ProfileScreen() {
     if (!user) return;
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch(`${BACKEND_URL}/api/students/me`, {
+      const response = await fetch(`${BACKEND_URL}/api/auth/profile`, {
         method: 'GET',
-        headers: { 'Authorization': `Bearer ${idToken}` }
+        headers: { 
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json'
+        }
       });
       
-      const data = await response.json();
+      const result = await response.json();
       
-      if (response.ok && data.student) {
-        const s = data.student;
-        setStudentInfo(s);
-        
-        const updatedProfile = {
-          ...profile,
-          name: s.name || user.displayName,
-          email: s.email || user.email
-        
-        };
-        setProfile(updatedProfile);
-        
-        setFullName(updatedProfile.name || '');
-        setEmail(updatedProfile.email || '');
+      if (response.ok && result.data?.user) {
+        const u = result.data.user;
+        setStudentData(u);
+        setProfile(u);
+        setFullName(u.name || '');
+        setEmail(u.email || '');
+        setPhoneNumber(u.phoneNumber || '');
       }
     } catch (error) {
       console.error("Fetch error:", error);
@@ -75,45 +73,57 @@ export default function ProfileScreen() {
   };
 
   const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Camera roll permissions are required.');
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.5,
+      quality: 0.2,
       base64: true,
     });
 
-    if (!result.canceled) {
-      const newPhotoBase64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      setImageBase64(newPhotoBase64);
-      setProfile({ ...profile, profilePicture: result.assets[0].uri });
+    if (!result.canceled && result.assets[0].base64) {
+      const base64Data = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      setImageBase64(base64Data);
+      setTempImageUri(result.assets[0].uri);
     }
   };
 
   const handleUpdate = async () => {
+    if (!fullName || !phoneNumber) {
+      Alert.alert('Error', 'Name and Phone number are required');
+      return;
+    }
+
     setLoading(true);
     try {
       const idToken = await user?.getIdToken();
-      const response = await fetch(`${BACKEND_URL}/api/auth/update-profile`, {
-        method: 'POST',
+      const response = await fetch(`${BACKEND_URL}/api/auth/profile`, {
+        method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}` 
         },
         body: JSON.stringify({
-          firebaseUID: user?.uid,
           name: fullName,
-          email: email,
+          phoneNumber: phoneNumber,
           profilePicture: imageBase64
         })
       });
 
+      const result = await response.json();
+
       if (response.ok) {
         Alert.alert('Success', 'Profile updated successfully');
+        setImageBase64(null);
         fetchProfile();
       } else {
-        const data = await response.json();
-        throw new Error(data.message || 'Update failed');
+        throw new Error(result.message || 'Update failed');
       }
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -130,30 +140,35 @@ export default function ProfileScreen() {
     );
   }
 
+  const renderAvatar = () => {
+    const sourceUri = tempImageUri || studentData?.profilePicture;
+
+    if (sourceUri) {
+      return <Image source={{ uri: sourceUri }} style={styles.avatar} key={sourceUri} />;
+    }
+    return <MaterialCommunityIcons name="account-circle" size={100} color={COLORS.DEEP_BLUE} />;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        
         <View style={styles.header}>
           <TouchableOpacity onPress={pickImage} style={styles.avatarWrapper}>
-            {profile?.profilePicture ? (
-              <Image source={{ uri: profile.profilePicture }} style={styles.avatar} />
-            ) : (
-              <MaterialCommunityIcons name="account-circle" size={100} color={COLORS.DEEP_BLUE} />
-            )}
+            {renderAvatar()}
             <View style={styles.cameraIcon}>
               <MaterialCommunityIcons name="camera" size={16} color={COLORS.WHITE} />
             </View>
           </TouchableOpacity>
           <Text style={styles.userNameText}>{fullName || 'Student'}</Text>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>{studentInfo?.housingStatus?.toUpperCase() || 'ACTIVE'}</Text>
+            <Text style={styles.badgeText}>{studentData?.housingStatus?.toUpperCase().replace('_', ' ') || 'ACTIVE'}</Text>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Details</Text>
+          <Text style={styles.sectionTitle}>Account Information</Text>
+          
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Full Name</Text>
             <View style={styles.fieldContainer}>
@@ -163,27 +178,34 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address</Text>
+            <Text style={styles.label}>Phone Number</Text>
             <View style={styles.fieldContainer}>
+              <MaterialCommunityIcons name="phone-outline" size={20} color={COLORS.SLATE_GRAY} style={styles.fieldIcon} />
+              <TextInput style={styles.input} value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email Address (Read Only)</Text>
+            <View style={[styles.fieldContainer, { backgroundColor: COLORS.READ_ONLY_BG }]}>
               <MaterialCommunityIcons name="email-outline" size={20} color={COLORS.SLATE_GRAY} style={styles.fieldIcon} />
-              <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" />
+              <TextInput style={styles.input} value={email} editable={false}  />
             </View>
           </View>
 
           <TouchableOpacity style={styles.saveButton} onPress={handleUpdate} disabled={loading}>
-            {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveButtonText}>Save Changes</Text>}
+            {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveButtonText}>Update Profile</Text>}
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Academic & Housing Info</Text>
+          <Text style={styles.sectionTitle}>University Housing Details</Text>
           <View style={styles.readOnlyCard}>
-            <ReadOnlyItem icon="fingerprint" label="University ID" value={studentInfo?.universityId || '—'} />
-            <ReadOnlyItem icon="phone-outline" label="Phone Number" value={studentInfo?.phoneNumber || studentInfo?.phone || user?.phoneNumber || '—'} />
-            <ReadOnlyItem icon="school-outline" label="Faculty" value={studentInfo?.faculty || '—'} />
-            <ReadOnlyItem icon="office-building-outline" label="Building" value={studentInfo?.building?.name || '—'} />
-            <ReadOnlyItem icon="bed-outline" label="Room & Bed" value={studentInfo?.room?.roomNumber ? `Room ${studentInfo.room.roomNumber} - Bed ${studentInfo.bedNumber}` : 'Pending'} />
-            <ReadOnlyItem icon="food-apple-outline" label="Weekly Meals Left" value={`${studentInfo?.mealBalance || 0} Meals`} color={COLORS.SUCCESS} />
+            <ReadOnlyItem icon="fingerprint" label="Student ID" value={studentData?.studentId || '—'} />
+            <ReadOnlyItem icon="card-account-details-outline" label="National ID" value={studentData?.nationalId || '—'} />
+            <ReadOnlyItem icon="school-outline" label="Faculty" value={studentData?.faculty || '—'} />
+            <ReadOnlyItem icon="calendar-outline" label="Academic Year" value={studentData?.universityYear || '—'} />
+            <ReadOnlyItem icon="home-outline" label="Housing Status" value={studentData?.housingStatus || 'Pending'} color={COLORS.SUCCESS} />
           </View>
         </View>
 
@@ -194,7 +216,6 @@ export default function ProfileScreen() {
           <MaterialCommunityIcons name="logout" size={20} color={COLORS.ERROR_COLOR} />
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -220,7 +241,7 @@ const styles = StyleSheet.create({
     width: 110, height: 110, borderRadius: 55, backgroundColor: COLORS.WHITE, 
     justifyContent: 'center', alignItems: 'center', elevation: 3, overflow: 'hidden'
   },
-  avatar: { width: '100%', height: '100%' },
+  avatar: { width: '100%', height: '100%', borderRadius: 55 },
   cameraIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: COLORS.DEEP_BLUE, padding: 8, borderRadius: 20, borderWidth: 2, borderColor: COLORS.WHITE, zIndex: 10 },
   userNameText: { fontSize: 20, fontWeight: '800', color: COLORS.DEEP_BLUE, marginTop: 12 },
   badge: { backgroundColor: '#E0E7FF', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20, marginTop: 6 },
@@ -239,6 +260,6 @@ const styles = StyleSheet.create({
   readOnlyIconBg: { width: 36, height: 36, backgroundColor: COLORS.WHITE, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   readOnlyLabel: { fontSize: 10, color: COLORS.SLATE_GRAY, textTransform: 'uppercase', letterSpacing: 0.5 },
   readOnlyValue: { fontSize: 14, fontWeight: '700', color: '#1E293B' },
-  logoutBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 15 },
+  logoutBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 15, marginBottom: 20 },
   logoutText: { color: COLORS.ERROR_COLOR, fontWeight: '700', fontSize: 16, marginLeft: 10 }
 });
