@@ -64,30 +64,20 @@ exports.getUserById = async (req, res) => {
 exports.getProfilePicture = async (req, res) => {
     try {
         const { id } = req.params;
+        
+        const user = await User.findById(id).select('+profilePicture.data +profilePicture.contentType');
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).send('Invalid ID format');
+        if (!user || !user.profilePicture || !user.profilePicture.data) {
+            return res.status(404).send('Not found');
         }
-
-        const user = await User.findById(id)
-            .select('+profilePicture.data +profilePicture.contentType')
-            .lean();
-
-        if (!user || !user.profilePicture?.data) {
-            return res.status(404).send('Profile picture not found');
-        }
-
-        const buffer = Buffer.isBuffer(user.profilePicture.data)
-            ? user.profilePicture.data
-            : Buffer.from(user.profilePicture.data.buffer ?? user.profilePicture.data);
 
         res.set('Content-Type', user.profilePicture.contentType);
         res.set('Cache-Control', 'public, max-age=86400');
-        return res.send(buffer);
-
+        
+        return res.send(user.profilePicture.data);
     } catch (error) {
-        console.error('Get Profile Picture Error:', error);
-        return res.status(500).send('Failed to fetch profile picture');
+        console.error('Pic Error:', error);
+        return res.status(500).send('Error');
     }
 };
 
