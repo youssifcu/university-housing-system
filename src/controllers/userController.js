@@ -72,7 +72,9 @@ exports.getProfilePicture = async (req, res) => {
         }
 
         res.set('Content-Type', user.profilePicture.contentType);
-        return res.send(user.profilePicture.data);
+       const buffer = Buffer.isBuffer(user.profilePicture.data)
+       ? user.profilePicture.data : Buffer.from(user.profilePicture.data.buffer ?? user.profilePicture.data);
+          return res.send(buffer);
     } catch (error) {
         return res.status(500).send('Error');
     }
