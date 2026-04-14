@@ -48,7 +48,9 @@ exports.getUserById = async (req, res) => {
         const { id } = req.params;
         if (!mongoose.Types.ObjectId.isValid(id)) return sendError(res, 400, 'Invalid ID format');
 
-        const user = await User.findById(id).select('-qrCode -firebaseUID').lean();
+        const user = await User.findById(id)
+            .select('-qrCode -firebaseUID +profilePicture.data +profilePicture.contentType')
+            .lean();
         if (!user) return sendError(res, 404, 'User not found');
 
         if (req.userDoc.role !== 'admin' && req.userDoc._id.toString() !== id) {
@@ -64,23 +66,24 @@ exports.getUserById = async (req, res) => {
 exports.getProfilePicture = async (req, res) => {
     try {
         const { id } = req.params;
-        
-        const user = await User.findById(id).select('+profilePicture.data +profilePicture.contentType');
 
-        if (!user || !user.profilePicture || !user.profilePicture.data) {
+        const user = await User.findById(id)
+            .select('+profilePicture.data +profilePicture.contentType');
+
+        if (!user?.profilePicture?.data) {
             return res.status(404).send('Not found');
         }
 
+        const imageBuffer = Buffer.from(user.profilePicture.data, 'base64');
+
         res.set('Content-Type', user.profilePicture.contentType);
         res.set('Cache-Control', 'public, max-age=86400');
-        
-        return res.send(user.profilePicture.data);
+        return res.send(imageBuffer);
     } catch (error) {
         console.error('Pic Error:', error);
         return res.status(500).send('Error');
     }
 };
-
 
 exports.updateUser = async (req, res) => {
     try {
@@ -93,10 +96,18 @@ exports.updateUser = async (req, res) => {
         });
 
         if (req.file) {
-            updates.profilePicture = { data: req.file.buffer, contentType: req.file.mimetype };
+            updates.profilePicture = {
+                data: req.file.buffer.toString('base64'),
+                contentType: req.file.mimetype
+            };
         }
 
-        const updatedUser = await User.findByIdAndUpdate(id, { $set: updates }, { new: true, runValidators: true }).lean();
+        const updatedUser = await User.findByIdAndUpdate(
+            id,
+            { $set: updates },
+            { new: true, runValidators: true }
+        ).lean();
+
         return sendSuccess(res, 200, 'Updated', { user: updatedUser });
     } catch (error) {
         return sendError(res, 500, 'Failed', error.message);
@@ -107,14 +118,25 @@ exports.updateUserProfile = async (req, res) => {
     try {
         const userId = req.userDoc._id;
         const updates = {};
+
         if (req.body.name) updates.name = req.body.name.trim();
         if (req.body.phoneNumber) updates.phoneNumber = req.body.phoneNumber.trim();
 
         if (req.file) {
-            updates.profilePicture = { data: req.file.buffer, contentType: req.file.mimetype };
+            updates.profilePicture = {
+                data: req.file.buffer.toString('base64'),
+                contentType: req.file.mimetype
+            };
         }
 
-        const updatedUser = await User.findByIdAndUpdate(userId, { $set: updates }, { new: true }).select('-qrCode').lean();
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $set: updates },
+            { new: true }
+        )
+            .select('-qrCode +profilePicture.data +profilePicture.contentType')
+            .lean();
+
         return sendSuccess(res, 200, 'Success', { user: updatedUser });
     } catch (error) {
         return sendError(res, 500, 'Error', error.message);
