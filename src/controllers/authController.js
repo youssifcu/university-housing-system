@@ -30,65 +30,61 @@ exports.registerUser = async (req, res) => {
             studentId, nationalId, universityYear, faculty 
         } = req.body;
 
-        // 1. التحقق من الحقول المطلوبة
         const requiredFields = [
             'firebaseUid', 'email', 'name', 'phoneNumber',
             'studentId', 'nationalId', 'universityYear', 'faculty'
         ];
+        
         const missingFields = requiredFields.filter(field => !req.body[field]);
         if (missingFields.length > 0) {
             return sendError(res, 400, `Missing required fields: ${missingFields.join(', ')}`);
         }
 
-        // التحقق من صيغة الإيميل بشكل بسيط
-        const emailRegex = /^\S+@\S+\.\S+$/;
-        if (!emailRegex.test(email)) {
-            return sendError(res, 400, 'Invalid email format');
-        }
-
-        // 2. التأكد من عدم وجود المستخدم مسبقاً
         const existingUser = await User.findOne({ 
-            $or: [{ email }, { firebaseUid }] 
+            $or: [{ email }, { firebaseUid }, { studentId }, { nationalId }] 
         }).select('_id').lean();
 
         if (existingUser) {
-            return sendError(res, 400, 'User already exists with this email or Firebase UID');
+            return sendError(res, 400, 'User with this email, ID, or Student ID already exists');
         }
 
-        // 3. إنشاء الطالب
         const studentData = {
             firebaseUid,
             email,
             name,
             phoneNumber,
             role: 'student',
-            ...(studentId && { studentId }),
-            ...(nationalId && { nationalId }),
-            ...(universityYear && { universityYear }),
-            ...(faculty && { faculty })
+            studentId,
+            nationalId,
+            universityYear,
+            faculty
         };
+
+        if (req.file) {
+            studentData.profilePicture = {
+                data: req.file.buffer,
+                contentType: req.file.mimetype
+            };
+        }
 
         const newStudent = new Student(studentData);
         await newStudent.save();
 
-        return sendSuccess(res, 201, 'Registration successful. Please submit your housing application.', {
+        return sendSuccess(res, 201, 'Registration successful', {
             userId: newStudent._id
         });
 
     } catch (error) {
-        console.error('Register Error:', error);
         if (error.name === 'ValidationError') {
             const messages = Object.values(error.errors).map(e => e.message);
             return sendError(res, 400, 'Validation failed', messages);
         }
         if (error.code === 11000) {
-            const field = Object.keys(error.keyPattern)[0];
-            return sendError(res, 400, `${field} already exists`);
+            return sendError(res, 400, 'Duplicate entry found in database');
         }
         return sendError(res, 500, 'Registration failed', error.message);
     }
 };
-
 // ==========================================
 // POST /api/auth/login
 // ==========================================
