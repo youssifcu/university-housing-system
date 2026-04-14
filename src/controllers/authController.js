@@ -172,6 +172,7 @@ exports.getProfile = async (req, res) => {
                 ...profileData,
                 studentId: user.studentId,
                 nationalId: user.nationalId,
+                profilePicture: (user.profilePicture && user.profilePicture.contentType) ? `/api/users/${user._id}/profile-picture` : null,
                 universityYear: user.universityYear,
                 faculty: user.faculty,
                 housingStatus: user.housingStatus,
