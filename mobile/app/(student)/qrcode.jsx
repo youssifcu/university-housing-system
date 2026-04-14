@@ -129,8 +129,16 @@ export default function QRCodeScreen() {
 
         <View style={styles.header}>
           <View style={styles.avatarWrapper}>
-            {profile?.profilePicture ? (
-              <Image source={{ uri: profile.profilePicture }} style={styles.avatar} />
+            {profile?.profilePicture && typeof profile.profilePicture === 'string' ? (
+              <Image
+                source={{ uri: `${BACKEND_URL}${profile.profilePicture}?t=${Date.now()}` }}
+                style={styles.avatar}
+              />
+            ) : profile?._id ? (
+              <Image
+                source={{ uri: `${BACKEND_URL}/api/users/${profile._id}/profile-picture?t=${Date.now()}` }}
+                style={styles.avatar}
+              />
             ) : (
               <MaterialCommunityIcons name="account-circle" size={110} color={COLORS.DEEP_BLUE} />
             )}

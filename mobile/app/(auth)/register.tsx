@@ -68,7 +68,7 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     const {
-      email, password, name, phoneNumber, 
+      email, password, name, phoneNumber,
       studentId, nationalId, universityYear, faculty
     } = form;
 
@@ -87,23 +87,31 @@ export default function RegisterScreen() {
 
       const idToken = await firebaseUser.getIdToken();
 
+      const formData = new FormData();
+      formData.append('firebaseUid', firebaseUser.uid);
+      formData.append('email', firebaseUser.email || '');
+      formData.append('name', name.trim());
+      formData.append('phoneNumber', phoneNumber);
+      formData.append('studentId', studentId);
+      formData.append('nationalId', nationalId);
+      formData.append('universityYear', universityYear.toString());
+      formData.append('faculty', faculty.trim());
+
+      if (imageUri) {
+        formData.append('profilePicture', {
+          uri: imageUri,
+          name: 'photo.jpg',
+          type: 'image/jpeg'
+        } as any);
+      }
+
       const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
+          'Authorization': `Bearer ${idToken}`,
+          'Accept': 'application/json'
         },
-        body: JSON.stringify({
-          firebaseUid: firebaseUser.uid,
-          email: firebaseUser.email,
-          name: name.trim(),
-          phoneNumber,
-          studentId,
-          nationalId,
-          universityYear: parseInt(universityYear),
-          faculty: faculty.trim(),
-          profilePicture: imageBase64 || ''
-        }),
+        body: formData,
       });
 
       const data = await response.json();
@@ -117,7 +125,7 @@ export default function RegisterScreen() {
         throw new Error(data.message || 'Registration failed');
       }
     } catch (error) {
-      if (firebaseUser) await deleteUser(firebaseUser).catch(() => {});
+      if (firebaseUser) await deleteUser(firebaseUser).catch(() => { });
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
@@ -141,7 +149,7 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          
+
           <View style={styles.stepper}>
             <View style={[styles.stepCircle, step >= 1 && styles.activeStep]}>
               <Text style={styles.stepNum}>1</Text>
@@ -174,7 +182,7 @@ export default function RegisterScreen() {
                 {renderInput('Phone Number', form.phoneNumber, 'phoneNumber', '01xxxxxxxxx', { keyboardType: 'phone-pad' })}
                 {renderInput('Password', form.password, 'password', '••••••••', { secureTextEntry: true })}
                 {renderInput('Confirm Password', form.confirmPassword, 'confirmPassword', '••••••••', { secureTextEntry: true })}
-                
+
                 <TouchableOpacity style={styles.btn} onPress={() => validateStep1() && setStep(2)}>
                   <Text style={styles.btnText}>Next Step</Text>
                   <MaterialCommunityIcons name="arrow-right" size={20} color="#FFF" />
@@ -186,12 +194,12 @@ export default function RegisterScreen() {
                 {renderInput('National ID', form.nationalId, 'nationalId', '14-digit number', { keyboardType: 'numeric', maxLength: 14 })}
                 {renderInput('University Year', form.universityYear, 'universityYear', 'e.g. 1, 2, 3', { keyboardType: 'numeric' })}
                 {renderInput('Faculty', form.faculty, 'faculty', 'e.g. Engineering')}
-                
+
                 <View style={styles.footerBtns}>
                   <TouchableOpacity style={[styles.btn, styles.backBtn]} onPress={() => setStep(1)}>
                     <Text style={[styles.btnText, { color: DEEP_BLUE }]}>Back</Text>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity style={[styles.btn, { flex: 2 }]} onPress={handleRegister} disabled={loading}>
                     {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Register Now</Text>}
                   </TouchableOpacity>

@@ -33,15 +33,20 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [appData, setAppData] = useState(null);
 
-  const fetchData = async () => {
+  const fetchData = async (user) => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    
     try {
-      const idToken = await auth.currentUser?.getIdToken();
-      
+      const idToken = await user.getIdToken();
+
       const [profileRes, appRes] = await Promise.all([
         fetch(`${BACKEND_URL}/api/auth/profile`, {
           headers: { 'Authorization': `Bearer ${idToken}` }
         }),
-        fetch(`${BACKEND_URL}/api/applications/me`, { 
+        fetch(`${BACKEND_URL}/api/applications/me`, {
           headers: { 'Authorization': `Bearer ${idToken}` }
         })
       ]);
@@ -50,7 +55,7 @@ export default function HomeScreen() {
         const resData = await profileRes.json();
         setProfile(resData.data.user);
       }
-      
+
       if (appRes.ok) {
         const resData = await appRes.json();
         setAppData(resData.data.application);
@@ -66,20 +71,27 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
-    fetchData();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      fetchData(user);
+    });
+    return () => unsubscribe();
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchData();
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      await fetchData(currentUser);
+    } else {
+      setRefreshing(false);
+    }
   };
 
   if (loading && !profile) return <LoadingSpinner fullscreen />;
 
-  // تصحيح الخطأ الإملائي هنا من prfile إلى profile
   const status = profile?.housingStatus || 'no_application';
   const isAccepted = status === 'active';
-  
+
   const getStatusConfig = () => {
     switch (status) {
       case 'active':
@@ -98,62 +110,62 @@ export default function HomeScreen() {
   const statusConfig = getStatusConfig();
 
   const SERVICES = [
-    { 
-      label: 'Housing Status', 
-      icon: 'home-analytics', 
-      route: '/(student)/(housing)/[id]/status', 
-      color: statusConfig.color, 
+    {
+      label: 'Housing Status',
+      icon: 'home-analytics',
+      route: '/(student)/(housing)/[id]/status',
+      color: statusConfig.color,
       sub: statusConfig.label.toUpperCase(),
-      disabled: status === 'no_application' 
+      disabled: status === 'no_application'
     },
-    { 
-      label: 'Apply Housing', 
-      icon: 'home-edit', 
-      route: '/(student)/(housing)/HousingApplyScreen', 
-      color: '#6C63FF', 
+    {
+      label: 'Apply Housing',
+      icon: 'home-edit',
+      route: '/(student)/(housing)/HousingApplyScreen',
+      color: '#6C63FF',
       disabled: status === 'pending' || isAccepted || status === 'suspended'
     },
-    { 
-      label: 'Announcements', 
-      icon: 'bullhorn-outline', 
-      route: '/(student)/(info)/announcements', 
-      color: '#3B82F6', 
-      disabled: false 
+    {
+      label: 'Announcements',
+      icon: 'bullhorn-outline',
+      route: '/(student)/(info)/announcements',
+      color: '#3B82F6',
+      disabled: false
     },
-    { 
-      label: 'Meal Bookings', 
-      icon: 'food-fork-drink', 
-      route: '/(student)/(meals)/bookings', 
-      color: '#F59E0B', 
-      disabled: !isAccepted 
+    {
+      label: 'Meal Bookings',
+      icon: 'food-fork-drink',
+      route: '/(student)/(meals)/bookings',
+      color: '#F59E0B',
+      disabled: !isAccepted
     },
-    { 
-      label: 'Attendance', 
-      icon: 'calendar-check', 
-      route: '/(student)/(services)/attendance', 
+    {
+      label: 'Attendance',
+      icon: 'calendar-check',
+      route: '/(student)/(services)/attendance',
       color: '#8B5CF6',
-      disabled: !isAccepted 
+      disabled: !isAccepted
     },
-    { 
-      label: 'Payments', 
-      icon: 'credit-card-outline', 
-      route: '/(student)/(services)/payments', 
+    {
+      label: 'Payments',
+      icon: 'credit-card-outline',
+      route: '/(student)/(services)/payments',
       color: '#10B981',
-      disabled: !isAccepted 
+      disabled: !isAccepted
     },
-    { 
-      label: 'Maintenance', 
-      icon: 'hammer-wrench', 
-      route: '/(student)/(housing)/housing-request', 
+    {
+      label: 'Maintenance',
+      icon: 'hammer-wrench',
+      route: '/(student)/(housing)/housing-request',
       color: '#EC4899',
-      disabled: !isAccepted 
+      disabled: !isAccepted
     },
-    { 
-      label: 'Reports', 
-      icon: 'file-chart-outline', 
-      route: '/(student)/(services)/reports', 
+    {
+      label: 'Reports',
+      icon: 'file-chart-outline',
+      route: '/(student)/(services)/reports',
       color: '#64748B',
-      disabled: !isAccepted 
+      disabled: !isAccepted
     }
   ];
 
@@ -167,8 +179,16 @@ export default function HomeScreen() {
         <View style={styles.headerCard}>
           <View style={styles.headerTop}>
             <TouchableOpacity onPress={() => router.push('/(student)/profile')} style={styles.avatarWrapper}>
-              {profile?.profilePicture ? (
-                <Image source={{ uri: profile.profilePicture }} style={styles.avatarImg} />
+              {profile?.profilePicture && typeof profile.profilePicture === 'string' ? (
+                <Image
+                  source={{ uri: `${BACKEND_URL}${profile.profilePicture}?t=${Date.now()}` }}
+                  style={styles.avatarImg}
+                />
+              ) : profile?._id ? (
+                <Image
+                  source={{ uri: `${BACKEND_URL}/api/users/${profile._id}/profile-picture?t=${Date.now()}` }}
+                  style={styles.avatarImg}
+                />
               ) : (
                 <MaterialCommunityIcons name="account-circle" size={55} color={COLORS.DEEP_BLUE} />
               )}
