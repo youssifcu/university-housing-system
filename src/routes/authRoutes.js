@@ -10,6 +10,7 @@ const { isAdmin } = require('../middlewares/roleMiddleware');
 // تسجيل طالب جديد
 router.post(
     '/register',
+    upload.single('profilePicture'),
     authController.registerUser
 );
 
