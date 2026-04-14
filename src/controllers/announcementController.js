@@ -50,20 +50,24 @@ exports.createAnnouncement = async (req, res) => {
             return sendError(res, 400, `Invalid targetRole. Allowed: ${ALLOWED_TARGET_ROLES.join(', ')}`);
         }
 
+        // التحقق من أن المستخدم موجود ومعه _id تجنباً لأي TypeError
+        if (!req.userDoc || !req.userDoc._id) {
+            return sendError(res, 403, 'User profile is invalid or missing _id');
+        }
+
         // 3. إنشاء الإعلان
         const announcement = await Announcement.create({
             title: title.trim(),
             content: content.trim(),
             priority: priority || 'medium',
             targetRole: targetRole || 'all',
-            // ✅ التعديل هنا: نستخدم _id من req.userDoc اللي جاي من الميدل وير
             createdBy: req.userDoc._id, 
             status: 'active'
         });
 
         // 4. إرسال إشعار Real-Time (نبعت بيانات الإعلان الأساسية مش الـ ID بس)
         const io = req.app.get('io');
-        if (io) {
+        if (io && typeof io.emit === 'function') {
             // نختار الحقول اللي هتبعت للسوكيت عشان منبعتش بيانات حساسة
             const announcementForSocket = {
                 id: announcement._id,
@@ -86,7 +90,8 @@ exports.createAnnouncement = async (req, res) => {
             const messages = Object.values(error.errors).map(e => e.message);
             return sendError(res, 400, 'Validation failed', messages);
         }
-        return sendError(res, 500, 'Failed to create announcement', error.message);
+        // إرفاق نص الخطأ في الاستجابة للمساعدة في الـ debugging
+        return sendError(res, 500, `Failed to create announcement: ${error.message}`);
     }
 };
 
