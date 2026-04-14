@@ -21,6 +21,70 @@ const sendError = (res, statusCode, message, errorDetails = null) => {
     return res.status(statusCode).json(response);
 };
 
+// ==========================================
+// Data Shaping Helper
+// ==========================================
+const shapeUserData = (user) => {
+    if (!user) return null;
+
+    const shaped = {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phoneNumber: user.phoneNumber,
+        isActive: user.isActive,
+        profilePicture: (user.profilePicture && user.profilePicture.contentType) ? `/api/users/${user._id}/profile-picture` : null,
+        createdAt: user.createdAt,
+        lastLogin: user.lastLogin
+    };
+
+    if (user.role === 'student') {
+        shaped.studentDetails = {
+            studentId: user.studentId,
+            nationalId: user.nationalId,
+            universityYear: user.universityYear,
+            faculty: user.faculty,
+            department: user.department,
+            grade: user.grade,
+            housingStatus: user.housingStatus,
+            applicationId: user.applicationId,
+            assignedRoomId: user.assignedRoomId,
+            bedNumber: user.bedNumber,
+            roomAllocationDate: user.roomAllocationDate,
+            leaveStatus: user.leaveStatus
+        };
+    } else if (user.role === 'supervisor') {
+        shaped.supervisorDetails = {
+            supervisorType: user.supervisorType,
+            department: user.department,
+            assignedBuildings: user.assignedBuildings
+        };
+    } else if (user.role === 'floor_admin') {
+        shaped.floorAdminDetails = {
+            floorNumber: user.floorNumber,
+            buildingId: user.buildingId,
+            isNightShift: user.isNightShift
+        };
+    } else if (user.role === 'meal_admin') {
+        shaped.mealAdminDetails = {
+            mealAdminType: user.mealAdminType,
+            kitchenAssignment: user.kitchenAssignment,
+            workShift: user.workShift,
+            specialization: user.specialization
+        };
+    }
+
+    // Clean undefined fields inside details
+    for (const key in shaped) {
+        if (typeof shaped[key] === 'object' && shaped[key] !== null && !Array.isArray(shaped[key])) {
+            Object.keys(shaped[key]).forEach(k => shaped[key][k] === undefined && delete shaped[key][k]);
+        }
+    }
+
+    return shaped;
+};
+
 // الأدوار المسموحة للتحديث عبر الـ API
 const ALLOWED_ROLES = ['student', 'supervisor', 'security', 'admin', 'floor_admin', 'meal_admin'];
 
@@ -46,9 +110,11 @@ exports.getAllUsers = async (req, res) => {
                 .lean(),
             User.countDocuments(filter)
         ]);
+        
+        const shapedUsers = users.map(shapeUserData);
 
         return sendSuccess(res, 200, 'Users fetched successfully', {
-            users,
+            users: shapedUsers,
             pagination: { page, limit, total, pages: Math.ceil(total / limit) }
         });
     } catch (error) {
@@ -80,7 +146,9 @@ exports.getUserById = async (req, res) => {
             return sendError(res, 403, 'Access denied');
         }
 
-        return sendSuccess(res, 200, 'User fetched successfully', { user });
+        const shapedUser = shapeUserData(user);
+
+        return sendSuccess(res, 200, 'User fetched successfully', { user: shapedUser });
     } catch (error) {
         console.error('Get User By ID Error:', error);
         return sendError(res, 500, 'Failed to fetch user', error.message);

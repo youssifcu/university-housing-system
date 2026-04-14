@@ -162,6 +162,10 @@
           },
           "universityYear": {
             "type": "number"
+          },
+          "profilePicture": {
+            "type": "string",
+            "example": "/api/users/60c72b2f9b1d8b0015f606e7/profile-picture"
           }
         }
       },
@@ -762,6 +766,34 @@
         "responses": {
           "200": {
             "description": "Users retrieved"
+          }
+        }
+      }
+    },
+    "/api/users/{id}/profile-picture": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get User Profile Picture",
+        "description": "Returns the profile picture of the user as an image stream.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image file",
+            "content": {
+              "image/*": {}
+            }
+          },
+          "404": {
+            "description": "Profile picture not found"
           }
         }
       }
