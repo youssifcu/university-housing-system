@@ -47,14 +47,23 @@ exports.getAllBuildings = async (req, res) => {
             Building.countDocuments(filter)
         ]);
 
-        const formattedBuildings = buildings.map(b => ({
-            id: b._id,
-            name: b.name,
-            gender: b.gender,
-            floors: b.floors,
-            supervisor: b.supervisorId?.name || 'Not Assigned',
-            description: b.description
-        }));
+        const isStudent = req.userRole === 'student';
+
+        const formattedBuildings = buildings.map(b => {
+            const buildingObj = {
+                id: b._id,
+                name: b.name,
+                gender: b.gender,
+                description: b.description
+            };
+            
+            if (!isStudent) {
+                buildingObj.floors = b.floors;
+                buildingObj.supervisor = b.supervisorId?.name || 'Not Assigned';
+            }
+            
+            return buildingObj;
+        });
 
         return sendSuccess(res, 200, 'Buildings fetched successfully', {
             buildings: formattedBuildings,
@@ -92,49 +101,59 @@ exports.getBuildingById = async (req, res) => {
             return sendError(res, 404, 'Building not found');
         }
 
-        // حساب الإحصائيات باستخدام Aggregation Pipeline (أسرع من جلب كل الغرف)
-        const stats = await Room.aggregate([
-            { $match: { buildingId: building._id } },
-            {
-                $group: {
-                    _id: null,
-                    totalRooms: { $sum: 1 },
-                    availableRooms: {
-                        $sum: { $cond: [{ $eq: ['$status', 'available'] }, 1, 0] }
-                    },
-                    fullRooms: {
-                        $sum: { $cond: [{ $eq: ['$status', 'full'] }, 1, 0] }
-                    },
-                    totalCapacity: { $sum: '$capacity' },
-                    currentOccupantsCount: { $sum: { $size: '$currentOccupants' } }
+        const isStudent = req.userRole === 'student';
+        let buildingStats = null;
+
+        if (!isStudent) {
+            // حساب الإحصائيات باستخدام Aggregation Pipeline (أسرع من جلب كل الغرف)
+            const stats = await Room.aggregate([
+                { $match: { buildingId: building._id } },
+                {
+                    $group: {
+                        _id: null,
+                        totalRooms: { $sum: 1 },
+                        availableRooms: {
+                            $sum: { $cond: [{ $eq: ['$status', 'available'] }, 1, 0] }
+                        },
+                        fullRooms: {
+                            $sum: { $cond: [{ $eq: ['$status', 'full'] }, 1, 0] }
+                        },
+                        totalCapacity: { $sum: '$capacity' },
+                        currentOccupantsCount: { $sum: { $size: '$currentOccupants' } }
+                    }
                 }
-            }
-        ]);
+            ]);
 
-        const buildingStats = stats.length > 0 ? stats[0] : {
-            totalRooms: 0,
-            availableRooms: 0,
-            fullRooms: 0,
-            totalCapacity: 0,
-            currentOccupantsCount: 0
-        };
+            buildingStats = stats.length > 0 ? stats[0] : {
+                totalRooms: 0,
+                availableRooms: 0,
+                fullRooms: 0,
+                totalCapacity: 0,
+                currentOccupantsCount: 0
+            };
 
-        // حذف _id من الإحصائيات
-        delete buildingStats._id;
+            // حذف _id من الإحصائيات
+            delete buildingStats._id;
+        }
 
-        return sendSuccess(res, 200, 'Building fetched successfully', {
+        const responseData = {
             building: {
                 id: building._id,
                 name: building.name,
                 gender: building.gender,
-                floors: building.floors,
-                description: building.description,
-                supervisor: building.supervisorId || null,
-                createdAt: building.createdAt,
-                updatedAt: building.updatedAt
-            },
-            stats: buildingStats
-        });
+                description: building.description
+            }
+        };
+
+        if (!isStudent) {
+            responseData.building.floors = building.floors;
+            responseData.building.supervisor = building.supervisorId || null;
+            responseData.building.createdAt = building.createdAt;
+            responseData.building.updatedAt = building.updatedAt;
+            responseData.stats = buildingStats;
+        }
+
+        return sendSuccess(res, 200, 'Building fetched successfully', responseData);
 
     } catch (error) {
         console.error('Get Building By ID Error:', error);

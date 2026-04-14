@@ -248,6 +248,70 @@ exports.getMyReports = async (req, res) => {
 };
 
 // ==========================================
+// PUT /api/reports/:id (Student)
+// ==========================================
+exports.updateMyReport = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { type, description, imageUrls } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendError(res, 400, 'Invalid report ID format');
+        }
+
+        const report = await Report.findById(id);
+
+        if (!report) {
+            return sendError(res, 404, 'Report not found');
+        }
+
+        // 1. Check ownership
+        if (report.studentId.toString() !== req.userDoc._id.toString()) {
+            return sendError(res, 403, 'Access denied: You can only edit your own reports');
+        }
+
+        // 2. Check status
+        if (report.status !== 'open') {
+            return sendError(res, 400, 'Cannot edit report because it is no longer open');
+        }
+
+        // 3. Validate & Update fields
+        if (type) {
+            const MODEL_TYPES = ['maintenance', 'complaint', 'emergency', 'malfunction', 'other'];
+            if (!MODEL_TYPES.includes(type)) {
+                return sendError(res, 400, `Invalid type. Allowed: ${MODEL_TYPES.join(', ')}`);
+            }
+            report.type = type;
+        }
+
+        if (description !== undefined) {
+            if (!description.trim()) {
+                return sendError(res, 400, 'Description cannot be empty');
+            }
+            report.description = description.trim();
+        }
+
+        if (imageUrls !== undefined) {
+            report.imageUrls = imageUrls;
+        }
+
+        report.updatedAt = new Date();
+
+        await report.save();
+
+        return sendSuccess(res, 200, 'Report updated successfully', {
+            id: report._id,
+            type: report.type,
+            description: report.description
+        });
+
+    } catch (error) {
+        console.error('Update My Report Error:', error);
+        return sendError(res, 500, 'Failed to update report', error.message);
+    }
+};
+
+// ==========================================
 // DELETE /api/reports/:id (Admin/Supervisor)
 // ==========================================
 exports.deleteReport = async (req, res) => {

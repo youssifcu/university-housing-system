@@ -62,7 +62,7 @@ exports.getAllRooms = async (req, res) => {
                 capacity: room.capacity,
                 status: room.status,
                 building: room.buildingId
-                    ? { name: room.buildingId.name, gender: room.buildingId.gender }
+                    ? { id: room.buildingId._id, name: room.buildingId.name, gender: room.buildingId.gender }
                     : null,
                 amenities: room.amenities || []
             }));
@@ -98,23 +98,28 @@ exports.getAvailableRooms = async (req, res) => {
             .sort({ buildingId: 1, roomNumber: 1 })
             .lean();
 
-if (userRole === 'student') {
-    const shapedRooms = rooms.map(room => ({
-        id: room._id,
-        roomNumber: room.roomNumber,
-        floorNumber: room.floorNumber,
-        capacity: room.capacity,
-        building: room.buildingId
-            ? { name: room.buildingId.name, gender: room.buildingId.gender }
-            : null,
-    }));
-    return sendSuccess(res, 200, 'Available rooms fetched', {
-        rooms: shapedRooms,
-        count: shapedRooms.length
-    });
-}
+        if (userRole === 'student') {
+            const shapedRooms = rooms.map(room => ({
+                id: room._id,
+                roomNumber: room.roomNumber,
+                floorNumber: room.floorNumber,
+                capacity: room.capacity,
+                status: room.status,
+                amenities: room.amenities || [],
+                building: room.buildingId
+                    ? { id: room.buildingId._id, name: room.buildingId.name, gender: room.buildingId.gender }
+                    : null,
+            }));
+            return sendSuccess(res, 200, 'Available rooms fetched', {
+                rooms: shapedRooms,
+                count: shapedRooms.length
+            });
+        }
 
-
+        return sendSuccess(res, 200, 'Available rooms fetched', {
+            rooms,
+            count: rooms.length
+        });
     } catch (error) {
         console.error('Get Available Rooms Error:', error);
         return sendError(res, 500, 'Failed to fetch available rooms', error.message);
@@ -352,20 +357,49 @@ exports.getMyRoom = async (req, res) => {
 exports.getRoomsByBuilding = async (req, res) => {
     try {
         const { buildingId } = req.params;
+        const userRole = req.userDoc.role;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
 
+        let query = Room.find({ buildingId }).populate('buildingId', 'name gender');
+
+        if (userRole !== 'student') {
+            query = query.populate('currentOccupants', 'name email studentId');
+        }
+
         const [rooms, total] = await Promise.all([
-            Room.find({ buildingId })
-                .populate('buildingId', 'name gender')
-                .populate('currentOccupants', 'name email studentId')
-                .sort({ roomNumber: 1 })
-                .skip(skip)
-                .limit(limit)
-                .lean(),
+            query.sort({ roomNumber: 1 })
+                 .skip(skip)
+                 .limit(limit)
+                 .lean(),
             Room.countDocuments({ buildingId })
         ]);
+
+        if (userRole === 'student') {
+            const shapedRooms = rooms.map(room => ({
+                id: room._id,
+                roomNumber: room.roomNumber,
+                floorNumber: room.floorNumber,
+                capacity: room.capacity,
+                status: room.status,
+                amenities: room.amenities || [],
+                building: room.buildingId
+                    ? { id: room.buildingId._id, name: room.buildingId.name, gender: room.buildingId.gender }
+                    : null
+            }));
+
+            return sendSuccess(res, 200, 'Rooms fetched successfully', {
+                rooms: shapedRooms,
+                pagination: {
+                    currentPage: page,
+                    totalPages: Math.ceil(total / limit),
+                    totalRooms: total,
+                    hasNext: page * limit < total,
+                    hasPrev: page > 1
+                }
+            });
+        }
 
         return sendSuccess(res, 200, 'Rooms fetched successfully', {
             rooms,
@@ -403,32 +437,37 @@ exports.getRoomById = async (req, res) => {
                 populate: { path: 'supervisorId', select: 'name phoneNumber email' }
             });
 
-if (userRole === 'student') {
-    const shapedRoom = {
-        id: room._id,
-        roomNumber: room.roomNumber,
-        floorNumber: room.floorNumber,
-        capacity: room.capacity,
-        status: room.status,
-        building: room.buildingId
-            ? { 
-                name: room.buildingId.name,
-                gender: room.buildingId.gender,
-                supervisor: room.buildingId.supervisorId
-                    ? {
-                        name: room.buildingId.supervisorId.name,
-                        phoneNumber: room.buildingId.supervisorId.phoneNumber
-                    }
+        if (userRole !== 'student') {
+            query = query.populate('currentOccupants', 'name email studentId');
+        }
+
+        const room = await query.lean();
+
+        if (!room) {
+            return sendError(res, 404, 'Room not found');
+        }
+
+        if (userRole === 'student') {
+            const shapedRoom = {
+                id: room._id,
+                roomNumber: room.roomNumber,
+                floorNumber: room.floorNumber,
+                capacity: room.capacity,
+                status: room.status,
+                amenities: room.amenities || [],
+                building: room.buildingId
+                    ? { 
+                        id: room.buildingId._id,
+                        name: room.buildingId.name,
+                        gender: room.buildingId.gender
+                    } 
                     : null
-            } 
-            : null,
-        amenities: room.amenities || []
-    };
+            };
 
-    return sendSuccess(res, 200, 'Room details fetched successfully', { room: shapedRoom });
-}
+            return sendSuccess(res, 200, 'Room details fetched successfully', { room: shapedRoom });
+        }
 
-
+        return sendSuccess(res, 200, 'Room details fetched successfully', { room });
     } catch (error) {
         console.error('Get Room By ID Error:', error);
         if (error.name === 'CastError') {

@@ -31,6 +31,14 @@ router.get(
     reportController.getReportById
 );
 
+// تحديث بلاغ (للطالب)
+router.put(
+    '/:id',
+    verifyToken,
+    isStudent,
+    reportController.updateMyReport
+);
+
 // ==========================================
 // مسارات الإدارة (Admin/Supervisor)
 // ==========================================
