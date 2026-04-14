@@ -11,6 +11,7 @@ const upload = multer({
 });
 
 router.get('/:id/profile-picture', userController.getProfilePicture);
+router.get('/me/profile', verifyToken, userController.getUserProfile);
 
 router.get('/:id', verifyToken, userController.getUserById);
 
