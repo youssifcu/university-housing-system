@@ -1,25 +1,47 @@
-require('dotenv').config();
+const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
 const Announcement = require('./src/models/Announcement');
 
 async function test() {
+    let mongoServer;
     try {
-        await mongoose.connect(process.env.MONGODB_URI);
+        mongoServer = await MongoMemoryServer.create();
+        const uri = mongoServer.getUri();
+
+        await mongoose.connect(uri);
+
+        console.log('Connected to Memory Server');
+
+        // Simulate creating announcement exactly as in controller
+        const title = 'انا تعبان';
+        const content = 'عصياح كتير اوي';
+        const priority = 'low';
+        const targetRole = 'all';
+        const createdBy = new mongoose.Types.ObjectId();
+
         const announcement = await Announcement.create({
-            title: "انا تعبان",
-            content: "عصياح كتير اوي",
-            priority: "low",
-            targetRole: "all",
-            createdBy: "65d8a0c5c3e6a213e4b1a415", 
-            status: "active"
+            title: title.trim(),
+            content: content.trim(),
+            priority: priority || 'medium',
+            targetRole: targetRole || 'all',
+            createdBy: createdBy, 
+            status: 'active'
         });
-        console.log('Success', announcement);
-        process.exit(0);
-    } catch (e) {
-        console.log('NAME:', e.name);
-        console.log('MESSAGE:', e.message);
-        console.error(e);
-        process.exit(1);
+
+        console.log('Successfully created:', announcement);
+
+    } catch (error) {
+        console.error('ERROR NAME:', error.name);
+        console.error('ERROR MESSAGE:', error.message);
+        console.error('ERROR STACK:', error.stack);
+    } finally {
+        if (mongoose.connection) {
+            await mongoose.disconnect();
+        }
+        if (mongoServer) {
+            await mongoServer.stop();
+        }
+        process.exit();
     }
 }
 test();
