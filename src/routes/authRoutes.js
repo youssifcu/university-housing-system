@@ -3,6 +3,12 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const verifyToken = require('../middlewares/verifyFirebaseToken');
 const { isAdmin } = require('../middlewares/roleMiddleware');
+const multer = require('multer');
+
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }
+});
 
 // ==========================================
 // مسارات عامة (بدون توثيق)
