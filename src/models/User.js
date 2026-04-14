@@ -1,8 +1,5 @@
 const mongoose = require('mongoose');
 
-// ==========================================
-// Base Options & Schema
-// ==========================================
 const baseOptions = {
     discriminatorKey: 'role',
     collection: 'users',
@@ -39,7 +36,7 @@ const userSchema = new mongoose.Schema(
             match: [/^01[0-2,5]{1}[0-9]{8}$/, 'Please enter a valid Egyptian phone number']
         },
         profilePicture: {
-            data: { type: Buffer, select: false },
+            data: { type: String, select: false },
             contentType: String
         },
         role: {
@@ -58,9 +55,6 @@ const userSchema = new mongoose.Schema(
     baseOptions
 );
 
-// ==========================================
-// Instance Methods (لجميع المستخدمين)
-// ==========================================
 userSchema.methods.toProfileJSON = function() {
     return {
         id: this._id,
@@ -72,9 +66,6 @@ userSchema.methods.toProfileJSON = function() {
     };
 };
 
-// ==========================================
-// Static Methods
-// ==========================================
 userSchema.statics.findByRole = function(role) {
     return this.find({ role, isActive: true });
 };
@@ -85,9 +76,6 @@ userSchema.statics.findActiveUsers = function() {
 
 const User = mongoose.model('User', userSchema);
 
-// ==========================================
-// Student Schema (Discriminator)
-// ==========================================
 const studentSchema = new mongoose.Schema({
     studentId: {
         type: String,
@@ -168,21 +156,16 @@ const studentSchema = new mongoose.Schema({
     }
 });
 
-// Virtual for student's full academic info
 studentSchema.virtual('academicInfo').get(function() {
     return `${this.faculty} - Year ${this.universityYear}`;
 });
 
-// Static method to find active residents
 studentSchema.statics.findActiveResidents = function() {
     return this.find({ housingStatus: 'active', assignedRoomId: { $ne: null } });
 };
 
 const Student = User.discriminator('student', studentSchema);
 
-// ==========================================
-// Floor Admin Schema (Discriminator)
-// ==========================================
 const floorAdminSchema = new mongoose.Schema({
     floorNumber: {
         type: Number,
@@ -207,9 +190,6 @@ floorAdminSchema.virtual('shift').get(function() {
 
 const FloorAdmin = User.discriminator('floor_admin', floorAdminSchema);
 
-// ==========================================
-// Supervisor Schema (Discriminator)
-// ==========================================
 const supervisorSchema = new mongoose.Schema({
     supervisorType: {
         type: String,
@@ -231,9 +211,6 @@ const supervisorSchema = new mongoose.Schema({
 
 const Supervisor = User.discriminator('supervisor', supervisorSchema);
 
-// ==========================================
-// Admin Schema (Discriminator)
-// ==========================================
 const adminSchema = new mongoose.Schema({
     adminType: {
         type: String,
@@ -263,9 +240,6 @@ const adminSchema = new mongoose.Schema({
 
 const Admin = User.discriminator('admin', adminSchema);
 
-// ==========================================
-// Meal Admin Schema (Discriminator)
-// ==========================================
 const mealAdminSchema = new mongoose.Schema({
     mealAdminType: {
         type: String,
@@ -302,6 +276,7 @@ const mealAdminSchema = new mongoose.Schema({
 });
 
 const MealAdmin = User.discriminator('meal_admin', mealAdminSchema);
+
 userSchema.index({ role: 1, isActive: 1 });
 studentSchema.index({ housingStatus: 1, assignedRoomId: 1 });
 studentSchema.index({ faculty: 1, universityYear: 1 });
