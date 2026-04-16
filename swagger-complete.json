@@ -1456,21 +1456,26 @@
         }
       }
     },
-    "/api/attendance/checkin": {
+    "/api/attendance/scan": {
       "post": {
         "tags": ["Attendance"],
-        "summary": "Check In",
-        "description": "Check in using QR code (Student)",
+        "summary": "Scan Attendance QR",
+        "description": "Scan a student's QR code to record attendance (Supervisor/Admin only)",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["qrData"],
+                "required": ["qrCodeString"],
                 "properties": {
-                  "qrData": {
-                    "type": "string"
+                  "qrCodeString": {
+                    "type": "string",
+                    "description": "The scanned QR code string (student's user ID)"
+                  },
+                  "buildingId": {
+                    "type": "string",
+                    "description": "Optional: building ID where the scan is taking place. If omitted, assigned room's building is used."
                   }
                 }
               }
@@ -1478,40 +1483,19 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Check in successful"
+          "201": {
+            "description": "Attendance recorded successfully"
+          },
+          "400": {
+            "description": "Invalid QR code, or already recorded for today"
+          },
+          "404": {
+            "description": "Student not found"
           }
         }
       }
     },
-    "/api/attendance/checkout": {
-      "post": {
-        "tags": ["Attendance"],
-        "summary": "Check Out",
-        "description": "Check out using QR code (Student)",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["qrData"],
-                "properties": {
-                  "qrData": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Check out successful"
-          }
-        }
-      }
-    },
+
     "/api/attendance/my": {
       "get": {
         "tags": ["Attendance"],
