@@ -1769,29 +1769,6 @@
         }
       }
     },
-    "/api/meals/{id}/cancel": {
-      "post": {
-        "tags": [
-          "Meals"
-        ],
-        "summary": "Cancel Meal Booking",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Meal booking cancelled"
-          }
-        }
-      }
-    },
     "/api/attendance/scan": {
       "post": {
         "tags": [
@@ -2549,6 +2526,30 @@
         "responses": {
           "200": {
             "description": "QR code retrieved"
+          }
+        }
+      }
+    },
+    "/api/meals/book/{bookingId}": {
+      "delete": {
+        "tags": [
+          "Meals"
+        ],
+        "summary": "Cancel Meal Booking",
+        "description": "Cancel an active meal booking (Student only)",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Meal booking cancelled"
           }
         }
       }
