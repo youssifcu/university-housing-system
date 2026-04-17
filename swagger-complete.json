@@ -2740,6 +2740,405 @@
           }
         }
       }
+    },
+    "/api/auth/register-admin": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register Admin/Staff",
+        "description": "Register a new admin, supervisor, or staff (Admin only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "firebaseUid",
+                  "email",
+                  "name",
+                  "phoneNumber",
+                  "role"
+                ],
+                "properties": {
+                  "firebaseUid": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "phoneNumber": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "admin",
+                      "supervisor",
+                      "floor_admin",
+                      "meal_admin",
+                      "security"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Admin/Staff registered successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "409": {
+            "description": "User already exists"
+          }
+        }
+      }
+    },
+    "/api/users/me/profile": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get Current User Profile",
+        "description": "Get the profile details of the logged-in user",
+        "responses": {
+          "200": {
+            "description": "Profile retrieved"
+          }
+        }
+      }
+    },
+    "/api/users/profile/update": {
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update Current User Profile",
+        "description": "Update the logged-in user's profile information",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "phoneNumber": {
+                    "type": "string"
+                  },
+                  "profilePicture": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated"
+          }
+        }
+      }
+    },
+    "/api/rooms/my": {
+      "get": {
+        "tags": [
+          "Rooms"
+        ],
+        "summary": "Get My Room",
+        "description": "Fetch the room assigned to the logged-in student",
+        "responses": {
+          "200": {
+            "description": "Room data retrieved"
+          }
+        }
+      }
+    },
+    "/api/rooms/building/{buildingId}": {
+      "get": {
+        "tags": [
+          "Rooms"
+        ],
+        "summary": "Get Rooms By Building",
+        "description": "Fetch all rooms inside a specific building",
+        "parameters": [
+          {
+            "name": "buildingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rooms retrieved"
+          }
+        }
+      }
+    },
+    "/api/rooms/{id}/status": {
+      "patch": {
+        "tags": [
+          "Rooms"
+        ],
+        "summary": "Update Room Status",
+        "description": "Change a room status (available, maintenance, full)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "available",
+                      "maintenance",
+                      "full"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status updated"
+          }
+        }
+      }
+    },
+    "/api/rooms/{id}/assign": {
+      "patch": {
+        "tags": [
+          "Rooms"
+        ],
+        "summary": "Assign Student to Room",
+        "description": "Manually assign a student",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "studentId"
+                ],
+                "properties": {
+                  "studentId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Student assigned"
+          }
+        }
+      }
+    },
+    "/api/rooms/{id}/remove": {
+      "patch": {
+        "tags": [
+          "Rooms"
+        ],
+        "summary": "Remove Student from Room",
+        "description": "Manually remove a student",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "studentId"
+                ],
+                "properties": {
+                  "studentId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Student removed"
+          }
+        }
+      }
+    },
+    "/api/rooms/auto-assign/{studentId}": {
+      "post": {
+        "tags": [
+          "Rooms"
+        ],
+        "summary": "Auto Assign Room",
+        "description": "Automatically find and assign an available room",
+        "parameters": [
+          {
+            "name": "studentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Student auto-assigned"
+          }
+        }
+      }
+    },
+    "/api/attendance/student/{studentId}": {
+      "get": {
+        "tags": [
+          "Attendance"
+        ],
+        "summary": "Get Student Attendance",
+        "description": "Fetch attendance records for a specific student (Admin/Supervisor Only)",
+        "parameters": [
+          {
+            "name": "studentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attendance records retrieved"
+          }
+        }
+      }
+    },
+    "/api/attendance/building/{buildingId}": {
+      "get": {
+        "tags": [
+          "Attendance"
+        ],
+        "summary": "Get Building Attendance",
+        "description": "Fetch attendance records for a whole building (Admin/Supervisor Only)",
+        "parameters": [
+          {
+            "name": "buildingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attendance records retrieved"
+          }
+        }
+      }
+    },
+    "/api/attendance/{id}": {
+      "patch": {
+        "tags": [
+          "Attendance"
+        ],
+        "summary": "Update Attendance Record",
+        "description": "Manually update an attendance record status (Admin Only)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "present",
+                      "absent",
+                      "excused",
+                      "late"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Attendance record updated"
+          }
+        }
+      }
     }
   }
 }
