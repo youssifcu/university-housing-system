@@ -90,6 +90,9 @@ exports.registerUser = async (req, res) => {
 // ==========================================
 exports.loginUser = async (req, res) => {
     try {
+        if (!req.body) {
+            return sendError(res, 400, 'Request body is missing');
+        }
         const { firebaseUid } = req.body;
 
         if (!firebaseUid) {

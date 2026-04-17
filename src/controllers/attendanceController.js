@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Attendance = require('../models/Attendance');
 const Room = require('../models/Room');
-const { User } = require('../models/User');
+const { User, Student } = require('../models/User');
 
 // Helpers للتنسيق الموحد
 const sendSuccess = (res, statusCode, message, data = null) => {
@@ -37,8 +37,8 @@ exports.scanAttendance = async (req, res) => {
             return sendError(res, 400, 'Invalid QR Code format');
         }
 
-        // 2. البحث عن الطالب بالـ ID مباشرة (نستخدم .lean() لأننا مش هنعدل)
-        const student = await User.findOne({
+        // 2. البحث عن الطالب بالـ ID مباشرة
+        const student = await Student.findOne({
             _id: qrCodeString,
             role: 'student'
         })
@@ -99,8 +99,9 @@ exports.scanAttendance = async (req, res) => {
         const attendance = await Attendance.create({
             studentId: student._id,
             buildingId: effectiveBuildingId,
-            date: today,
+            date: startOfDay, // Use start of day for easier daily querying
             status: 'present',
+            scannedQRCode: qrCodeString,
             recordedBy: req.userDoc._id
         });
 

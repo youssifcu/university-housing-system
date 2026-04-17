@@ -2,19 +2,20 @@ const mongoose = require('mongoose');
 
 const AttendanceSchema = new mongoose.Schema({
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  buildingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Building' },
   recordedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
   attendanceType: {
     type: String,
-    enum: ['morning', 'evening', 'meal'],
-    required: true
+    enum: ['morning', 'evening', 'meal', 'general'],
+    default: 'general'
   },
 
   scannedQRCode: { type: String },
-  status: { type: String, enum: ['present', 'absent', 'excused'], default: 'present' },
+  status: { type: String, enum: ['present', 'absent', 'excused', 'late'], default: 'present' },
 
-  timestamp: { type: Date, default: Date.now },
   date: { type: Date, required: true },
+  timestamp: { type: Date, default: Date.now },
 
   notes: { type: String },
   wasOnLeave: { type: Boolean, default: false }
