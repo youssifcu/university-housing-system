@@ -467,9 +467,10 @@
             "description": "User created"
           }
         }
-      },
-      "/api/auth/login": {
-        "post": {
+      }
+    },
+    "/api/auth/login": {
+      "post": {
           "tags": [
             "Auth"
           ],
@@ -511,8 +512,9 @@
             }
           }
         }
-      },
-      "/api/auth/profile": {
+      }
+    },
+    "/api/auth/profile": {
         "get": {
           "tags": [
             "Auth"
@@ -573,11 +575,11 @@
           "responses": {
             "200": {
               "description": "Profile updated successfully"
-            }
           }
         }
-      },
-      "/api/auth/password": {
+      }
+    },
+    "/api/auth/password": {
         "patch": {
           "tags": [
             "Auth"
@@ -609,11 +611,11 @@
           "responses": {
             "200": {
               "description": "Password changed successfully"
-            }
           }
         }
-      },
-      "/api/applications": {
+      }
+    },
+    "/api/applications": {
         "post": {
           "tags": [
             "Applications"
