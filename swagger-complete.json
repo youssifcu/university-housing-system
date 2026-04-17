@@ -1228,10 +1228,31 @@
                 "type": "object",
                 "properties": {
                   "name": {
+                    "type": "string",
+                    "example": "Building A"
+                  },
+                  "gender": {
+                    "type": "string",
+                    "enum": [
+                      "male",
+                      "female"
+                    ]
+                  },
+                  "floors": {
+                    "type": "number",
+                    "minimum": 1
+                  },
+                  "grade": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "description": {
                     "type": "string"
                   },
-                  "location": {
-                    "type": "string"
+                  "supervisorId": {
+                    "type": "string",
+                    "description": "ID of the supervisor assigned to this building"
                   }
                 }
               }
