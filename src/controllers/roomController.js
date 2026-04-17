@@ -486,7 +486,7 @@ exports.updateRoom = async (req, res) => {
         const updates = req.body;
 
         // الحقول المسموح بتحديثها
-        const allowedFields = ['roomNumber', 'floorNumber', 'capacity', 'facilities', 'monthlyRent'];
+        const allowedFields = ['roomNumber', 'floorNumber', 'capacity', 'amenities'];
         const filteredUpdates = {};
 
         for (const field of allowedFields) {

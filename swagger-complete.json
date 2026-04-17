@@ -1364,6 +1364,21 @@
                   },
                   "capacity": {
                     "type": "number"
+                  },
+                  "amenities": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "isWorking": {
+                          "type": "boolean",
+                          "default": true
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -1446,14 +1461,76 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "roomNumber": {
+                    "type": "string"
+                  },
+                  "floorNumber": {
+                    "type": "number"
+                  },
                   "capacity": {
                     "type": "number"
                   },
-                  "status": {
-                    "type": "string"
-                  },
                   "amenities": {
-                    "type": "array"
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "isWorking": {
+                          "type": "boolean",
+                          "default": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Room updated"
+        }
+      }
+    },
+    "/api/rooms/{id}/status": {
+      "patch": {
+        "tags": [
+          "Rooms"
+        ],
+        "summary": "Update Room Status",
+        "description": "Change a room status (available, maintenance, full)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "available",
+                      "maintenance",
+                      "full"
+                    ]
                   }
                 }
               }
@@ -1462,7 +1539,7 @@
         },
         "responses": {
           "200": {
-            "description": "Room updated"
+            "description": "Status updated"
           }
         }
       }
@@ -2901,53 +2978,6 @@
         "responses": {
           "200": {
             "description": "Rooms retrieved"
-          }
-        }
-      }
-    },
-    "/api/rooms/{id}/status": {
-      "patch": {
-        "tags": [
-          "Rooms"
-        ],
-        "summary": "Update Room Status",
-        "description": "Change a room status (available, maintenance, full)",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "status"
-                ],
-                "properties": {
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "available",
-                      "maintenance",
-                      "full"
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Status updated"
           }
         }
       }
