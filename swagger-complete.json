@@ -333,7 +333,6 @@
                 "type": "object",
                 "required": [
                   "email",
-                  "password",
                   "name",
                   "firebaseUid",
                   "studentId",
@@ -345,10 +344,6 @@
                   "email": {
                     "type": "string",
                     "example": "student@university.edu"
-                  },
-                  "password": {
-                    "type": "string",
-                    "example": "Password123!"
                   },
                   "name": {
                     "type": "string",
@@ -414,6 +409,65 @@
         }
       }
     },
+    "/api/auth/register-admin": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register Admin/Supervisor",
+        "description": "Create a new administrative user (Admin only)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "firebaseUid",
+                  "email",
+                  "name",
+                  "phoneNumber",
+                  "role"
+                ],
+                "properties": {
+                  "firebaseUid": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "phoneNumber": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "admin",
+                      "supervisor",
+                      "floor_admin",
+                      "meal_admin",
+                      "security"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created"
+          }
+        }
+      },
     "/api/auth/login": {
       "post": {
         "tags": [
