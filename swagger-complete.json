@@ -419,8 +419,8 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Login User",
-        "description": "Login with email and password",
+        "summary": "Login / Fetch User Profile",
+        "description": "Retrieve user profile using Firebase UID after frontend authentication",
         "security": [],
         "requestBody": {
           "required": true,
@@ -429,15 +429,12 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "email",
-                  "password"
+                  "firebaseUid"
                 ],
                 "properties": {
-                  "email": {
-                    "type": "string"
-                  },
-                  "password": {
-                    "type": "string"
+                  "firebaseUid": {
+                    "type": "string",
+                    "example": "test_uid_12345"
                   }
                 }
               }
