@@ -1700,20 +1700,12 @@
                 "type": "object",
                 "required": [
                   "name",
-                  "type",
+                  "mealType",
                   "date"
                 ],
                 "properties": {
                   "name": {
                     "type": "string"
-                  },
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "breakfast",
-                      "lunch",
-                      "dinner"
-                    ]
                   },
                   "date": {
                     "type": "string",
@@ -1722,7 +1714,15 @@
                   "description": {
                     "type": "string"
                   },
-                  "nutritionInfo": {
+                  "mealType": {
+                    "type": "string",
+                    "enum": [
+                      "breakfast",
+                      "lunch",
+                      "dinner"
+                    ]
+                  },
+                  "nutritionalInfo": {
                     "type": "object"
                   }
                 }
@@ -2503,29 +2503,6 @@
         "responses": {
           "200": {
             "description": "Student profile retrieved"
-          }
-        }
-      }
-    },
-    "/api/students/{id}/qr": {
-      "get": {
-        "tags": [
-          "QR Codes"
-        ],
-        "summary": "Get Student QR Code",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "QR code retrieved"
           }
         }
       }
