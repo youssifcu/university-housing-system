@@ -1,5 +1,5 @@
 const QRCode = require('qrcode');
-const { User } = require('../models/User');
+const { User, Student } = require('../models/User');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 
@@ -56,7 +56,7 @@ exports.generateStudentQRCodes = async (req, res) => {
         ]);
 
         // تحديث الطالب
-        const updatedUser = await User.findByIdAndUpdate(
+        const updatedUser = await Student.findByIdAndUpdate(
             studentId,
             {
                 $set: {
@@ -67,7 +67,7 @@ exports.generateStudentQRCodes = async (req, res) => {
                     'qrCode.generatedAt': new Date()
                 }
             },
-            { new: true }
+            { returnDocument: 'after' }
         ).select('qrCode');
 
         return sendSuccess(res, 200, 'QR codes generated successfully', {
@@ -95,7 +95,7 @@ exports.generateStudentQRCodes = async (req, res) => {
 // ==========================================
 exports.getStudentQRCodes = async (req, res) => {
     try {
-        const student = await User.findById(req.userDoc._id)
+        const student = await Student.findById(req.userDoc._id)
             .select('qrCode')
             .lean();
 
@@ -136,7 +136,7 @@ exports.refreshStudentQRCodes = async (req, res) => {
             QRCode.toDataURL(userIdString, QR_OPTIONS)
         ]);
 
-        await User.findByIdAndUpdate(studentId, {
+        await Student.findByIdAndUpdate(studentId, {
             $set: {
                 'qrCode.attendanceCode': userIdString,
                 'qrCode.attendanceQR': attendanceQR,
@@ -180,7 +180,7 @@ exports.verifyQRCode = async (req, res) => {
         }
 
         // البحث عن الطالب بالـ ID مباشرة
-        const student = await User.findOne({
+        const student = await Student.findOne({
             _id: code,
             role: 'student'
         }).select('_id name studentId housingStatus').lean();
