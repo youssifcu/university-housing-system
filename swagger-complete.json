@@ -2616,6 +2616,130 @@
           }
         }
       }
+    },
+    "/api/meals/today": {
+      "get": {
+        "tags": [
+          "Meals"
+        ],
+        "summary": "Get Today's Meals",
+        "description": "Fetch available meals for today",
+        "responses": {
+          "200": {
+            "description": "Meals retrieved"
+          }
+        }
+      }
+    },
+    "/api/meals/week": {
+      "get": {
+        "tags": [
+          "Meals"
+        ],
+        "summary": "Get Weekly Meal Menu",
+        "description": "Fetch the meal menu for the week",
+        "responses": {
+          "200": {
+            "description": "Weekly menu retrieved"
+          }
+        }
+      }
+    },
+    "/api/meals/my-bookings": {
+      "get": {
+        "tags": [
+          "Meals"
+        ],
+        "summary": "Get My Meal Bookings",
+        "description": "Fetch current student's meal bookings",
+        "responses": {
+          "200": {
+            "description": "Bookings retrieved"
+          }
+        }
+      }
+    },
+    "/api/meals/scan": {
+      "post": {
+        "tags": [
+          "Meals"
+        ],
+        "summary": "Scan Student QR for Meal",
+        "description": "Scan QR to serve a booked meal (Admin/Meal Admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "qrCodeString",
+                  "mealId"
+                ],
+                "properties": {
+                  "qrCodeString": {
+                    "type": "string"
+                  },
+                  "mealId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Meal served"
+          }
+        }
+      }
+    },
+    "/api/meals/{id}": {
+      "put": {
+        "tags": [
+          "Meals"
+        ],
+        "summary": "Update Meal",
+        "description": "Update meal details (Admin/Meal Admin)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Meal updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Meals"
+        ],
+        "summary": "Delete Meal",
+        "description": "Remove a meal (Admin/Meal Admin)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Meal deleted"
+          }
+        }
+      }
     }
   }
 }
