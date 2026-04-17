@@ -2530,6 +2530,92 @@
           }
         }
       }
+    },
+    "/api/qr/generate": {
+      "post": {
+        "tags": [
+          "QR Codes"
+        ],
+        "summary": "Generate My QR Codes",
+        "description": "Generate QR codes for attendance and meals (Student only)",
+        "responses": {
+          "200": {
+            "description": "QR codes generated successfully"
+          }
+        }
+      }
+    },
+    "/api/qr/refresh": {
+      "post": {
+        "tags": [
+          "QR Codes"
+        ],
+        "summary": "Refresh My QR Codes",
+        "description": "Generate new QR codes and deactivate old ones (Student only)",
+        "responses": {
+          "200": {
+            "description": "QR codes refreshed successfully"
+          }
+        }
+      }
+    },
+    "/api/qr/my": {
+      "get": {
+        "tags": [
+          "QR Codes"
+        ],
+        "summary": "Get My QR Codes",
+        "description": "Retrieve current QR codes for attendance and meals (Student only)",
+        "responses": {
+          "200": {
+            "description": "QR codes retrieved"
+          }
+        }
+      }
+    },
+    "/api/qr/verify": {
+      "get": {
+        "tags": [
+          "QR Codes"
+        ],
+        "summary": "Verify a QR Code",
+        "description": "Verify a scanned QR code (Admin/Supervisor only)",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The scanned QR code string"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "attendance",
+                "meal"
+              ]
+            },
+            "description": "Type of QR"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "QR code is valid"
+          },
+          "400": {
+            "description": "Invalid code or type"
+          },
+          "404": {
+            "description": "Invalid QR code or student not found"
+          }
+        }
+      }
     }
   }
 }
