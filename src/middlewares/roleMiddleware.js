@@ -5,6 +5,7 @@ const {
     isSupervisor,
     isFloorAdmin,
     isMealAdmin,
+    isAdminOrMealAdmin,
     isAdminOrSupervisor,
     isAdminOrSupervisorOrFloorAdmin,
     checkStudentApproval
@@ -17,6 +18,7 @@ module.exports = {
     isSupervisor,
     isFloorAdmin,
     isMealAdmin,
+    isAdminOrMealAdmin,
     isAdminOrSupervisor,
     isAdminOrSupervisorOrFloorAdmin,
     checkStudentApproval

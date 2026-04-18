@@ -52,6 +52,7 @@ const isAdmin = verifyRole(['admin']);
 const isSupervisor = verifyRole(['supervisor']);
 const isFloorAdmin = verifyRole(['floor_admin']);
 const isMealAdmin = verifyRole(['meal_admin']);
+const isAdminOrMealAdmin = verifyRole(['admin', 'meal_admin']);
 const isAdminOrSupervisor = verifyRole(['admin', 'supervisor']);
 const isAdminOrSupervisorOrFloorAdmin = verifyRole(['admin', 'supervisor', 'floor_admin']);
 
@@ -62,6 +63,7 @@ module.exports = {
     isSupervisor,
     isFloorAdmin,
     isMealAdmin,
+    isAdminOrMealAdmin,
     isAdminOrSupervisor,
     checkStudentApproval,
     isAdminOrSupervisorOrFloorAdmin 

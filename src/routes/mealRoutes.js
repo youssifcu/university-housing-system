@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mealController = require('../controllers/mealController');
 const verifyToken = require('../middlewares/verifyFirebaseToken');
-const { isAdmin, isMealAdmin, isStudent, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
+const { isAdmin, isMealAdmin, isAdminOrMealAdmin, isStudent, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
 
 // ==========================================
 // مسارات عامة (للمستخدمين المسجلين)
@@ -62,7 +62,7 @@ router.delete(
 router.post(
     '/scan',
     verifyToken,
-    isMealAdmin,
+    isAdminOrMealAdmin,
     mealController.scanMeal
 );
 
@@ -70,7 +70,7 @@ router.post(
 router.post(
     '/',
     verifyToken,
-    isMealAdmin,
+    isAdminOrMealAdmin,
     mealController.createMeal
 );
 
@@ -78,7 +78,7 @@ router.post(
 router.put(
     '/:id',
     verifyToken,
-    isMealAdmin,
+    isAdminOrMealAdmin,
     mealController.updateMeal
 );
 
@@ -86,7 +86,7 @@ router.put(
 router.delete(
     '/:id',
     verifyToken,
-    isMealAdmin,
+    isAdminOrMealAdmin,
     mealController.deleteMeal
 );
 
