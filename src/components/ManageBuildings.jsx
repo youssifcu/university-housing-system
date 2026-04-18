@@ -1,21 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import '../styles/ManageBuildings.css';     
+import { getAllBuildings, getBuildingById, createBuilding, updateBuilding, deleteBuilding } from '../services/buildingService';
+import '../styles/ManageBuildings.css';
 
 const ManageBuildings = () => {
   const [buildings, setBuildings] = useState([]);
   const [showBuildingModal, setShowBuildingModal] = useState(false);
   const [isEditingBuilding, setIsEditingBuilding] = useState(false);
-  const [buildingForm, setBuildingForm] = useState({ id: '', name: '', gender: 'male', floors: 1, description: '' });
+  const [buildingForm, setBuildingForm] = useState({
+    id: '',
+    name: '',
+    gender: 'male',
+    floors: 1,
+    grade: 0,
+    description: '',
+    supervisorId: '',
+    location: {
+      type: 'Point',
+      coordinates: [31.2357, 30.0444]
+    }
+  });
+  const [loading, setLoading] = useState(true);
+
+  const normalizeBuilding = (building) => ({
+    ...building,
+    id: building?.id || building?._id || '',
+  });
 
   useEffect(() => {
-    loadMockBuildings();
+    loadBuildings();
   }, []);
 
-  const loadMockBuildings = () => {
-    setBuildings([
-      { id: 'bld-1', name: 'Block A (Engineering)', gender: 'male', floors: 5, description: 'Main building for senior engineering students.' },
-      { id: 'bld-2', name: 'Block B (Medical)', gender: 'female', floors: 4, description: 'Close to the medical campus.' }
-    ]);
+  const loadBuildings = async () => {
+    try {
+      setLoading(true);
+      const buildingsData = await getAllBuildings();
+      setBuildings((Array.isArray(buildingsData) ? buildingsData : []).map(normalizeBuilding));
+    } catch (error) {
+      console.error('Error loading buildings:', error);
+      alert('Error loading buildings: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBuildingChange = (e) => {
@@ -25,35 +50,110 @@ const ManageBuildings = () => {
 
   const handleOpenAddBuilding = () => {
     setIsEditingBuilding(false);
-    setBuildingForm({ id: '', name: '', gender: 'male', floors: 1, description: '' });
+    setBuildingForm({
+      id: '',
+      name: '',
+      gender: 'male',
+      floors: 1,
+      grade: 0,
+      description: '',
+      supervisorId: '',
+      location: {
+        type: 'Point',
+        coordinates: [31.2357, 30.0444]
+      }
+    });
     setShowBuildingModal(true);
   };
 
-  const handleOpenEditBuilding = (bld) => {
-    setIsEditingBuilding(true);
-    setBuildingForm({ ...bld });
-    setShowBuildingModal(true);
+  const handleOpenEditBuilding = async (bld) => {
+    try {
+      const buildingId = bld.id || bld._id;
+      const fullBuilding = await getBuildingById(buildingId);
+
+      setIsEditingBuilding(true);
+      setBuildingForm({
+        id: buildingId || '',
+        name: fullBuilding?.name || bld.name || '',
+        gender: fullBuilding?.gender || bld.gender || 'male',
+        floors: fullBuilding?.floors || bld.floors || 1,
+        grade: fullBuilding?.grade || 0,
+        description: fullBuilding?.description || '',
+        supervisorId: fullBuilding?.supervisorId || '',
+        location: {
+          type: 'Point',
+          coordinates: [31.2357, 30.0444]
+        }
+      });
+      setShowBuildingModal(true);
+    } catch (error) {
+      console.error('Error loading building details:', error);
+      alert('Error loading building details: ' + error.message);
+    }
   };
 
-  const handleSaveBuilding = (e) => {
+  const handleSaveBuilding = async (e) => {
     e.preventDefault();
-    if (isEditingBuilding) {
-      setBuildings(buildings.map(b => b.id === buildingForm.id ? buildingForm : b));
-      alert('Building updated successfully!');
-    } else {
-      const newBld = { ...buildingForm, id: `bld-${Date.now()}` };
-      setBuildings([...buildings, newBld]);
-      alert('Building added successfully!');
+    try {
+      if (isEditingBuilding) {
+        const updatedBuilding = await updateBuilding(buildingForm.id, {
+          name: buildingForm.name,
+          gender: buildingForm.gender,
+          floors: parseInt(buildingForm.floors),
+          grade: buildingForm.grade,
+          description: buildingForm.description,
+          supervisorId: buildingForm.supervisorId
+        });
+        setBuildings((prev) =>
+          prev.map((building) =>
+            building.id === buildingForm.id
+              ? normalizeBuilding({ ...building, ...updatedBuilding })
+              : building
+          )
+        );
+        alert('Building updated successfully!');
+      } else {
+        const createdBuilding = await createBuilding({
+          name: buildingForm.name,
+          gender: buildingForm.gender,
+          floors: parseInt(buildingForm.floors),
+          grade: parseInt(buildingForm.grade),
+          description: buildingForm.description,
+          supervisorId: buildingForm.supervisorId,
+          location: {
+            type: 'Point',
+            coordinates: [
+              Number(buildingForm.location.coordinates[0]),
+              Number(buildingForm.location.coordinates[1]),
+            ]
+          }
+        });
+        setBuildings((prev) => [...prev, normalizeBuilding(createdBuilding)]);
+        alert('Building added successfully!');
+      }
+      setShowBuildingModal(false);
+    } catch (error) {
+      console.error('Error saving building:', error);
+      alert('Error saving building: ' + error.message);
     }
-    setShowBuildingModal(false);
   };
 
-  const handleDeleteBuilding = (id) => {
+  const handleDeleteBuilding = async (id) => {
     if (window.confirm('Are you sure you want to delete this building?')) {
-      setBuildings(buildings.filter(b => b.id !== id));
-      alert('Building deleted!');
+      try {
+        await deleteBuilding(id);
+        setBuildings((prev) => prev.filter((building) => building.id !== id));
+        alert('Building deleted!');
+      } catch (error) {
+        console.error('Error deleting building:', error);
+        alert('Error deleting building: ' + error.message);
+      }
     }
   };
+
+  if (loading) {
+    return <div className="admin-section"><div className="loading-state">Loading buildings...</div></div>;
+  }
 
   return (
     <div className="admin-section">
@@ -66,22 +166,23 @@ const ManageBuildings = () => {
         </div>
         <div className="buildings-grid">
           {buildings.map(bld => (
-            <div key={bld.id} className="building-card">
+            <div key={bld.id || bld._id} className="building-card">
               <div className="building-header">
                 <h3>{bld.name}</h3>
                 <span className={`gender-badge ${bld.gender}`}>{bld.gender}</span>
               </div>
               <div className="building-body">
+                <p><strong>ID:</strong> {bld.id || bld._id || 'N/A'}</p>
                 <p><strong>Floors:</strong> {bld.floors}</p>
-                <p className="building-desc">{bld.description || 'No description provided.'}</p>
+                <p><strong>Supervisor:</strong> {bld.supervisor || 'Not Assigned'}</p>
               </div>
               <div className="building-footer">
                 <button className="btn-icon edit" onClick={() => handleOpenEditBuilding(bld)}>Edit</button>
-                <button className="btn-icon delete" onClick={() => handleDeleteBuilding(bld.id)}>Delete</button>
+                <button className="btn-icon delete" onClick={() => handleDeleteBuilding(bld.id || bld._id)}>Delete</button>
               </div>
             </div>
           ))}
-          {buildings.length === 0 && <div style={{padding: '2rem', textAlign: 'center'}}>No buildings found.</div>}
+          {buildings.length === 0 && <div style={{ padding: '2rem', textAlign: 'center' }}>No buildings found.</div>}
         </div>
       </div>
 
@@ -97,7 +198,7 @@ const ManageBuildings = () => {
                 <label>Building Name</label>
                 <input type="text" name="name" value={buildingForm.name} onChange={handleBuildingChange} required className="form-input" placeholder="e.g. Block A" />
               </div>
-              
+
               <div className="form-group-row">
                 <div className="form-group">
                   <label>Gender</label>
@@ -109,6 +210,17 @@ const ManageBuildings = () => {
                 <div className="form-group">
                   <label>Total Floors</label>
                   <input type="number" name="floors" value={buildingForm.floors} onChange={handleBuildingChange} required min="1" className="form-input" />
+                </div>
+              </div>
+
+              <div className="form-group-row">
+                <div className="form-group">
+                  <label>Grade</label>
+                  <input type="number" name="grade" value={buildingForm.grade} onChange={handleBuildingChange} min="0" className="form-input" />
+                </div>
+                <div className="form-group">
+                  <label>Supervisor ID</label>
+                  <input type="text" name="supervisorId" value={buildingForm.supervisorId} onChange={handleBuildingChange} className="form-input" placeholder="Supervisor user id" />
                 </div>
               </div>
 

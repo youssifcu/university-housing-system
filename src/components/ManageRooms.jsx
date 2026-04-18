@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { getAllBuildings } from '../services/buildingService';
+import { createRoom, getAllRooms, getRoomById, updateRoom, deleteRoom, assignStudentToRoom, removeStudentFromRoom, updateRoomStatus } from '../services/roomService';
 import '../styles/ManageRooms.css';
 
 const ManageRooms = () => {
   const [rooms, setRooms] = useState([]);
-  const [buildings, setBuildings] = useState([]); // Needed for the dropdown
+  const [buildings, setBuildings] = useState([]);
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   const [roomForm, setRoomForm] = useState({
     id: '',
@@ -13,28 +16,39 @@ const ManageRooms = () => {
     floorNumber: 1,
     roomNumber: '',
     capacity: 2,
-    currentOccupancy: 0,
-    status: 'available'
+    amenities: [{ name: '', isWorking: true }]
   });
 
   useEffect(() => {
-    loadMockData();
+    loadData();
   }, []);
 
-  const loadMockData = () => {
-    // Mock buildings for the dropdown
-    const mockBuildings = [
-      { id: 'bld-1', name: 'Block A (Engineering)' },
-      { id: 'bld-2', name: 'Block B (Medical)' }
-    ];
-    setBuildings(mockBuildings);
-
-    // Mock rooms
-    setRooms([
-      { id: 'rm-1', buildingId: 'bld-1', buildingName: 'Block A', floorNumber: 1, roomNumber: '101A', capacity: 4, currentOccupancy: 2, status: 'available' },
-      { id: 'rm-2', buildingId: 'bld-1', buildingName: 'Block A', floorNumber: 2, roomNumber: '205B', capacity: 2, currentOccupancy: 2, status: 'full' },
-      { id: 'rm-3', buildingId: 'bld-2', buildingName: 'Block B', floorNumber: 1, roomNumber: '102', capacity: 3, currentOccupancy: 0, status: 'maintenance' }
-    ]);
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [roomsData, buildingsData] = await Promise.all([
+        getAllRooms(),
+        getAllBuildings()
+      ]);
+      
+      // Enrich rooms with building names
+      const enrichedRooms = roomsData.map(room => {
+        const building = buildingsData.find(b => (b.id || b._id) === room.buildingId);
+        return {
+          ...room,
+          id: room.id || room._id,
+          buildingName: building ? building.name : 'Unknown'
+        };
+      });
+      
+      setRooms(enrichedRooms);
+      setBuildings(buildingsData);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      alert('Error loading data: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFormChange = (e) => {
@@ -42,71 +56,132 @@ const ManageRooms = () => {
     setRoomForm(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleAmenityChange = (index, field, value) => {
+    setRoomForm((prev) => ({
+      ...prev,
+      amenities: prev.amenities.map((amenity, amenityIndex) =>
+        amenityIndex === index ? { ...amenity, [field]: value } : amenity
+      ),
+    }));
+  };
+
+  const handleAddAmenity = () => {
+    setRoomForm((prev) => ({
+      ...prev,
+      amenities: [...prev.amenities, { name: '', isWorking: true }],
+    }));
+  };
+
+  const handleRemoveAmenity = (index) => {
+    setRoomForm((prev) => ({
+      ...prev,
+      amenities: prev.amenities.filter((_, amenityIndex) => amenityIndex !== index),
+    }));
+  };
+
   const handleOpenAdd = () => {
     setIsEditing(false);
-    setRoomForm({ id: '', buildingId: buildings[0]?.id || '', floorNumber: 1, roomNumber: '', capacity: 2, currentOccupancy: 0, status: 'available' });
+    setRoomForm({
+      id: '',
+      buildingId: buildings[0]?.id || buildings[0]?._id || '',
+      floorNumber: 1,
+      roomNumber: '',
+      capacity: 2,
+      amenities: [{ name: '', isWorking: true }]
+    });
     setShowRoomModal(true);
   };
 
-  const handleOpenEdit = (room) => {
-    setIsEditing(true);
-    setRoomForm({ ...room });
-    setShowRoomModal(true);
-  };
+  const handleOpenEdit = async (room) => {
+    try {
+      const roomId = room.id || room._id;
+      const fullRoom = await getRoomById(roomId);
 
-  const handleSaveRoom = (e) => {
-    e.preventDefault();
-    const selectedBuilding = buildings.find(b => b.id === roomForm.buildingId);
-    
-    if (isEditing) {
-      setRooms(rooms.map(r => r.id === roomForm.id ? { ...roomForm, buildingName: selectedBuilding?.name || 'Unknown' } : r));
-      alert('Room updated successfully (Mock)!');
-    } else {
-      const newRoom = { ...roomForm, id: `rm-${Date.now()}`, buildingName: selectedBuilding?.name || 'Unknown' };
-      setRooms([...rooms, newRoom]);
-      alert('Room added successfully (Mock)!');
+      setIsEditing(true);
+      setRoomForm({
+        id: fullRoom?._id || roomId || '',
+        buildingId: fullRoom?.buildingId?._id || fullRoom?.buildingId || room.buildingId || '',
+        floorNumber: fullRoom?.floorNumber || 1,
+        roomNumber: fullRoom?.roomNumber || '',
+        capacity: fullRoom?.capacity || 2,
+        amenities: fullRoom?.amenities?.length ? fullRoom.amenities : [{ name: '', isWorking: true }],
+        status: fullRoom?.status || 'available'
+      });
+      setShowRoomModal(true);
+    } catch (error) {
+      console.error('Error loading room details:', error);
+      alert('Error loading room details: ' + error.message);
     }
-    setShowRoomModal(false);
   };
 
-  // Maps to PATCH /api/rooms/:id/assign
-  const handleAssignStudent = (roomId) => {
-    setRooms(rooms.map(room => {
-      if (room.id === roomId) {
-        if (room.currentOccupancy >= room.capacity) {
-          alert("Room is already full!");
-          return room;
-        }
-        const newOccupancy = room.currentOccupancy + 1;
-        return { 
-          ...room, 
-          currentOccupancy: newOccupancy,
-          status: newOccupancy >= room.capacity ? 'full' : room.status
-        };
+  const handleSaveRoom = async (e) => {
+    e.preventDefault();
+    try {
+      const roomData = {
+        roomNumber: roomForm.roomNumber,
+        floorNumber: parseInt(roomForm.floorNumber),
+        capacity: parseInt(roomForm.capacity),
+        amenities: roomForm.amenities.filter((amenity) => amenity.name.trim())
+      };
+
+      if (isEditing) {
+        await updateRoom(roomForm.id, roomData);
+        alert('Room updated successfully!');
+      } else {
+        roomData.buildingId = roomForm.buildingId;
+        await createRoom(roomData);
+        alert('Room added successfully!');
       }
-      return room;
-    }));
+      setShowRoomModal(false);
+      await loadData();
+    } catch (error) {
+      console.error('Error saving room:', error);
+      alert('Error saving room: ' + error.message);
+    }
   };
 
-  // Maps to PATCH /api/rooms/:id/remove-student
-  const handleRemoveStudent = (roomId) => {
-    setRooms(rooms.map(room => {
-      if (room.id === roomId) {
-        if (room.currentOccupancy <= 0) return room;
-        const newOccupancy = room.currentOccupancy - 1;
-        return { 
-          ...room, 
-          currentOccupancy: newOccupancy,
-          status: room.status === 'full' ? 'available' : room.status
-        };
+  const handleAssignStudent = async (roomId, roomNumber) => {
+    try {
+      const studentIdInput = window.prompt(
+        `Enter the Student ID to assign to Room ${roomNumber || 'selected room'}:`
+      );
+
+      if (studentIdInput === null) {
+        return;
       }
-      return room;
-    }));
+
+      const studentId = studentIdInput.trim();
+      if (!studentId) {
+        alert('Student ID is required to assign a student to a room.');
+        return;
+      }
+
+      await assignStudentToRoom(roomId, studentId);
+      await loadData();
+      alert('Student assigned successfully!');
+    } catch (error) {
+      console.error('Error assigning student:', error);
+      alert(error.message);
+    }
+  };
+
+  const handleRemoveStudent = async (roomId) => {
+    try {
+      await removeStudentFromRoom(roomId);
+      await loadData();
+    } catch (error) {
+      console.error('Error removing student:', error);
+      alert(error.message);
+    }
   };
 
   const getOccupancyPercentage = (current, capacity) => {
     return (current / capacity) * 100;
   };
+
+  if (loading) {
+    return <div className="admin-section"><div className="loading-state">Loading rooms...</div></div>;
+  }
 
   return (
     <div className="admin-section">
@@ -132,12 +207,12 @@ const ManageRooms = () => {
               <div className="room-body">
                 <div className="occupancy-info">
                   <span>Occupancy</span>
-                  <span className="occupancy-numbers">{room.currentOccupancy} / {room.capacity}</span>
+                  <span className="occupancy-numbers">{room.currentOccupancy || 0} / {room.capacity}</span>
                 </div>
                 <div className="progress-bar-bg">
                   <div 
-                    className={`progress-bar-fill ${room.currentOccupancy >= room.capacity ? 'full' : ''}`} 
-                    style={{ width: `${getOccupancyPercentage(room.currentOccupancy, room.capacity)}%` }}
+                    className={`progress-bar-fill ${(room.currentOccupancy || 0) >= room.capacity ? 'full' : ''}`} 
+                    style={{ width: `${getOccupancyPercentage(room.currentOccupancy || 0, room.capacity)}%` }}
                   ></div>
                 </div>
               </div>
@@ -145,15 +220,15 @@ const ManageRooms = () => {
               <div className="room-actions-grid">
                 <button 
                   className="btn-icon add-student" 
-                  onClick={() => handleAssignStudent(room.id)}
-                  disabled={room.currentOccupancy >= room.capacity || room.status === 'maintenance'}
+                  onClick={() => handleAssignStudent(room.id || room._id, room.roomNumber)}
+                  disabled={(room.currentOccupancy || 0) >= room.capacity || room.status === 'maintenance'}
                 >
                   + Assign
                 </button>
                 <button 
                   className="btn-icon remove-student" 
                   onClick={() => handleRemoveStudent(room.id)}
-                  disabled={room.currentOccupancy <= 0}
+                  disabled={(room.currentOccupancy || 0) <= 0}
                 >
                   - Remove
                 </button>
@@ -201,13 +276,38 @@ const ManageRooms = () => {
                   <label>Capacity (Beds)</label>
                   <input type="number" name="capacity" value={roomForm.capacity} onChange={handleFormChange} required min="1" className="form-input" />
                 </div>
-                <div className="form-group">
-                  <label>Status</label>
-                  <select name="status" value={roomForm.status} onChange={handleFormChange} required className="form-input">
-                    <option value="available">Available</option>
-                    <option value="full">Full</option>
-                    <option value="maintenance">Maintenance</option>
-                  </select>
+              </div>
+
+              <div className="form-group">
+                <label>Amenities</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {roomForm.amenities.map((amenity, index) => (
+                    <div key={index} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        value={amenity.name}
+                        onChange={(e) => handleAmenityChange(index, 'name', e.target.value)}
+                        className="form-input"
+                        placeholder="Amenity name"
+                      />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap' }}>
+                        <input
+                          type="checkbox"
+                          checked={amenity.isWorking}
+                          onChange={(e) => handleAmenityChange(index, 'isWorking', e.target.checked)}
+                        />
+                        Working
+                      </label>
+                      {roomForm.amenities.length > 1 && (
+                        <button type="button" className="btn-icon delete" onClick={() => handleRemoveAmenity(index)}>
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button type="button" className="btn-secondary" onClick={handleAddAmenity}>
+                    + Add Amenity
+                  </button>
                 </div>
               </div>
 

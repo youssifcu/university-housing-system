@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebaseConfig';
-import { updateUserProfile } from '../services/user_Service';
+import { getCurrentUser, getStoredAuthUser, logoutUser, updateCurrentUser } from '../services/authService';
+import { getApplicationsByUser } from '../services/user_Service';
 import Button from '../components/Button';
 import InputField from '../components/InputField';
 import SubmitApplication from '../components/SubmitApplication';
 import MyApplications from '../components/MyApplications';
+import RoomChangeRequest from '../components/RoomChangeRequest';
 import '../styles/MemberDashboard.css';
 
 const MemberDashboard = () => {
@@ -15,6 +17,7 @@ const MemberDashboard = () => {
   
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [backendProfile, setBackendProfile] = useState(getStoredAuthUser());
   const [housingData, setHousingData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -28,29 +31,30 @@ const MemberDashboard = () => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
+        setBackendProfile(getStoredAuthUser());
         try {
+          const profile = await getCurrentUser();
+          setBackendProfile(profile);
+          setEditData({
+            name: profile?.name || '',
+            email: profile?.email || currentUser.email || '',
+            phoneNumber: profile?.phoneNumber || '',
+            studentId: profile?.studentId || '',
+            nationalId: profile?.nationalId || '',
+            faculty: profile?.faculty || '',
+            universityYear: profile?.universityYear || '',
+          });
+
           const userDoc = await getDoc(doc(db, 'users', currentUser.email));
           if (userDoc.exists()) {
             const data = userDoc.data();
             setUserData(data);
-            setEditData({
-              fullName: data.fullName,
-              studentId: data.studentId,
-              universityName: data.universityName
-            });
             if (data.profileImageUrl) {
               setPreviewImage(data.profileImageUrl);
             }
           }
 
-          setTimeout(() => {
-            setHousingData({
-              roomId: "Building B - Room 204",
-              bedNumber: 1,
-              housingStatus: "active",
-              qrCode: "VALID-ENTRY-2024-X99" 
-            });
-          }, 800);
+          await loadHousingData(currentUser.email);
 
         } catch (error) {
           console.error('Error fetching data:', error);
@@ -64,9 +68,52 @@ const MemberDashboard = () => {
     return () => unsubscribe();
   }, [navigate]);
 
+  const loadHousingData = async (email) => {
+    try {
+      const applications = await getApplicationsByUser(email);
+      const approvedApp = applications.find(app => {
+        const normalizedStatus = String(app.status || '').toLowerCase();
+        return normalizedStatus === 'approved' || normalizedStatus === 'accepted';
+      });
+      
+      if (userData?.currentRoomId) {
+        setHousingData({
+          roomId: `${userData.currentBuildingName || 'Unknown'} - Room ${userData.currentRoomNumber || 'Unknown'}`,
+          bedNumber: 1,
+          housingStatus: "active",
+          qrCode: `VALID-${userData.currentRoomId.substring(0, 8).toUpperCase()}` 
+        });
+      } else if (approvedApp) {
+        setHousingData({
+          roomId: `${approvedApp.buildingName} - Room ${approvedApp.roomNumber}`,
+          bedNumber: 1,
+          housingStatus: "active",
+          qrCode: `VALID-${String(approvedApp.id || approvedApp._id).substring(0, 8).toUpperCase()}` 
+        });
+      } else {
+        const pendingApp = applications.find(
+          app => String(app.status || '').toLowerCase() === 'pending'
+        );
+        if (pendingApp) {
+          setHousingData({
+            roomId: "Pending Approval",
+            bedNumber: null,
+            housingStatus: "pending",
+            qrCode: null 
+          });
+        } else {
+          setHousingData(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading housing data:', error);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      logoutUser();
       navigate('/');
     } catch (error) {
       console.error('Error signing out:', error);
@@ -92,18 +139,19 @@ const MemberDashboard = () => {
       reader.readAsDataURL(file);
     }
   };
-
   const handleSaveProfile = async () => {
     try {
-      const updateData = {
-        ...editData,
-        updatedAt: new Date()
-      };
-      await updateUserProfile(user.email, updateData);
-      const updatedUserDoc = await getDoc(doc(db, 'users', user.email));
-      if (updatedUserDoc.exists()) {
-        setUserData(updatedUserDoc.data());
-      }
+      const updatedProfile = await updateCurrentUser({
+        name: editData.name,
+        email: editData.email,
+        phoneNumber: editData.phoneNumber,
+        studentId: editData.studentId,
+        nationalId: editData.nationalId,
+        faculty: editData.faculty,
+        universityYear: Number(editData.universityYear),
+      });
+
+      setBackendProfile(updatedProfile);
       setEditing(false);
       setProfileImage(null);
       alert('Profile updated successfully!');
@@ -132,10 +180,10 @@ const MemberDashboard = () => {
             ) : (
               <div className="member-avatar-large avatar-placeholder">👤</div>
             )}
-            <h1>Hello, {userData?.fullName || 'User'}!</h1>
+            <h1>Hello, {backendProfile?.name || userData?.fullName || 'User'}!</h1>
             <p>Welcome to your personal dashboard</p>
             <span className="member-role-badge">
-              {userData?.role || 'member'}
+              {backendProfile?.role || userData?.role || 'member'}
             </span>
           </div>
         </div>
@@ -162,6 +210,13 @@ const MemberDashboard = () => {
           >
             📂 My Applications
           </button>
+
+          <button 
+            onClick={() => setActiveTab('roomChange')}
+            className={`tab-btn ${activeTab === 'roomChange' ? 'active' : ''}`}
+          >
+            🔄 Room Change Request
+          </button>
         </div>
         
         {/* Content Section */}
@@ -187,20 +242,22 @@ const MemberDashboard = () => {
                 
                 <div className="digital-id-card">
                   <div className="qr-box">
-                    {housingData ? (
+                    {housingData && housingData.qrCode ? (
                       <img 
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${housingData.qrCode}`} 
                         alt="Entry QR" 
                       />
                     ) : (
-                      <div className="qr-placeholder">Processing Housing...</div>
+                      <div className="qr-placeholder">
+                        {housingData?.housingStatus === 'pending' ? 'Pending Approval' : 'No Housing'}
+                      </div>
                     )}
                     <p className="qr-label">Entry Token</p>
                   </div>
                   
                   <div className="housing-info-brief">
-                    <div className="info-tag">Status: <span className="status-active">{housingData?.housingStatus || 'Pending'}</span></div>
-                    <div className="info-tag">Room: <span>{housingData?.roomId || 'TBD'}</span></div>
+                    <div className="info-tag">Status: <span className={housingData?.housingStatus === 'active' ? 'status-active' : 'status-pending'}>{housingData?.housingStatus || 'Not Applied'}</span></div>
+                    <div className="info-tag">Room: <span>{housingData?.roomId || 'N/A'}</span></div>
                     <div className="info-tag">Bed: <span>#{housingData?.bedNumber || '--'}</span></div>
                   </div>
                 </div>
@@ -236,8 +293,26 @@ const MemberDashboard = () => {
                         <label>Full Name</label>
                         <input
                           type="text"
-                          value={editData.fullName}
-                          onChange={(e) => setEditData({...editData, fullName: e.target.value})}
+                          value={editData.name || ''}
+                          onChange={(e) => setEditData({...editData, name: e.target.value})}
+                          className="input-modern"
+                        />
+                      </div>
+                      <div className="input-group-modern">
+                        <label>Email</label>
+                        <input
+                          type="email"
+                          value={editData.email || ''}
+                          onChange={(e) => setEditData({...editData, email: e.target.value})}
+                          className="input-modern"
+                        />
+                      </div>
+                      <div className="input-group-modern">
+                        <label>Phone Number</label>
+                        <input
+                          type="tel"
+                          value={editData.phoneNumber || ''}
+                          onChange={(e) => setEditData({...editData, phoneNumber: e.target.value})}
                           className="input-modern"
                         />
                       </div>
@@ -245,17 +320,37 @@ const MemberDashboard = () => {
                         <label>Student ID</label>
                         <input
                           type="text"
-                          value={editData.studentId}
+                          value={editData.studentId || ''}
                           onChange={(e) => setEditData({...editData, studentId: e.target.value})}
                           className="input-modern"
                         />
                       </div>
                       <div className="input-group-modern">
-                        <label>University Name</label>
+                        <label>National ID</label>
                         <input
                           type="text"
-                          value={editData.universityName}
-                          onChange={(e) => setEditData({...editData, universityName: e.target.value})}
+                          value={editData.nationalId || ''}
+                          onChange={(e) => setEditData({...editData, nationalId: e.target.value})}
+                          className="input-modern"
+                        />
+                      </div>
+                      <div className="input-group-modern">
+                        <label>Faculty</label>
+                        <input
+                          type="text"
+                          value={editData.faculty || ''}
+                          onChange={(e) => setEditData({...editData, faculty: e.target.value})}
+                          className="input-modern"
+                        />
+                      </div>
+                      <div className="input-group-modern">
+                        <label>University Year</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="7"
+                          value={editData.universityYear || ''}
+                          onChange={(e) => setEditData({...editData, universityYear: e.target.value})}
                           className="input-modern"
                         />
                       </div>
@@ -268,19 +363,57 @@ const MemberDashboard = () => {
                     <>
                       <div className="detail-item-modern">
                         <span className="detail-label">Full Name</span>
-                        <div className="detail-value">{userData.fullName}</div>
+                        <div className="detail-value">{backendProfile?.name || userData?.fullName || 'N/A'}</div>
+                      </div>
+                      <div className="detail-item-modern">
+                        <span className="detail-label">User ID</span>
+                        <div className="detail-value">{backendProfile?.id || userData?.id || 'N/A'}</div>
                       </div>
                       <div className="detail-item-modern">
                         <span className="detail-label">Student ID</span>
-                        <div className="detail-value">{userData.studentId}</div>
+                        <div className="detail-value">{backendProfile?.studentId || userData?.studentId || 'N/A'}</div>
                       </div>
                       <div className="detail-item-modern">
                         <span className="detail-label">Email</span>
-                        <div className="detail-value">{userData.universityEmail}</div>
+                        <div className="detail-value">{backendProfile?.email || userData?.universityEmail || user?.email || 'N/A'}</div>
                       </div>
                       <div className="detail-item-modern">
-                        <span className="detail-label">University</span>
-                        <div className="detail-value">{userData.universityName}</div>
+                        <span className="detail-label">Phone Number</span>
+                        <div className="detail-value">{backendProfile?.phoneNumber || 'N/A'}</div>
+                      </div>
+                      <div className="detail-item-modern">
+                        <span className="detail-label">National ID</span>
+                        <div className="detail-value">{backendProfile?.nationalId || 'N/A'}</div>
+                      </div>
+                      <div className="detail-item-modern">
+                        <span className="detail-label">Faculty</span>
+                        <div className="detail-value">{backendProfile?.faculty || userData?.universityName || 'N/A'}</div>
+                      </div>
+                      <div className="detail-item-modern">
+                        <span className="detail-label">University Year</span>
+                        <div className="detail-value">{backendProfile?.universityYear || 'N/A'}</div>
+                      </div>
+                      <div className="detail-item-modern">
+                        <span className="detail-label">Role</span>
+                        <div className="detail-value">{backendProfile?.role || userData?.role || 'N/A'}</div>
+                      </div>
+                      <div className="detail-item-modern">
+                        <span className="detail-label">Housing Status</span>
+                        <div className="detail-value">{backendProfile?.housingStatus || 'N/A'}</div>
+                      </div>
+                      <div className="detail-item-modern">
+                        <span className="detail-label">Assigned Room ID</span>
+                        <div className="detail-value">{backendProfile?.assignedRoomId || 'N/A'}</div>
+                      </div>
+                      <div className="detail-item-modern">
+                        <span className="detail-label">Application ID</span>
+                        <div className="detail-value">{backendProfile?.applicationId || 'N/A'}</div>
+                      </div>
+                      <div className="detail-item-modern">
+                        <span className="detail-label">Created At</span>
+                        <div className="detail-value">
+                          {backendProfile?.createdAt ? new Date(backendProfile.createdAt).toLocaleString() : 'N/A'}
+                        </div>
                       </div>
                     </>
                   )}
@@ -291,6 +424,7 @@ const MemberDashboard = () => {
 
           {activeTab === 'submitApp' && <SubmitApplication />}
           {activeTab === 'myApps' && <MyApplications />}
+          {activeTab === 'roomChange' && <RoomChangeRequest />}
           
           <div className="logout-section-modern">
             <button className="logout-btn-member" onClick={handleLogout}>🚪 Logout</button>

@@ -1,40 +1,52 @@
 import React, { useState, useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../../lib/firebaseConfig';
+import { getMyApplications, deleteApplication, updateApplication } from '../services/applicationService';
 import '../styles/MyApplications.css';
 
 const MyApplications = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState(null);
 
   useEffect(() => {
-    setTimeout(() => {
-      setApplications([
-        {
-          id: 'APP-2026-001',
-          buildingPreference: 'Building A (Boys)',
-          roomType: 'Single Room',
-          status: 'Pending',
-          submissionDate: '2026-03-14',
-          notes: 'Prefer ground floor if possible due to knee pain.'
-        },
-        {
-          id: 'APP-2025-089',
-          buildingPreference: 'Building C (Premium)',
-          roomType: 'Double Room',
-          status: 'Approved',
-          submissionDate: '2025-09-01',
-          notes: ''
-        }
-      ]);
-      setLoading(false);
-    }, 800);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        await loadApplications();
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const handleCancel = (id) => {
+  const loadApplications = async () => {
+    try {
+      setLoading(true);
+      const appsData = await getMyApplications();
+      setApplications(appsData);
+    } catch (error) {
+      console.error('Error loading applications:', error);
+      alert('Error loading applications: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = async (id) => {
     if (window.confirm('Are you sure you want to cancel this housing application?')) {
-      setApplications(applications.filter(app => app.id !== id));
+      try {
+        await deleteApplication(id);
+        await loadApplications();
+      } catch (error) {
+        console.error('Error deleting application:', error);
+        alert('Error deleting application: ' + error.message);
+      }
     }
   };
 
@@ -48,10 +60,19 @@ const MyApplications = () => {
     setEditFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const saveEdit = (e) => {
+  const saveEdit = async (e) => {
     e.preventDefault();
-    setApplications(applications.map(app => app.id === editFormData.id ? editFormData : app));
-    setIsEditModalOpen(false);
+    try {
+      const applicationId = editFormData.id || editFormData._id;
+      await updateApplication(applicationId, {
+        notes: editFormData.notes
+      });
+      await loadApplications();
+      setIsEditModalOpen(false);
+    } catch (error) {
+      console.error('Error updating application:', error);
+      alert('Error updating application: ' + error.message);
+    }
   };
 
   if (loading) {
@@ -75,10 +96,10 @@ const MyApplications = () => {
       ) : (
         <div className="apps-cards-grid">
           {applications.map((app) => (
-            <div key={app.id} className="app-card-modern">
+            <div key={app.id || app._id} className="app-card-modern">
               <div className="app-card-header">
-                <span className="app-id-badge">{app.id}</span>
-                <span className={`status-tag status-${app.status.toLowerCase()}`}>
+                <span className="app-id-badge">{String(app.id || app._id).substring(0, 8).toUpperCase()}</span>
+                <span className={`status-tag status-${String(app.status || '').toLowerCase()}`}>
                   {app.status}
                 </span>
               </div>
@@ -86,7 +107,11 @@ const MyApplications = () => {
               <div className="app-card-body">
                 <div className="app-info-row">
                   <span className="app-info-label">Building</span>
-                  <span className="app-info-value">{app.buildingPreference}</span>
+                  <span className="app-info-value">{app.buildingName}</span>
+                </div>
+                <div className="app-info-row">
+                  <span className="app-info-label">Room</span>
+                  <span className="app-info-value">{app.roomNumber}</span>
                 </div>
                 <div className="app-info-row">
                   <span className="app-info-label">Room Type</span>
@@ -94,7 +119,11 @@ const MyApplications = () => {
                 </div>
                 <div className="app-info-row">
                   <span className="app-info-label">Date Submitted</span>
-                  <span className="app-info-value">{app.submissionDate}</span>
+                  <span className="app-info-value">
+                    {app.submittedAt?.toDate ? 
+                      new Date(app.submittedAt.toDate()).toLocaleDateString() : 
+                      new Date(app.submittedAt).toLocaleDateString()}
+                  </span>
                 </div>
                 {app.notes && (
                   <div className="app-info-row app-notes-box">
@@ -104,12 +133,12 @@ const MyApplications = () => {
                 )}
               </div>
 
-              {app.status === 'Pending' && (
+              {String(app.status || '').toLowerCase() === 'pending' && (
                 <div className="app-card-footer">
                   <button onClick={() => openEditModal(app)} className="btn-edit-app">
                     Edit Application
                   </button>
-                  <button onClick={() => handleCancel(app.id)} className="btn-cancel-app">
+                  <button onClick={() => handleCancel(app.id || app._id)} className="btn-cancel-app">
                     Cancel
                   </button>
                 </div>
@@ -123,31 +152,15 @@ const MyApplications = () => {
         <div className="modal-overlay-apps">
           <div className="modal-content-apps">
             <div className="modal-header-apps">
-              <h3>Edit Application {editFormData.id}</h3>
+              <h3>Edit Application {String(editFormData.id || editFormData._id).substring(0, 8).toUpperCase()}</h3>
               <button className="close-btn-apps" onClick={() => setIsEditModalOpen(false)}>×</button>
             </div>
             <form onSubmit={saveEdit} className="modal-form-apps">
               <div className="form-group-apps">
-                <label>Building Preference</label>
-                <select name="buildingPreference" value={editFormData.buildingPreference} onChange={handleEditChange} className="input-apps" required>
-                  <option value="Building A (Boys)">Building A (Boys)</option>
-                  <option value="Building B (Girls)">Building B (Girls)</option>
-                  <option value="Building C (Premium)">Building C (Premium)</option>
-                </select>
-              </div>
-              <div className="form-group-apps">
-                <label>Room Type</label>
-                <select name="roomType" value={editFormData.roomType} onChange={handleEditChange} className="input-apps" required>
-                  <option value="Single Room">Single Room</option>
-                  <option value="Double Room">Double Room</option>
-                  <option value="Triple Room">Triple Room</option>
-                </select>
-              </div>
-              <div className="form-group-apps">
                 <label>Notes</label>
-                <textarea name="notes" value={editFormData.notes} onChange={handleEditChange} rows="3" className="input-apps"></textarea>
+                <textarea name="notes" value={editFormData.notes || ''} onChange={handleEditChange} rows="3" className="input-apps"></textarea>
               </div>
-              <p className="warning-text-apps">Note: To update attached documents, you must cancel and create a new application.</p>
+              <p className="warning-text-apps">Note: To change building or room, you must cancel and create a new application.</p>
               <div className="modal-actions-apps">
                 <button type="button" className="btn-secondary-apps" onClick={() => setIsEditModalOpen(false)}>Close</button>
                 <button type="submit" className="btn-primary-apps">Save Changes</button>

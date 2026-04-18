@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../lib/firebaseConfig';
-import { getUserByEmail } from '../services/user_Service';
+import { loginUser } from '../services/authService';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
 import FormContainer from '../components/FormContainer';
@@ -11,101 +9,34 @@ import '../styles/RegisterPage.css';
 const LoginPage = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    universityEmail: '',
+    email: '',
     password: ''
   });
-  
-  const [errors, setErrors] = useState({
-    universityEmail: '',
-    password: '',
-    general: ''
-  });
-  
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    let isValid = true;
-    const newErrors = { ...errors };
-    
-    if (!formData.universityEmail.trim()) {
-      newErrors.universityEmail = 'Email is required';
-      isValid = false;
-    }
-    
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-      isValid = false;
-    }
-    
-    if (!isValid) {
-      setErrors(newErrors);
-      return;
-    }
-    
-    setIsLoading(true);
-    setErrors({ ...errors, general: '' });
-    
+    setLoading(true);
+    setError('');
+
     try {
-      if (!auth) {
-        throw new Error('Authentication service is not available. Please contact support.');
-      }
+      const user = await loginUser(formData.email, formData.password);
       
-      await signInWithEmailAndPassword(
-        auth, 
-        formData.universityEmail, 
-        formData.password
-      );
-      
-      const user = await getUserByEmail(formData.universityEmail);
-      
-      if (user && user.role === 'admin') {
+      if (user.role === 'admin') {
         navigate('/admin/dashboard');
       } else {
         navigate('/member/dashboard');
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      
-      if (error.code === 'auth/network-request-failed') {
-        setErrors({
-          ...errors,
-          general: 'Network error. Please check your connection and try again.'
-        });
-      } else if (error.code === 'auth/configuration-not-found') {
-        setErrors({
-          ...errors,
-          general: 'Authentication configuration not found. Please contact support.'
-        });
-      } else if (error.code === 'auth/invalid-api-key') {
-        setErrors({
-          ...errors,
-          general: 'Invalid API configuration. Please contact support.'
-        });
-      } else {
-        setErrors({
-          ...errors,
-          general: error.message || 'An error occurred during login. Please try again.'
-        });
-      }
+    } catch (err) {
+      setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -119,21 +50,16 @@ const LoginPage = () => {
         title="Sign In" 
         subtitle="Welcome back! Please sign in to your account"
       >
+        {error && <div className="general-error">{error}</div>}
+        
         <form onSubmit={handleSubmit} className="registration-form">
-          {errors.general && (
-            <div className="general-error">
-              {errors.general}
-            </div>
-          )}
-
           <InputField
-            label="University Email"
-            name="universityEmail"
+            label="Email Address"
+            name="email"
             type="email"
-            value={formData.universityEmail}
+            value={formData.email}
             onChange={handleChange}
-            error={errors.universityEmail}
-            placeholder="Enter your university email"
+            placeholder="Enter your email"
             required
           />
 
@@ -143,7 +69,6 @@ const LoginPage = () => {
             type="password"
             value={formData.password}
             onChange={handleChange}
-            error={errors.password}
             placeholder="Enter your password"
             required
           />
@@ -152,11 +77,11 @@ const LoginPage = () => {
             type="submit"
             variant="primary"
             size="large"
-            loading={isLoading}
+            loading={loading}
             className="submit-button"
-            disabled={isLoading}
+            disabled={loading}
           >
-            {isLoading ? 'Signing In...' : 'Sign In'}
+            {loading ? 'Signing In...' : 'Sign In'}
           </Button>
 
           <div className="form-footer">

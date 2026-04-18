@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import { registerUser } from '../services/user_Service';
+import { registerUser } from '../services/authService';
 
 export const useRegistration = () => {
   const [formData, setFormData] = useState({
-    fullName: '',
+    name: '',
     studentId: '',
-    universityEmail: '',
+    email: '',
     password: '',
-    universityName: '',
-    profileImage: null
+    phoneNumber: '',
+    nationalId: '',
+    universityYear: '',
+    faculty: '',
+    gender: 'male'
   });
   
   const [errors, setErrors] = useState({});
@@ -19,33 +22,72 @@ export const useRegistration = () => {
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
-    } else if (formData.fullName.trim().split(' ').length < 2) {
-      newErrors.fullName = 'Please enter your full name (first and last name)';
+    if (!formData.name.trim()) {
+      newErrors.name = 'Full name is required';
+    } else if (formData.name.trim().split(' ').length < 2) {
+      newErrors.name = 'Please enter your full name (first and last name)';
     }
     
+    const studentIdRegex = /^\d{8,10}$/;
     if (!formData.studentId.trim()) {
       newErrors.studentId = 'Student ID is required';
-    } else if (!/^[a-zA-Z0-9]+$/.test(formData.studentId)) {
-      newErrors.studentId = 'Student ID can only contain letters and numbers';
+    } else if (!studentIdRegex.test(formData.studentId)) {
+      newErrors.studentId = 'Student ID must be 8-10 digits';
     }
     
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!formData.universityEmail.trim()) {
-      newErrors.universityEmail = 'Email is required';
-    } else if (!emailRegex.test(formData.universityEmail)) {
-      newErrors.universityEmail = 'Please enter a valid email address';
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!emailRegex.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
     }
     
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
     if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters long';
+    } else if (!passwordRegex.test(formData.password)) {
+      newErrors.password = 'Password must be at least 8 characters, include uppercase, lowercase, number, and special character';
     }
     
-    if (!formData.universityName.trim()) {
-      newErrors.universityName = 'University name is required';
+    const phoneRegex = /^01[0-9]{9}$/;
+    if (!formData.phoneNumber.trim()) {
+      newErrors.phoneNumber = 'Phone number is required';
+    } else if (!phoneRegex.test(formData.phoneNumber)) {
+      newErrors.phoneNumber = 'Phone number must be 11 digits starting with 01';
+    }
+    
+    const nationalIdRegex = /^\d{14}$/;
+    if (!formData.nationalId.trim()) {
+      newErrors.nationalId = 'National ID is required';
+    } else if (!nationalIdRegex.test(formData.nationalId)) {
+      newErrors.nationalId = 'National ID must be 14 digits';
+    }
+    
+    const validFaculties = [
+      'computer science', 'engineering', 'medicine', 'pharmacy', 'dentistry',
+      'business', 'law', 'arts', 'science', 'education', 'agriculture',
+      'nursing', 'physical therapy', 'architecture', 'mass communication',
+      'economics', 'political science', 'languages', 'tourism', 'fine arts'
+    ];
+    if (!formData.faculty.trim()) {
+      newErrors.faculty = 'Faculty is required';
+    } else if (!validFaculties.includes(formData.faculty.trim().toLowerCase())) {
+      newErrors.faculty = 'Please select a valid faculty (e.g., Computer Science, Engineering, Medicine)';
+    }
+    
+    if (!formData.universityYear) {
+      newErrors.universityYear = 'University year is required';
+    } else {
+      const year = parseInt(formData.universityYear);
+      if (year < 1 || year > 5) {
+        newErrors.universityYear = 'University year must be between 1 and 5';
+      }
+    }
+    
+    if (!formData.gender) {
+      newErrors.gender = 'Gender is required';
+    } else if (formData.gender !== 'male' && formData.gender !== 'female') {
+      newErrors.gender = 'Gender must be male or female';
     }
     
     const isValid = Object.keys(newErrors).length === 0;
@@ -71,34 +113,6 @@ export const useRegistration = () => {
     }
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        setErrors(prev => ({
-          ...prev,
-          profileImage: 'Please select a valid image file'
-        }));
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors(prev => ({
-          ...prev,
-          profileImage: 'Image size must be less than 5MB'
-        }));
-        return;
-      }
-      setFormData(prev => ({
-        ...prev,
-        profileImage: file
-      }));
-      setErrors(prev => ({
-        ...prev,
-        profileImage: undefined
-      }));
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -113,12 +127,15 @@ export const useRegistration = () => {
     
     try {
       await registerUser({
-        fullName: formData.fullName,
+        name: formData.name,
         studentId: formData.studentId,
-        universityEmail: formData.universityEmail,
+        email: formData.email,
         password: formData.password,
-        universityName: formData.universityName,
-        profileImage: formData.profileImage || null
+        phoneNumber: formData.phoneNumber,
+        nationalId: formData.nationalId,
+        universityYear: parseInt(formData.universityYear),
+        faculty: formData.faculty,
+        gender: formData.gender
       });
       
       setSuccess(true);
@@ -132,12 +149,15 @@ export const useRegistration = () => {
 
   const resetForm = () => {
     setFormData({
-      fullName: '',
+      name: '',
       studentId: '',
-      universityEmail: '',
+      email: '',
       password: '',
-      universityName: '',
-      profileImage: null
+      phoneNumber: '',
+      nationalId: '',
+      universityYear: '',
+      faculty: '',
+      gender: 'male'
     });
     setErrors({});
     setSuccess(false);
@@ -151,7 +171,6 @@ export const useRegistration = () => {
     success,
     generalError,
     handleChange,
-    handleImageChange,
     handleSubmit,
     validateForm,
     resetForm

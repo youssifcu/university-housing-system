@@ -9,7 +9,8 @@ const InputField = ({
   onChange,
   error,
   placeholder,
-  required = false
+  required = false,
+  ...inputProps
 }) => {
   return (
     <div className="input-field-container">
@@ -25,6 +26,7 @@ const InputField = ({
         placeholder={placeholder}
         className={`input-field ${error ? 'input-error' : ''}`}
         required={required}
+        {...inputProps}
       />
       {error && <span className="error-message">{error}</span>}
     </div>

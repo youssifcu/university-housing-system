@@ -174,3 +174,56 @@ body .app-form-wrapper .form-card .form-section input::placeholder {
   color: #64748b !important;
   font-size: 0.9rem !important;
 }
+
+/* File Upload Group for multiple files */
+.file-upload-group {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.file-preview {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  text-align: center;
+}
+
+.file-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.file-preview .pdf-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+/* Review Summary */
+.review-summary {
+  background: #f8fafc;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+}
+
+.review-summary .review-item {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.review-summary .review-item:last-child {
+  border-bottom: none;
+}
+
+.review-summary .review-item strong {
+  color: #475569;
+  margin-right: 0.5rem;
+}

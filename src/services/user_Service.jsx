@@ -95,14 +95,6 @@ export const registerUser = async (userData) => {
     const authUser = await registerUserWithAuth(userData.universityEmail, userData.password);
 
     let profileImageUrl = '';
-    // Temporarily disabled image upload due to CORS - uncomment when CORS is configured
-    /*
-    if (userData.profileImage) {
-      const imageRef = ref(storage, `profiles/${authUser.uid}/${userData.profileImage.name}`);
-      await uploadBytes(imageRef, userData.profileImage);
-      profileImageUrl = await getDownloadURL(imageRef);
-    }
-    */
 
     const userDataWithId = {
       ...userData,
@@ -186,7 +178,7 @@ export const updateUserProfile = async (email, userData) => {
     throw error;
   }
 };
-/*delete user */
+
 export const deleteUser = async (email) => {
   try {
     const userRef = doc(db, USERS_COLLECTION, email);  
@@ -225,6 +217,390 @@ export const adminRegisterUser = async (userData) => {
   } catch (error) {
     await deleteApp(secondaryApp);
     console.error('Error in admin register:', error);
+    throw error;
+  }
+};
+
+export const getAllBuildings = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'buildings'));
+    const buildings = [];
+    querySnapshot.forEach((doc) => {
+      buildings.push({ id: doc.id, ...doc.data() });
+    });
+    return buildings;
+  } catch (error) {
+    console.error('Error fetching buildings:', error);
+    throw error;
+  }
+};
+
+export const addBuilding = async (buildingData) => {
+  try {
+    const docRef = await addDoc(collection(db, 'buildings'), {
+      ...buildingData,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding building:', error);
+    throw error;
+  }
+};
+
+export const updateBuilding = async (buildingId, buildingData) => {
+  try {
+    const buildingRef = doc(db, 'buildings', buildingId);
+    await updateDoc(buildingRef, {
+      ...buildingData,
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error updating building:', error);
+    throw error;
+  }
+};
+
+export const deleteBuilding = async (buildingId) => {
+  try {
+    const buildingRef = doc(db, 'buildings', buildingId);
+    await deleteDoc(buildingRef);
+  } catch (error) {
+    console.error('Error deleting building:', error);
+    throw error;
+  }
+};
+
+export const getAllRooms = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'rooms'));
+    const rooms = [];
+    querySnapshot.forEach((doc) => {
+      rooms.push({ id: doc.id, ...doc.data() });
+    });
+    return rooms;
+  } catch (error) {
+    console.error('Error fetching rooms:', error);
+    throw error;
+  }
+};
+
+export const addRoom = async (roomData) => {
+  try {
+    const docRef = await addDoc(collection(db, 'rooms'), {
+      ...roomData,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding room:', error);
+    throw error;
+  }
+};
+
+export const updateRoom = async (roomId, roomData) => {
+  try {
+    const roomRef = doc(db, 'rooms', roomId);
+    await updateDoc(roomRef, {
+      ...roomData,
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error updating room:', error);
+    throw error;
+  }
+};
+
+export const deleteRoom = async (roomId) => {
+  try {
+    const roomRef = doc(db, 'rooms', roomId);
+    await deleteDoc(roomRef);
+  } catch (error) {
+    console.error('Error deleting room:', error);
+    throw error;
+  }
+};
+
+export const assignStudentToRoom = async (roomId) => {
+  try {
+    const roomRef = doc(db, 'rooms', roomId);
+    const roomSnap = await getDoc(roomRef);
+    
+    if (!roomSnap.exists()) {
+      throw new Error('Room not found');
+    }
+    
+    const roomData = roomSnap.data();
+    if (roomData.currentOccupancy >= roomData.capacity) {
+      throw new Error('Room is full');
+    }
+    
+    const newOccupancy = roomData.currentOccupancy + 1;
+    await updateDoc(roomRef, {
+      currentOccupancy: newOccupancy,
+      status: newOccupancy >= roomData.capacity ? 'full' : roomData.status,
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error assigning student to room:', error);
+    throw error;
+  }
+};
+
+export const removeStudentFromRoom = async (roomId) => {
+  try {
+    const roomRef = doc(db, 'rooms', roomId);
+    const roomSnap = await getDoc(roomRef);
+    
+    if (!roomSnap.exists()) {
+      throw new Error('Room not found');
+    }
+    
+    const roomData = roomSnap.data();
+    if (roomData.currentOccupancy <= 0) {
+      return;
+    }
+    
+    const newOccupancy = roomData.currentOccupancy - 1;
+    await updateDoc(roomRef, {
+      currentOccupancy: newOccupancy,
+      status: roomData.status === 'full' ? 'available' : roomData.status,
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error removing student from room:', error);
+    throw error;
+  }
+};
+
+export const submitApplication = async (applicationData) => {
+  try {
+    const docRef = await addDoc(collection(db, 'applications'), {
+      ...applicationData,
+      status: 'Pending',
+      submittedAt: new Date(),
+      updatedAt: new Date()
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Error submitting application:', error);
+    throw error;
+  }
+};
+
+export const getApplicationsByUser = async (userEmail) => {
+  try {
+    const q = query(
+      collection(db, 'applications'),
+      where('userEmail', '==', userEmail)
+    );
+    const querySnapshot = await getDocs(q);
+    const applications = [];
+    querySnapshot.forEach((doc) => {
+      applications.push({ id: doc.id, ...doc.data() });
+    });
+    return applications;
+  } catch (error) {
+    console.error('Error fetching user applications:', error);
+    throw error;
+  }
+};
+
+export const getAllApplications = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'applications'));
+    const applications = [];
+    querySnapshot.forEach((doc) => {
+      applications.push({ id: doc.id, ...doc.data() });
+    });
+    return applications;
+  } catch (error) {
+    console.error('Error fetching all applications:', error);
+    throw error;
+  }
+};
+
+export const updateApplicationStatus = async (applicationId, status) => {
+  try {
+    const appRef = doc(db, 'applications', applicationId);
+    await updateDoc(appRef, {
+      status: status,
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error updating application status:', error);
+    throw error;
+  }
+};
+
+export const updateApplication = async (applicationId, applicationData) => {
+  try {
+    const appRef = doc(db, 'applications', applicationId);
+    await updateDoc(appRef, {
+      ...applicationData,
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error updating application:', error);
+    throw error;
+  }
+};
+
+export const deleteApplication = async (applicationId) => {
+  try {
+    const appRef = doc(db, 'applications', applicationId);
+    await deleteDoc(appRef);
+  } catch (error) {
+    console.error('Error deleting application:', error);
+    throw error;
+  }
+};
+
+export const submitRoomChangeRequest = async (requestData) => {
+  try {
+    const docRef = await addDoc(collection(db, 'roomChangeRequests'), {
+      ...requestData,
+      status: 'Pending',
+      requestedAt: new Date(),
+      updatedAt: new Date()
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Error submitting room change request:', error);
+    throw error;
+  }
+};
+
+export const getRoomChangeRequestsByUser = async (userEmail) => {
+  try {
+    const q = query(
+      collection(db, 'roomChangeRequests'),
+      where('userEmail', '==', userEmail)
+    );
+    const querySnapshot = await getDocs(q);
+    const requests = [];
+    querySnapshot.forEach((doc) => {
+      requests.push({ id: doc.id, ...doc.data() });
+    });
+    return requests;
+  } catch (error) {
+    console.error('Error fetching room change requests:', error);
+    throw error;
+  }
+};
+
+export const getAllRoomChangeRequests = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'roomChangeRequests'));
+    const requests = [];
+    querySnapshot.forEach((doc) => {
+      requests.push({ id: doc.id, ...doc.data() });
+    });
+    return requests;
+  } catch (error) {
+    console.error('Error fetching all room change requests:', error);
+    throw error;
+  }
+};
+
+export const updateRoomChangeRequestStatus = async (requestId, status) => {
+  try {
+    const requestRef = doc(db, 'roomChangeRequests', requestId);
+    await updateDoc(requestRef, {
+      status: status,
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error updating room change request status:', error);
+    throw error;
+  }
+};
+
+export const getRoomById = async (roomId) => {
+  try {
+    const roomRef = doc(db, 'rooms', roomId);
+    const roomSnap = await getDoc(roomRef);
+    if (roomSnap.exists()) {
+      return { id: roomSnap.id, ...roomSnap.data() };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching room:', error);
+    throw error;
+  }
+};
+
+export const getBuildingById = async (buildingId) => {
+  try {
+    const buildingRef = doc(db, 'buildings', buildingId);
+    const buildingSnap = await getDoc(buildingRef);
+    if (buildingSnap.exists()) {
+      return { id: buildingSnap.id, ...buildingSnap.data() };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching building:', error);
+    throw error;
+  }
+};
+
+export const assignUserToNewRoom = async (userEmail, oldRoomId, newRoomId, newRoomDetails) => {
+  try {
+    if (oldRoomId && oldRoomId !== newRoomId) {
+      await removeStudentFromRoom(oldRoomId);
+    }
+    
+    await assignStudentToRoom(newRoomId);
+    
+    const userRef = doc(db, 'users', userEmail);
+    await updateDoc(userRef, {
+      currentRoomId: newRoomId,
+      currentBuildingId: newRoomDetails?.buildingId || null,
+      currentBuildingName: newRoomDetails?.buildingName || null,
+      currentRoomNumber: newRoomDetails?.roomNumber || null,
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error assigning user to new room:', error);
+    throw error;
+  }
+};
+
+export const adminChangeUserRoom = async (userEmail, oldRoomId, newRoomId, newRoomDetails, reason) => {
+  try {
+    if (oldRoomId && oldRoomId !== newRoomId) {
+      await removeStudentFromRoom(oldRoomId);
+    }
+    
+    await assignStudentToRoom(newRoomId);
+    
+    const userRef = doc(db, 'users', userEmail);
+    await updateDoc(userRef, {
+      currentRoomId: newRoomId,
+      currentBuildingId: newRoomDetails?.buildingId || null,
+      currentBuildingName: newRoomDetails?.buildingName || null,
+      currentRoomNumber: newRoomDetails?.roomNumber || null,
+      roomChangeReason: reason,
+      roomChangedAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    const docRef = await addDoc(collection(db, 'adminRoomChanges'), {
+      userEmail: userEmail,
+      oldRoomId: oldRoomId,
+      newRoomId: newRoomId,
+      newBuildingName: newRoomDetails?.buildingName || null,
+      newRoomNumber: newRoomDetails?.roomNumber || null,
+      reason: reason,
+      changedBy: 'admin',
+      changedAt: new Date()
+    });
+    
+    return docRef.id;
+  } catch (error) {
+    console.error('Error in admin room change:', error);
     throw error;
   }
 };

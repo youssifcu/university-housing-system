@@ -15,7 +15,6 @@ const RegisterPage = () => {
     success,
     generalError,
     handleChange,
-    handleImageChange,
     handleSubmit,
     resetForm
   } = useRegistration();
@@ -52,11 +51,11 @@ const RegisterPage = () => {
 
             <InputField
               label="Full Name"
-              name="fullName"
+              name="name"
               type="text"
-              value={formData.fullName}
+              value={formData.name}
               onChange={handleChange}
-              error={errors.fullName}
+              error={errors.name}
               placeholder="Enter your full name"
               required
             />
@@ -68,17 +67,18 @@ const RegisterPage = () => {
               value={formData.studentId}
               onChange={handleChange}
               error={errors.studentId}
-              placeholder="Enter your student ID"
+              placeholder="Enter 8-10 digit student ID"
+              maxLength="10"
               required
             />
 
             <InputField
               label="Email"
-              name="universityEmail"
+              name="email"
               type="email"
-              value={formData.universityEmail}
+              value={formData.email}
               onChange={handleChange}
-              error={errors.universityEmail}
+              error={errors.email}
               placeholder="Enter your email"
               required
             />
@@ -90,39 +90,91 @@ const RegisterPage = () => {
               value={formData.password}
               onChange={handleChange}
               error={errors.password}
-              placeholder="Create a password"
+              placeholder="Min 8 chars, uppercase, lowercase, number, special char"
               required
             />
 
             <InputField
-              label="University Name"
-              name="universityName"
-              type="text"
-              value={formData.universityName}
+              label="Phone Number"
+              name="phoneNumber"
+              type="tel"
+              value={formData.phoneNumber}
               onChange={handleChange}
-              error={errors.universityName}
-              placeholder="Enter your university name"
+              error={errors.phoneNumber}
+              placeholder="11 digits starting with 01 (e.g., 01012345678)"
+              maxLength="11"
+              pattern="01[0-9]{9}"
               required
             />
 
+            <InputField
+              label="National ID"
+              name="nationalId"
+              type="text"
+              value={formData.nationalId}
+              onChange={handleChange}
+              error={errors.nationalId}
+              placeholder="14 digit national ID"
+              maxLength="14"
+              pattern="[0-9]{14}"
+              required
+            />
+
+           <div className="input-field-container">
+  <label className="input-label">Faculty</label>
+
+  <select
+    name="faculty"
+    value={formData.faculty}
+    onChange={handleChange}
+    className={`input-field ${errors.faculty ? 'input-error' : ''}`}
+    required
+  >
+    <option value="">Select faculty</option>
+    <option value="Computer Science">Computer Science</option>
+    <option value="Engineering">Engineering</option>
+    <option value="Medicine">Medicine</option>
+    <option value="Business">Business</option>
+    <option value="Law">Law</option>
+  </select>
+
+  {errors.faculty && (
+    <span className="error-message">{errors.faculty}</span>
+  )}
+</div>
+
             <div className="input-field-container">
-              <label className="input-label">
-                Profile Image (Housing Report)
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className={`input-field ${errors.profileImage ? 'input-error' : ''}`}
-              />
-              {errors.profileImage && (
-                <span className="error-message">{errors.profileImage}</span>
+              <label className="input-label">University Year</label>
+              <select
+                name="universityYear"
+                value={formData.universityYear}
+                onChange={handleChange}
+                className={`input-field ${errors.universityYear ? 'input-error' : ''}`}
+                required
+              >
+                <option value="">Select Year</option>
+                <option value="1">Year 1</option>
+                <option value="2">Year 2</option>
+                <option value="3">Year 3</option>
+                <option value="4">Year 4</option>
+                <option value="5">Year 5</option>
+              </select>
+              {errors.universityYear && (
+                <span className="error-message">{errors.universityYear}</span>
               )}
-              {formData.profileImage && (
-                <p style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
-                  Selected: {formData.profileImage.name}
-                </p>
-              )}
+            </div>
+
+            <div className="input-field-container">
+              <label className="input-label">Gender</label>
+              <select
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                className="input-field"
+              >
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
             </div>
 
             <Button
