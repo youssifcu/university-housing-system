@@ -47,7 +47,7 @@ const notificationSchema = new mongoose.Schema(
         },
         readAt: Date,
         data: {
-            type: mongoose.Schema.Types.Mixed, // لتخزين بيانات إضافية مثل ID الطلب، الغرفة، إلخ
+            type: mongoose.Schema.Types.Mixed,
             default: {}
         },
         link: {
@@ -68,7 +68,7 @@ const notificationSchema = new mongoose.Schema(
 // ==========================================
 // Virtuals
 // ==========================================
-notificationSchema.virtual('isExpired').get(function() {
+notificationSchema.virtual('isExpired').get(function () {
     return this.expiresAt && this.expiresAt < new Date();
 });
 
@@ -82,7 +82,7 @@ notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 
 // ==========================================
 // Static Methods
 // ==========================================
-notificationSchema.statics.getUnreadCount = async function(userId, userRole) {
+notificationSchema.statics.getUnreadCount = async function (userId, userRole) {
     return this.countDocuments({
         isRead: false,
         $or: [
@@ -93,7 +93,7 @@ notificationSchema.statics.getUnreadCount = async function(userId, userRole) {
     });
 };
 
-notificationSchema.statics.markAllAsRead = async function(userId, userRole) {
+notificationSchema.statics.markAllAsRead = async function (userId, userRole) {
     return this.updateMany(
         {
             isRead: false,
@@ -112,8 +112,7 @@ notificationSchema.statics.markAllAsRead = async function(userId, userRole) {
 // ==========================================
 // Pre-save Middleware
 // ==========================================
-notificationSchema.pre('save', function() {
-    // لا يمكن تحديد targetUser و targetRole معًا، targetUser له الأولوية
+notificationSchema.pre('save', function () {
     if (this.targetUser) {
         this.targetRole = undefined;
     }

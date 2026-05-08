@@ -3,7 +3,7 @@ const Room = require('../models/Room');
 const mongoose = require('mongoose');
 
 // ==========================================
-// Helpers للتنسيق الموحد
+// Helpers 
 // ==========================================
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
@@ -56,12 +56,12 @@ exports.getAllBuildings = async (req, res) => {
                 gender: b.gender,
                 description: b.description
             };
-            
+
             if (!isStudent) {
                 buildingObj.floors = b.floors;
                 buildingObj.supervisor = b.supervisorId?.name || 'Not Assigned';
             }
-            
+
             return buildingObj;
         });
 
@@ -88,7 +88,6 @@ exports.getBuildingById = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // التحقق من صحة الـ ID
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return sendError(res, 400, 'Invalid building ID format');
         }
@@ -105,7 +104,6 @@ exports.getBuildingById = async (req, res) => {
         let buildingStats = null;
 
         if (!isStudent) {
-            // حساب الإحصائيات باستخدام Aggregation Pipeline (أسرع من جلب كل الغرف)
             const stats = await Room.aggregate([
                 { $match: { buildingId: building._id } },
                 {
@@ -132,7 +130,6 @@ exports.getBuildingById = async (req, res) => {
                 currentOccupantsCount: 0
             };
 
-            // حذف _id من الإحصائيات
             delete buildingStats._id;
         }
 
@@ -166,10 +163,8 @@ exports.getBuildingById = async (req, res) => {
 // ==========================================
 exports.createBuilding = async (req, res) => {
     try {
-        // 1. ضفنا الـ grade هنا عشان نستلمه
         const { name, gender, floors, description, supervisorId, grade } = req.body;
 
-        // 2. ضفنا الـ grade في التحقق المبدئي
         if (!name || !gender || !floors || grade === undefined) {
             return sendError(res, 400, 'Name, gender, floors, and grade are required');
         }
@@ -182,25 +177,23 @@ exports.createBuilding = async (req, res) => {
             return sendError(res, 400, 'Floors must be a positive number');
         }
 
-        // 3. التحقق من أن الـ grade رقم بين 1 و 10 (زي ما الموديل طالب)
         if (typeof grade !== 'number' || grade < 1 || grade > 10) {
             return sendError(res, 400, 'Grade must be a number between 1 and 10');
         }
 
-        const existingBuilding = await Building.findOne({ 
-            name: { $regex: new RegExp(`^${name.trim()}$`, 'i') } 
+        const existingBuilding = await Building.findOne({
+            name: { $regex: new RegExp(`^${name.trim()}$`, 'i') }
         }).select('_id').lean();
 
         if (existingBuilding) {
             return sendError(res, 400, 'A building with this name already exists');
         }
 
-        // 4. أضفنا الـ grade للبيانات اللي هتتحفظ في الداتابيز ✅
         const buildingData = {
             name: name.trim(),
             gender,
             floors,
-            grade, 
+            grade,
             ...(description && { description: description.trim() }),
             ...(supervisorId && mongoose.Types.ObjectId.isValid(supervisorId) && { supervisorId })
         };
@@ -234,7 +227,6 @@ exports.updateBuilding = async (req, res) => {
             return sendError(res, 400, 'Invalid building ID format');
         }
 
-        // تحديد الحقول المسموح بتحديثها فقط (منع Mass Assignment)
         const allowedUpdates = ['name', 'gender', 'floors', 'grade', 'description', 'supervisorId'];
         const updates = {};
 
@@ -248,12 +240,10 @@ exports.updateBuilding = async (req, res) => {
             }
         });
 
-        // التحقق من صحة gender إذا تم تحديثها
         if (updates.gender && !['male', 'female'].includes(updates.gender)) {
             return sendError(res, 400, 'Gender must be either "male" or "female"');
         }
 
-        // التحقق من floors إذا تم تحديثها
         if (updates.floors !== undefined && (typeof updates.floors !== 'number' || updates.floors < 1)) {
             return sendError(res, 400, 'Floors must be a positive number');
         }
@@ -262,7 +252,6 @@ exports.updateBuilding = async (req, res) => {
             return sendError(res, 400, 'Grade must be a number between 1 and 10');
         }
 
-        // التحقق من supervisorId إذا تم إرساله
         if (updates.supervisorId && !mongoose.Types.ObjectId.isValid(updates.supervisorId)) {
             return sendError(res, 400, 'Invalid supervisor ID format');
         }
@@ -271,7 +260,6 @@ exports.updateBuilding = async (req, res) => {
             return sendError(res, 400, 'No valid fields provided for update');
         }
 
-        // التحقق من عدم وجود مبنى آخر بنفس الاسم إذا تم تحديث الاسم
         if (updates.name) {
             const existing = await Building.findOne({
                 _id: { $ne: id },
@@ -321,10 +309,9 @@ exports.deleteBuilding = async (req, res) => {
             return sendError(res, 400, 'Invalid building ID format');
         }
 
-        // 🚀 تنفيذ الـ Soft Delete بناءً على الـ Schema بتاعك
         const building = await Building.findByIdAndUpdate(
             id,
-            { $set: { status: 'inactive' } }, // 'inactive' موجودة في الـ enum عندك
+            { $set: { status: 'inactive' } },
             { new: true }
         );
 
@@ -332,7 +319,6 @@ exports.deleteBuilding = async (req, res) => {
             return sendError(res, 404, 'Building not found');
         }
 
-        // 🚀 قفل الأوض التابعة للمبنى (تحويلها لصيانة)
         await Room.updateMany(
             { buildingId: id },
             { $set: { status: 'maintenance' } }

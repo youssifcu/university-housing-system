@@ -5,7 +5,7 @@ const MealBooking = require('../models/MealBooking');
 const Payment = require('../models/Payment');
 
 // ==========================================
-// Helpers للتنسيق الموحد
+// Helpers 
 // ==========================================
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
@@ -29,18 +29,18 @@ const sendError = (res, statusCode, message, errorDetails = null) => {
 exports.getStudentsByCollege = async (req, res) => {
     try {
         const stats = await User.aggregate([
-            { 
-                $match: { 
-                    role: 'student', 
+            {
+                $match: {
+                    role: 'student',
                     housingStatus: 'active',
-                    faculty: { $ne: null, $ne: '' } 
-                } 
+                    faculty: { $ne: null, $ne: '' }
+                }
             },
-            { 
-                $group: { 
-                    _id: '$faculty', 
-                    count: { $sum: 1 } 
-                } 
+            {
+                $group: {
+                    _id: '$faculty',
+                    count: { $sum: 1 }
+                }
             },
             { $sort: { count: -1 } }
         ]);
@@ -58,18 +58,18 @@ exports.getStudentsByCollege = async (req, res) => {
 exports.getStudentsByGrade = async (req, res) => {
     try {
         const stats = await User.aggregate([
-            { 
-                $match: { 
-                    role: 'student', 
+            {
+                $match: {
+                    role: 'student',
                     housingStatus: 'active',
-                    universityYear: { $ne: null } 
-                } 
+                    universityYear: { $ne: null }
+                }
             },
-            { 
-                $group: { 
-                    _id: '$universityYear', 
-                    count: { $sum: 1 } 
-                } 
+            {
+                $group: {
+                    _id: '$universityYear',
+                    count: { $sum: 1 }
+                }
             },
             { $sort: { _id: 1 } }
         ]);
@@ -147,11 +147,11 @@ exports.getMealsPreparationStats = async (req, res) => {
         nextDate.setDate(nextDate.getDate() + 1);
 
         const stats = await MealBooking.aggregate([
-            { 
-                $match: { 
-                    date: { $gte: targetDate, $lt: nextDate }, 
-                    status: 'booked' 
-                } 
+            {
+                $match: {
+                    date: { $gte: targetDate, $lt: nextDate },
+                    status: 'booked'
+                }
             },
             {
                 $lookup: {
@@ -162,10 +162,10 @@ exports.getMealsPreparationStats = async (req, res) => {
                 }
             },
             { $unwind: '$student' },
-            { 
-                $match: { 
-                    'student.housingStatus': { $nin: ['suspended', 'banned'] } 
-                } 
+            {
+                $match: {
+                    'student.housingStatus': { $nin: ['suspended', 'banned'] }
+                }
             },
             {
                 $lookup: {
@@ -182,17 +182,17 @@ exports.getMealsPreparationStats = async (req, res) => {
                     mealName: { $first: '$mealInfo.name' },
                     mealType: { $first: '$mealInfo.type' },
                     requiredCount: { $sum: 1 },
-                    servedCount: { 
-                        $sum: { $cond: [{ $eq: ['$isServed', true] }, 1, 0] } 
+                    servedCount: {
+                        $sum: { $cond: [{ $eq: ['$isServed', true] }, 1, 0] }
                     }
                 }
             },
             { $sort: { mealType: 1 } }
         ]);
 
-        return sendSuccess(res, 200, 'Meals preparation statistics', { 
+        return sendSuccess(res, 200, 'Meals preparation statistics', {
             date: targetDate,
-            stats 
+            stats
         });
     } catch (error) {
         console.error('Get Meals Preparation Stats Error:', error);

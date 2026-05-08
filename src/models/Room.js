@@ -60,15 +60,15 @@ const roomSchema = new mongoose.Schema(
 // ==========================================
 // Virtuals
 // ==========================================
-roomSchema.virtual('occupancy').get(function() {
+roomSchema.virtual('occupancy').get(function () {
     return this.currentOccupants ? this.currentOccupants.length : 0;
 });
 
-roomSchema.virtual('availableSeats').get(function() {
+roomSchema.virtual('availableSeats').get(function () {
     return Math.max(0, this.capacity - this.occupancy);
 });
 
-roomSchema.virtual('isAvailable').get(function() {
+roomSchema.virtual('isAvailable').get(function () {
     return this.status === 'available' && this.occupancy < this.capacity;
 });
 
@@ -80,13 +80,13 @@ roomSchema.index({ buildingId: 1, status: 1 });
 roomSchema.index({ currentOccupants: 1 });
 
 // ==========================================
-// Pre-save Middleware (تحديث الحالة تلقائياً)
+// Pre-save Middleware (  )
 // ==========================================
-roomSchema.pre('save', function() {
+roomSchema.pre('save', function () {
     const occupantCount = this.currentOccupants ? this.currentOccupants.length : 0;
 
     if (this.status === 'maintenance') {
-        // نترك الحالة كما هي
+
     } else if (occupantCount >= this.capacity) {
         this.status = 'full';
     } else {

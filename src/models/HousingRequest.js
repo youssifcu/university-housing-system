@@ -19,15 +19,14 @@ const housingRequestSchema = new mongoose.Schema(
         fromRoomId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Room',
-            required: function() {
-                // مطلوب لجميع الأنواع باستثناء الصيانة (حسب السياق)
+            required: function () {
                 return this.type !== 'maintenance';
             }
         },
         toRoomId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Room',
-            required: function() {
+            required: function () {
                 return this.type === 'transfer';
             }
         },
@@ -39,11 +38,11 @@ const housingRequestSchema = new mongoose.Schema(
         },
         startDate: {
             type: Date,
-            required: function() {
+            required: function () {
                 return this.type === 'leave' || this.type === 'vacate';
             },
             validate: {
-                validator: function(value) {
+                validator: function (value) {
                     return !value || value >= new Date();
                 },
                 message: 'Start date must be in the future'
@@ -51,11 +50,11 @@ const housingRequestSchema = new mongoose.Schema(
         },
         endDate: {
             type: Date,
-            required: function() {
+            required: function () {
                 return this.type === 'leave' || this.type === 'vacate';
             },
             validate: {
-                validator: function(value) {
+                validator: function (value) {
                     if (!value) return true;
                     return !this.startDate || value > this.startDate;
                 },
@@ -105,7 +104,7 @@ const housingRequestSchema = new mongoose.Schema(
 // ==========================================
 // Virtuals
 // ==========================================
-housingRequestSchema.virtual('isActive').get(function() {
+housingRequestSchema.virtual('isActive').get(function () {
     if (this.status !== 'approved') return false;
     if (this.type === 'leave' || this.type === 'vacate') {
         const now = new Date();
@@ -114,7 +113,7 @@ housingRequestSchema.virtual('isActive').get(function() {
     return this.status === 'approved';
 });
 
-housingRequestSchema.virtual('durationDays').get(function() {
+housingRequestSchema.virtual('durationDays').get(function () {
     if (this.startDate && this.endDate) {
         const diff = this.endDate - this.startDate;
         return Math.ceil(diff / (1000 * 60 * 60 * 24));
@@ -134,11 +133,11 @@ housingRequestSchema.index({ createdAt: -1 });
 // ==========================================
 // Static Methods
 // ==========================================
-housingRequestSchema.statics.findPending = function() {
+housingRequestSchema.statics.findPending = function () {
     return this.find({ status: 'pending' }).sort({ createdAt: 1 });
 };
 
-housingRequestSchema.statics.findActiveForStudent = function(studentId) {
+housingRequestSchema.statics.findActiveForStudent = function (studentId) {
     return this.findOne({
         studentId,
         status: 'approved',
@@ -156,13 +155,11 @@ housingRequestSchema.statics.findActiveForStudent = function(studentId) {
 // ==========================================
 // Pre-save Middleware
 // ==========================================
-housingRequestSchema.pre('save', function() {
-    // تعيين reviewedAt تلقائياً عند تغيير الحالة إلى approved أو rejected
+housingRequestSchema.pre('save', function () {
     if (this.isModified('status') && ['approved', 'rejected'].includes(this.status)) {
         this.reviewedAt = new Date();
     }
 
-    // تأكد من أن الغرفة المصدر ليست نفس الغرفة الهدف في حالة النقل
     if (this.type === 'transfer' && this.fromRoomId && this.toRoomId) {
         if (this.fromRoomId.toString() === this.toRoomId.toString()) {
             return next(new Error('Source and target rooms cannot be the same'));

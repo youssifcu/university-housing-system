@@ -5,32 +5,28 @@ const verifyToken = require('../middlewares/verifyFirebaseToken');
 const { isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
 
 // ==========================================
-// 1. مسارات مشتركة (Shared / Student Specific)
+// 1.   (Shared / Student Specific)
 // ==========================================
 
-// تقديم طلب جديد
 router.post(
     '/',
     verifyToken,
     housingRequestController.submitRequest
 );
 
-// عرض الطلبات 
-// (الكنترولر الآن ذكي: الطالب بيشوف حاجته بس، والأدمن بيشوف الكل)
+
 router.get(
     '/',
     verifyToken,
     housingRequestController.getAllRequests
 );
 
-// عرض تفاصيل طلب محدد (محمي داخل الكنترولر للأدمن أو صاحب الطلب)
 router.get(
     '/:id',
     verifyToken,
     housingRequestController.getRequestById
 );
 
-// 🚀 المسار الجديد: تعديل الطالب لطلبه المعلق (Pending)
 router.patch(
     '/:id',
     verifyToken,
@@ -38,10 +34,9 @@ router.patch(
 );
 
 // ==========================================
-// 2. مسارات الإدارة (Admin/Supervisor Only)
+// 2.(Admin/Supervisor Only)
 // ==========================================
 
-// تحديث حالة الطلب (موافقة/رفض) - مع دعم التسكين اليدوي overrideRoomId
 router.patch(
     '/:id/status',
     verifyToken,

@@ -4,7 +4,7 @@ const { User } = require('../models/User');
 const Room = require('../models/Room');
 
 // ==========================================
-// Helpers للتنسيق الموحد
+// Helpers  
 // ==========================================
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
@@ -46,7 +46,7 @@ exports.submitRequest = async (req, res) => {
             type,
             status: 'pending'
         }).lean();
-        
+
         if (existingRequest) {
             return sendError(res, 400, `You already have a pending ${type} request`);
         }
@@ -81,7 +81,6 @@ exports.getAllRequests = async (req, res) => {
         const skip = (page - 1) * limit;
 
         const filter = {};
-        // 🚀 لو طالب، بنجبر الفلتر يشوف حاجته بس
         if (role === 'student') {
             filter.studentId = _id;
         } else if (req.query.studentId) {
@@ -128,7 +127,6 @@ exports.getRequestById = async (req, res) => {
 
         if (!request) return sendError(res, 404, 'Request not found');
 
-        // 🚀 حماية: الأدمن والسوبرفايزر يشوفوا أي حاجة، الطالب يشوف ملكيته بس
         const isOwner = request.studentId._id.toString() === _id.toString();
         const hasAccess = ['admin', 'supervisor'].includes(role) || isOwner;
 
@@ -172,7 +170,7 @@ exports.updateStatus = async (req, res) => {
     session.startTransaction();
     try {
         const { id } = req.params;
-        const { status, adminComment, overrideRoomId } = req.body; // 🚀 overrideRoomId للنقل اليدوي
+        const { status, adminComment, overrideRoomId } = req.body;
         const { role, _id: reviewerId } = req.userDoc;
 
         if (!['admin', 'supervisor'].includes(role)) {
@@ -186,18 +184,15 @@ exports.updateStatus = async (req, res) => {
 
         if (status === 'approved') {
             const student = await User.findById(request.studentId).session(session);
-            
-            // 🚀 Logic النقل (يدوي أو أوتوماتيك)
+
             if (request.type === 'transfer') {
-                const finalRoomId = overrideRoomId || request.toRoomId; // الأولوية للي الأدمن يختاره دلوقت
-                
+                const finalRoomId = overrideRoomId || request.toRoomId;
+
                 const targetRoom = await Room.findById(finalRoomId).session(session);
                 if (!targetRoom || targetRoom.status === 'full') throw new Error('Target room is not available');
 
-                // إخراج من القديم
                 await Room.findByIdAndUpdate(request.fromRoomId, { $pull: { currentOccupants: student._id } }, { session });
-                
-                // تسكين في الجديد
+
                 targetRoom.currentOccupants.push(student._id);
                 if (targetRoom.currentOccupants.length >= targetRoom.capacity) targetRoom.status = 'full';
                 await targetRoom.save({ session });

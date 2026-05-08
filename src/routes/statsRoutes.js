@@ -5,9 +5,8 @@ const verifyToken = require('../middlewares/verifyFirebaseToken');
 const { isAdmin, isAdminOrSupervisorOrFloorAdmin } = require('../middlewares/roleMiddleware');
 
 // ==========================================
-// مسارات الإدارة (Admin/Supervisor)
+//   (Admin/Supervisor)
 // ==========================================
-// لوحة التحكم (إحصائيات سريعة)
 router.get(
     '/dashboard',
     verifyToken,
@@ -15,7 +14,6 @@ router.get(
     statsController.getDashboardStats
 );
 
-// إحصائيات الطلاب حسب الكلية
 router.get(
     '/students-by-college',
     verifyToken,
@@ -23,7 +21,6 @@ router.get(
     statsController.getStudentsByCollege
 );
 
-// إحصائيات الطلاب حسب السنة الدراسية
 router.get(
     '/students-by-grade',
     verifyToken,
@@ -31,7 +28,6 @@ router.get(
     statsController.getStudentsByGrade
 );
 
-// إحصائيات الغرف (إذا كانت موجودة في الكنترولر)
 router.get(
     '/rooms',
     verifyToken,
@@ -39,7 +35,6 @@ router.get(
     statsController.getRoomsStats
 );
 
-// إحصائيات توفر المباني
 router.get(
     '/buildings-availability',
     verifyToken,
@@ -47,7 +42,6 @@ router.get(
     statsController.getBuildingsAvailability
 );
 
-// إحصائيات الوجبات
 router.get(
     '/meals',
     verifyToken,
@@ -55,7 +49,6 @@ router.get(
     statsController.getMealsStats
 );
 
-// إحصائيات تحضير الوجبات
 router.get(
     '/meals/preparation',
     verifyToken,
@@ -63,7 +56,6 @@ router.get(
     statsController.getMealsPreparationStats
 );
 
-// إحصائيات المدفوعات
 router.get(
     '/payments',
     verifyToken,

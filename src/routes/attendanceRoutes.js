@@ -5,9 +5,7 @@ const verifyToken = require('../middlewares/verifyFirebaseToken');
 const { isAdmin, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
 
 // ==========================================
-// مسارات عامة (للمستخدمين المسجلين)
 // ==========================================
-// الطالب يشوف سجل حضوره
 router.get(
     '/my',
     verifyToken,
@@ -15,9 +13,7 @@ router.get(
 );
 
 // ==========================================
-// مسارات المشرفين والأدمن (تسجيل وإدارة الحضور)
 // ==========================================
-// مسح QR لتسجيل حضور
 router.post(
     '/scan',
     verifyToken,
@@ -25,7 +21,6 @@ router.post(
     attendanceController.scanAttendance
 );
 
-// عرض سجل حضور طالب محدد (للإدارة)
 router.get(
     '/student/:studentId',
     verifyToken,
@@ -33,7 +28,6 @@ router.get(
     attendanceController.getStudentAttendance
 );
 
-// عرض حضور مبنى معين في تاريخ محدد
 router.get(
     '/building/:buildingId',
     verifyToken,
@@ -41,7 +35,6 @@ router.get(
     attendanceController.getAttendanceByBuilding
 );
 
-// تحديث سجل حضور (يدوي)
 router.patch(
     '/:id',
     verifyToken,
@@ -49,10 +42,6 @@ router.patch(
     attendanceController.updateAttendance
 );
 
-// ==========================================
-// مسارات إضافية (إن وجدت في الكنترولر)
-// ==========================================
-// إذا كان عندك دالة recordAttendance اليدوية
-// router.post('/', verifyToken, isAdminOrSupervisor, attendanceController.recordAttendance);
+
 
 module.exports = router;

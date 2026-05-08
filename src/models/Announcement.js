@@ -7,7 +7,7 @@ const announcementSchema = new mongoose.Schema(
             required: [true, 'Announcement title is required'],
             trim: true,
             maxlength: [200, 'Title cannot exceed 200 characters'],
-            index: true // فهرس للبحث السريع
+            index: true
         },
         content: {
             type: String,
@@ -35,7 +35,7 @@ const announcementSchema = new mongoose.Schema(
         targetUsers: [{
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User'
-        }], // لإرسال الإعلان لمستخدمين محددين (اختياري)
+        }],
         status: {
             type: String,
             enum: {
@@ -48,7 +48,7 @@ const announcementSchema = new mongoose.Schema(
         expiresAt: {
             type: Date,
             validate: {
-                validator: function(value) {
+                validator: function (value) {
                     return !value || value > new Date();
                 },
                 message: 'Expiration date must be in the future'
@@ -77,12 +77,12 @@ const announcementSchema = new mongoose.Schema(
 );
 
 // Virtual field: isExpired
-announcementSchema.virtual('isExpired').get(function() {
+announcementSchema.virtual('isExpired').get(function () {
     return this.expiresAt && this.expiresAt < new Date();
 });
 
 // Virtual field: isActive (status active and not expired)
-announcementSchema.virtual('isActive').get(function() {
+announcementSchema.virtual('isActive').get(function () {
     return this.status === 'active' && !this.isExpired;
 });
 
@@ -92,14 +92,14 @@ announcementSchema.index({ createdBy: 1, createdAt: -1 });
 announcementSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL index for auto-deletion
 
 // Pre-save middleware to auto-update status if expired
-announcementSchema.pre('save', function() {
+announcementSchema.pre('save', function () {
     if (this.expiresAt && this.expiresAt < new Date() && this.status === 'active') {
         this.status = 'archived';
     }
 });
 
 // Static method to get active announcements for a user
-announcementSchema.statics.getActiveForUser = function(userId, userRole) {
+announcementSchema.statics.getActiveForUser = function (userId, userRole) {
     const now = new Date();
     return this.find({
         status: 'active',

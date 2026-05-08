@@ -1,6 +1,6 @@
 const isSupervisorOrAdmin = (req, res, next) => {
     const user = req.userDoc || req.user;
-    
+
     if (!user) {
         return res.status(401).json({
             success: false,
@@ -8,9 +8,8 @@ const isSupervisorOrAdmin = (req, res, next) => {
         });
     }
 
-    // الأدوار المسموحة: admin, supervisor, floor_admin
     const allowedRoles = ['admin', 'supervisor', 'floor_admin'];
-    
+
     if (allowedRoles.includes(user.role)) {
         next();
     } else {

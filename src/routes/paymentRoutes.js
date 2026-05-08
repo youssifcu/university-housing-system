@@ -5,9 +5,8 @@ const verifyToken = require('../middlewares/verifyFirebaseToken');
 const { isAdmin, isStudent } = require('../middlewares/roleMiddleware');
 
 // ==========================================
-// مسارات الطالب (Student Only)
+//   (Student Only)
 // ==========================================
-// عرض مدفوعاتي
 router.get(
     '/my',
     verifyToken,
@@ -15,7 +14,6 @@ router.get(
     paymentController.getMyPayments
 );
 
-// إنشاء دفعة جديدة (للطالب)
 router.post(
     '/',
     verifyToken,
@@ -23,7 +21,6 @@ router.post(
     paymentController.createPayment
 );
 
-// عرض تفاصيل دفعة محددة (للطالب - بشروط الملكية داخل الكنترولر)
 router.get(
     '/:id',
     verifyToken,
@@ -32,9 +29,9 @@ router.get(
 );
 
 // ==========================================
-// مسارات الإدارة (Admin Only)
+//   (Admin Only)
 // ==========================================
-// عرض جميع المدفوعات (مع Pagination وفلترة)
+//    ( Pagination )
 router.get(
     '/',
     verifyToken,
@@ -42,7 +39,6 @@ router.get(
     paymentController.getAllPayments
 );
 
-// تحديث دفعة
 router.put(
     '/:id',
     verifyToken,
@@ -50,7 +46,6 @@ router.put(
     paymentController.updatePayment
 );
 
-// حذف دفعة
 router.delete(
     '/:id',
     verifyToken,

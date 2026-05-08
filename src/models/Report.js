@@ -12,7 +12,7 @@ const reportSchema = new mongoose.Schema(
         },
         studentId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'User', // تم التغيير إلى User ليتوافق مع النظام الموحد
+            ref: 'User',
             required: [true, 'Student reference is required'],
             index: true
         },
@@ -91,11 +91,11 @@ const reportSchema = new mongoose.Schema(
 // ==========================================
 // Virtuals
 // ==========================================
-reportSchema.virtual('isResolved').get(function() {
+reportSchema.virtual('isResolved').get(function () {
     return ['resolved', 'closed'].includes(this.status);
 });
 
-reportSchema.virtual('isUrgent').get(function() {
+reportSchema.virtual('isUrgent').get(function () {
     return this.severity === 'critical' || this.severity === 'high';
 });
 
@@ -111,13 +111,13 @@ reportSchema.index({ 'location.buildingId': 1 });
 // ==========================================
 // Static Methods
 // ==========================================
-reportSchema.statics.findOpen = function() {
+reportSchema.statics.findOpen = function () {
     return this.find({ status: { $in: ['open', 'in_progress', 'reopened'] } })
         .populate('studentId', 'name studentId')
         .sort({ severity: -1, createdAt: 1 });
 };
 
-reportSchema.statics.getStats = async function() {
+reportSchema.statics.getStats = async function () {
     return this.aggregate([
         {
             $group: {
@@ -131,12 +131,10 @@ reportSchema.statics.getStats = async function() {
 // ==========================================
 // Pre-save Middleware
 // ==========================================
-reportSchema.pre('save', function() {
-    // تعيين تاريخ الحل عند تغيير الحالة إلى resolved أو closed
+reportSchema.pre('save', function () {
     if (this.isModified('status') && ['resolved', 'closed'].includes(this.status) && !this.resolvedAt) {
         this.resolvedAt = new Date();
     }
-    // إذا أعيد فتح البلاغ، نمسح تاريخ الحل
     if (this.isModified('status') && this.status === 'reopened') {
         this.resolvedAt = undefined;
     }

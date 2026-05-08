@@ -8,7 +8,6 @@ const studentRequestSchema = new mongoose.Schema(
             required: [true, 'Student ID is required'],
             index: true
         },
-        // 🚀 1. خلينا الأنواع مقتصرة على الشكاوى والدعم والاستثناءات بس
         requestType: {
             type: String,
             enum: {
@@ -102,11 +101,11 @@ const studentRequestSchema = new mongoose.Schema(
 // ==========================================
 // Virtuals & Indexes & Statics
 // ==========================================
-studentRequestSchema.virtual('isPending').get(function() {
+studentRequestSchema.virtual('isPending').get(function () {
     return ['submitted', 'in_review', 'needs_revision'].includes(this.status);
 });
 
-studentRequestSchema.virtual('isClosed').get(function() {
+studentRequestSchema.virtual('isClosed').get(function () {
     return ['approved', 'rejected', 'closed'].includes(this.status);
 });
 
@@ -116,22 +115,22 @@ studentRequestSchema.index({ requestedAdminRole: 1, status: 1 });
 studentRequestSchema.index({ assignedToUserId: 1, status: 1 });
 studentRequestSchema.index({ createdAt: -1 });
 
-studentRequestSchema.statics.findPending = function() {
+studentRequestSchema.statics.findPending = function () {
     return this.find({ status: { $in: ['submitted', 'in_review', 'needs_revision'] } })
         .populate('studentId', 'name email studentId')
         .sort({ priority: -1, createdAt: 1 });
 };
 
-studentRequestSchema.statics.findAssignedToUser = function(userId) {
+studentRequestSchema.statics.findAssignedToUser = function (userId) {
     return this.find({ assignedToUserId: userId, status: { $nin: ['approved', 'rejected', 'closed'] } })
         .populate('studentId', 'name email');
 };
 
-studentRequestSchema.pre('save', function() {
+studentRequestSchema.pre('save', function () {
     if (this.isModified('status') && ['approved', 'rejected'].includes(this.status)) {
         this.reviewedAt = new Date();
     }
-    });
+});
 
 const StudentRequest = mongoose.model('StudentRequest', studentRequestSchema);
 module.exports = StudentRequest;

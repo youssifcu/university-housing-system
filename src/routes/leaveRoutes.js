@@ -5,9 +5,8 @@ const verifyToken = require('../middlewares/verifyFirebaseToken');
 const { isStudent, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
 
 // ==========================================
-// مسارات الطالب (Student Only)
+//   (Student Only)
 // ==========================================
-// تقديم طلب إجازة
 router.post(
     '/request',
     verifyToken,
@@ -15,7 +14,6 @@ router.post(
     studentController.requestLeave
 );
 
-// عرض تقرير الحضور الخاص بالطالب
 router.get(
     '/attendance',
     verifyToken,
@@ -23,10 +21,7 @@ router.get(
     studentController.getAttendanceReport
 );
 
-// ==========================================
-// مسارات المشرفين والأدمن
-// ==========================================
-// الموافقة على طلب إجازة
+
 router.patch(
     '/approve/:requestId',
     verifyToken,
@@ -34,7 +29,6 @@ router.patch(
     studentController.approveLeave
 );
 
-// إنهاء الإجازة يدوياً (للطالب المحدد)
 router.patch(
     '/end/:studentId',
     verifyToken,
@@ -42,7 +36,6 @@ router.patch(
     studentController.endLeave
 );
 
-// عرض تقرير حضور طالب محدد
 router.get(
     '/attendance/:studentId',
     verifyToken,

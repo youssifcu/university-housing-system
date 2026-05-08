@@ -5,9 +5,9 @@ const verifyToken = require('../middlewares/verifyFirebaseToken');
 const { isStudent, isFloorAdmin, isMealAdmin } = require('../middlewares/roleMiddleware');
 
 // ==========================================
-// مسارات الطالب (Student Only)
+//   (Student Only)
 // ==========================================
-// توليد QR Codes جديدة
+//  QR Codes 
 router.post(
     '/generate',
     verifyToken,
@@ -15,7 +15,6 @@ router.post(
     qrController.generateStudentQRCodes
 );
 
-// تجديد QR Codes (بدون تغيير الصلاحيات)
 router.post(
     '/refresh',
     verifyToken,
@@ -23,7 +22,6 @@ router.post(
     qrController.refreshStudentQRCodes
 );
 
-// عرض QR Codes الحالية
 router.get(
     '/my',
     verifyToken,
@@ -32,9 +30,7 @@ router.get(
 );
 
 // ==========================================
-// مسارات التحقق (للإدارة)
 // ==========================================
-// التحقق من صحة QR Code (حضور أو وجبة)
 router.get(
     '/verify',
     verifyToken,

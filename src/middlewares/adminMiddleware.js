@@ -1,7 +1,6 @@
 const isAdmin = (req, res, next) => {
-    // استخدام req.userDoc لأن verifyToken يضيفه
     const user = req.userDoc || req.user;
-    
+
     if (!user) {
         return res.status(401).json({
             success: false,

@@ -6,7 +6,7 @@ const MealBooking = require('../models/MealBooking');
 const QRCode = require('qrcode');
 
 // ==========================================
-// Helpers للتنسيق الموحد
+// Helpers  
 // ==========================================
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
@@ -102,7 +102,7 @@ exports.getMyProfile = async (req, res) => {
             return sendError(res, 404, 'Student profile not found');
         }
 
-        // التحقق من انتهاء الإجازة تلقائيًا
+
         if (student.housingStatus === 'suspended') {
             const leaveEnded = await StudentRequest.exists({
                 studentId: student._id,
@@ -116,7 +116,6 @@ exports.getMyProfile = async (req, res) => {
             }
         }
 
-        // حساب رصيد الوجبات الأسبوعي (وجبات محجوزة ولم تُصرف)
         const now = new Date();
         const startOfWeek = new Date(now);
         startOfWeek.setDate(now.getDate() - now.getDay());
@@ -132,7 +131,6 @@ exports.getMyProfile = async (req, res) => {
             isServed: false
         });
 
-        // دمج بيانات المبنى والغرفة بشكل واضح
         const responseData = {
             ...student,
             building: student.assignedRoomId?.buildingId || null,
@@ -161,7 +159,6 @@ exports.getMyQRCode = async (req, res) => {
             return sendError(res, 404, 'No QR code generated yet');
         }
 
-        // يمكن إرجاع الصورة كـ DataURL إذا كانت مخزنة
         return sendSuccess(res, 200, 'QR code fetched', {
             qrCode: student.qrCode,
             status: 'active'
@@ -182,7 +179,6 @@ exports.updateStudent = async (req, res) => {
             return sendError(res, 400, 'Invalid student ID format');
         }
 
-        // الحقول المسموح بتحديثها
         const allowedUpdates = [
             'nationalId', 'universityYear', 'faculty', 'department',
             'housingStatus', 'assignedRoomId', 'leaveStatus'
@@ -229,7 +225,6 @@ exports.generateMyQRCode = async (req, res) => {
             return sendError(res, 404, 'Student record not found');
         }
 
-        // استخدام ID الطالب ككود QR
         const userIdString = student._id.toString();
 
         student.qrCode = {
@@ -258,7 +253,6 @@ exports.validateQRCode = async (req, res) => {
             return sendError(res, 400, 'QR code string is required');
         }
 
-        // التحقق من صحة ObjectId
         if (!mongoose.Types.ObjectId.isValid(qrCode)) {
             return sendSuccess(res, 200, 'QR code invalid', {
                 valid: false,
@@ -299,7 +293,6 @@ exports.requestLeave = async (req, res) => {
         const { leaveStartDate, leaveEndDate, leaveReason } = req.body;
         const studentId = req.userDoc._id;
 
-        // التحقق من المدخلات
         if (!leaveStartDate || !leaveEndDate) {
             return sendError(res, 400, 'Start date and end date are required');
         }
@@ -317,7 +310,6 @@ exports.requestLeave = async (req, res) => {
             return sendError(res, 400, 'End date must be after start date');
         }
 
-        // التحقق من عدم وجود طلب إجازة معلق
         const existingRequest = await StudentRequest.findOne({
             studentId,
             requestType: 'leave_request',
@@ -328,7 +320,6 @@ exports.requestLeave = async (req, res) => {
             return sendError(res, 400, 'You already have a pending leave request');
         }
 
-        // إنشاء طلب الإجازة
         const leaveRequest = new StudentRequest({
             studentId,
             requestType: 'leave_request',
@@ -368,7 +359,6 @@ exports.approveLeave = async (req, res) => {
             return sendError(res, 400, 'Invalid request ID format');
         }
 
-        // 1. جلب طلب الإجازة
         const leaveRequest = await StudentRequest.findById(requestId).session(session);
         if (!leaveRequest) {
             await session.abortTransaction();
@@ -391,7 +381,6 @@ exports.approveLeave = async (req, res) => {
             return sendError(res, 400, 'Leave request is missing start or end date');
         }
 
-        // 3. تحديث الطالب (إضافة حالة الإجازة)
         const student = await User.findOneAndUpdate(
             { _id: leaveRequest.studentId, role: 'student' },
             {
@@ -401,7 +390,7 @@ exports.approveLeave = async (req, res) => {
                     'leaveStatus.leaveEndDate': endDate,
                     'leaveStatus.leaveReason': leaveRequest.description,
                     'leaveStatus.approvedBy': supervisorId,
-                    housingStatus: 'suspended' // تعليق السكن خلال الإجازة
+                    housingStatus: 'suspended'
                 }
             },
             { new: true, session }
@@ -413,7 +402,6 @@ exports.approveLeave = async (req, res) => {
             return sendError(res, 404, 'Student not found');
         }
 
-        // 4. تحديث الطلب
         leaveRequest.status = 'approved';
         leaveRequest.reviewedBy = supervisorId;
         leaveRequest.reviewedAt = new Date();
@@ -462,7 +450,7 @@ exports.endLeave = async (req, res) => {
                     'leaveStatus.leaveEndDate': null,
                     'leaveStatus.leaveReason': '',
                     'leaveStatus.approvedBy': null,
-                    housingStatus: 'active' // إعادة تفعيل السكن
+                    housingStatus: 'active'
                 }
             },
             { new: true, session }
@@ -495,21 +483,17 @@ exports.endLeave = async (req, res) => {
 // ==========================================
 exports.getAttendanceReport = async (req, res) => {
     try {
-        // تحديد الطالب: إما المحدد في الرابط أو الطالب الحالي
         const targetStudentId = req.params.studentId || req.userDoc._id.toString();
         const isAdminOrSupervisor = ['admin', 'supervisor'].includes(req.userDoc.role);
 
-        // صلاحيات: الأدمن/المشرف يقدروا يشوفوا أي طالب، الطالب يشوف نفسه فقط
         if (!isAdminOrSupervisor && targetStudentId !== req.userDoc._id.toString()) {
             return sendError(res, 403, 'You are not authorized to view this report');
         }
 
-        // التحقق من صحة ID الطالب
         if (!mongoose.Types.ObjectId.isValid(targetStudentId)) {
             return sendError(res, 400, 'Invalid student ID format');
         }
 
-        // بناء الفلتر للتاريخ
         const { startDate, endDate } = req.query;
         const query = { studentId: targetStudentId };
 
@@ -522,12 +506,11 @@ exports.getAttendanceReport = async (req, res) => {
             query.date = { $gte: start, $lte: end };
         }
 
-        // Pagination (اختياري)
+        // Pagination 
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 50;
         const skip = (page - 1) * limit;
 
-        // جلب السجلات والإحصاءات
         const [records, totalRecords] = await Promise.all([
             Attendance.find(query)
                 .select('date status')
@@ -538,7 +521,6 @@ exports.getAttendanceReport = async (req, res) => {
             Attendance.countDocuments(query)
         ]);
 
-        // حساب الملخص
         const summary = {
             total: totalRecords,
             present: records.filter(r => r.status === 'present').length,

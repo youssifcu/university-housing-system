@@ -4,7 +4,7 @@ const { User } = require('../models/User');
 const Notification = require('../models/Notification');
 
 // ==========================================
-// Helpers للتنسيق الموحد
+// Helpers  
 // ==========================================
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
@@ -22,12 +22,10 @@ const sendError = (res, statusCode, message, errorDetails = null) => {
     return res.status(statusCode).json(response);
 };
 
-// القيم المسموحة
 const ALLOWED_REPORT_TYPES = ['maintenance', 'complaint', 'emergency', 'other'];
 const ALLOWED_SEVERITIES = ['low', 'medium', 'high', 'critical'];
 const ALLOWED_STATUSES = ['open', 'in_progress', 'resolved', 'closed'];
 
-// التحقق من صلاحيات الإدارة
 const canManageReports = (role) => ['admin', 'floor_admin', 'supervisor'].includes(role);
 
 // ==========================================
@@ -35,15 +33,13 @@ const canManageReports = (role) => ['admin', 'floor_admin', 'supervisor'].includ
 // ==========================================
 exports.createReport = async (req, res) => {
     try {
-        const { type, description, severity, imageUrls, location } = req.body; // نستخدم imageUrls كـ Array
+        const { type, description, severity, imageUrls, location } = req.body;
         const studentId = req.userDoc._id;
 
-        // 1. التحقق من الحقول المطلوبة
         if (!type || !description?.trim()) {
             return sendError(res, 400, 'Type and description are required');
         }
 
-        // 2. مزامنة أنواع البلاغات مع الموديل (ضفنا malfunction)
         const MODEL_TYPES = ['maintenance', 'complaint', 'emergency', 'malfunction', 'other'];
         if (!MODEL_TYPES.includes(type)) {
             return sendError(res, 400, `Invalid type. Allowed: ${MODEL_TYPES.join(', ')}`);
@@ -53,10 +49,10 @@ exports.createReport = async (req, res) => {
             type,
             description: description.trim(),
             severity: severity || 'low',
-            imageUrls: imageUrls || [], // مصفوفة صور
+            imageUrls: imageUrls || [],
             studentId,
             reportedBy: studentId,
-            location: location || {}, // دعم بيانات الموقع (Building/Room)
+            location: location || {},
             status: 'open'
         });
 
@@ -137,7 +133,6 @@ exports.getReportById = async (req, res) => {
             return sendError(res, 404, 'Report not found');
         }
 
-        // صلاحيات الوصول
         const isOwner = report.studentId._id.toString() === req.userDoc._id.toString();
         const isManagement = canManageReports(req.userDoc.role);
 
@@ -192,7 +187,6 @@ exports.updateReportStatus = async (req, res) => {
             return sendError(res, 404, 'Report not found');
         }
 
-        // تحديث الحقول
         report.status = status;
         report.updatedAt = new Date();
         if (comment) {
@@ -201,7 +195,6 @@ exports.updateReportStatus = async (req, res) => {
 
         await report.save();
 
-        // إنشاء إشعار للطالب
         await Notification.create({
             title: `Report #${report._id.toString().slice(-6)} Updated`,
             message: `Your ${report.type} report status changed to: ${status}`,
@@ -209,7 +202,6 @@ exports.updateReportStatus = async (req, res) => {
             type: 'info'
         });
 
-        // إرسال تنبيه فوري عبر Socket.io
         const io = req.app.get('io');
         if (io) {
             io.to(report.studentId.toString()).emit('notification:new', {

@@ -59,9 +59,9 @@ const userSchema = new mongoose.Schema(
 );
 
 // ==========================================
-// Instance Methods (لجميع المستخدمين)
+// Instance Methods ( )
 // ==========================================
-userSchema.methods.toProfileJSON = function() {
+userSchema.methods.toProfileJSON = function () {
     return {
         id: this._id,
         name: this.name,
@@ -75,11 +75,11 @@ userSchema.methods.toProfileJSON = function() {
 // ==========================================
 // Static Methods
 // ==========================================
-userSchema.statics.findByRole = function(role) {
+userSchema.statics.findByRole = function (role) {
     return this.find({ role, isActive: true });
 };
 
-userSchema.statics.findActiveUsers = function() {
+userSchema.statics.findActiveUsers = function () {
     return this.find({ isActive: true });
 };
 
@@ -169,12 +169,12 @@ const studentSchema = new mongoose.Schema({
 });
 
 // Virtual for student's full academic info
-studentSchema.virtual('academicInfo').get(function() {
+studentSchema.virtual('academicInfo').get(function () {
     return `${this.faculty} - Year ${this.universityYear}`;
 });
 
 // Static method to find active residents
-studentSchema.statics.findActiveResidents = function() {
+studentSchema.statics.findActiveResidents = function () {
     return this.find({ housingStatus: 'active', assignedRoomId: { $ne: null } });
 };
 
@@ -201,7 +201,7 @@ const floorAdminSchema = new mongoose.Schema({
     }
 });
 
-floorAdminSchema.virtual('shift').get(function() {
+floorAdminSchema.virtual('shift').get(function () {
     return this.isNightShift ? 'Night' : 'Day';
 });
 

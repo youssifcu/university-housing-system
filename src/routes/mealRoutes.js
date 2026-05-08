@@ -66,7 +66,6 @@ router.post(
     mealController.scanMeal
 );
 
-// إنشاء وجبة جديدة (Meal Admin أو Admin)
 router.post(
     '/',
     verifyToken,
@@ -74,7 +73,6 @@ router.post(
     mealController.createMeal
 );
 
-// تحديث وجبة
 router.put(
     '/:id',
     verifyToken,
@@ -82,7 +80,6 @@ router.put(
     mealController.updateMeal
 );
 
-// حذف وجبة
 router.delete(
     '/:id',
     verifyToken,

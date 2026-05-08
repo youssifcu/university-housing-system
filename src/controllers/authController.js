@@ -2,7 +2,7 @@ const { User, Student } = require('../models/User');
 const Application = require('../models/Application');
 
 // ==========================================
-// Helpers للتنسيق الموحد
+// Helpers 
 // ==========================================
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
@@ -25,23 +25,23 @@ const sendError = (res, statusCode, message, errorDetails = null) => {
 // ==========================================
 exports.registerUser = async (req, res) => {
     try {
-        const { 
-            firebaseUid, email, name, phoneNumber, 
-            studentId, nationalId, universityYear, faculty 
+        const {
+            firebaseUid, email, name, phoneNumber,
+            studentId, nationalId, universityYear, faculty
         } = req.body;
 
         const requiredFields = [
             'firebaseUid', 'email', 'name', 'phoneNumber',
             'studentId', 'nationalId', 'universityYear', 'faculty'
         ];
-        
+
         const missingFields = requiredFields.filter(field => !req.body[field]);
         if (missingFields.length > 0) {
             return sendError(res, 400, `Missing required fields: ${missingFields.join(', ')}`);
         }
 
-        const existingUser = await User.findOne({ 
-            $or: [{ email }, { firebaseUid }, { studentId }, { nationalId }] 
+        const existingUser = await User.findOne({
+            $or: [{ email }, { firebaseUid }, { studentId }, { nationalId }]
         }).select('_id').lean();
 
         if (existingUser) {
@@ -99,7 +99,6 @@ exports.loginUser = async (req, res) => {
             return sendError(res, 400, 'Firebase UID is required');
         }
 
-        // 1. البحث عن المستخدم
         const user = await User.findOne({ firebaseUid })
             .select('_id role name email housingStatus lastLogin')
             .exec();
@@ -108,27 +107,10 @@ exports.loginUser = async (req, res) => {
             return sendError(res, 404, 'User not found. Please register first.');
         }
 
-        
-        /*
-        // 2. التحقق من صلاحية الدخول للطلاب
-        if (user.role === 'student') {
-            const blockedStatuses = ['new_applicant', 'banned', 'suspended'];
-            if (blockedStatuses.includes(user.housingStatus)) {
-                const messages = {
-                    'new_applicant': 'Your application is still pending approval.',
-                    'banned': 'This account has been banned.',
-                    'suspended': 'Your account is currently suspended.'
-                };
-                return sendError(res, 403, messages[user.housingStatus] || 'Login denied');
-            }
-        }
-       */
 
-        // 3. تحديث آخر دخول
         user.lastLogin = new Date();
         await user.save({ validateBeforeSave: false });
 
-        // 4. بناء بيانات المستخدم الآمنة للإرسال
         const userData = {
             id: user._id,
             role: user.role,
@@ -153,10 +135,8 @@ exports.loginUser = async (req, res) => {
 // ==========================================
 exports.getProfile = async (req, res) => {
     try {
-        // req.userDoc موجود من middleware
         const user = req.userDoc;
 
-        // الحقول الآمنة للإرسال حسب الدور
         let profileData = {
             id: user._id,
             role: user.role,
@@ -197,7 +177,6 @@ exports.updateProfile = async (req, res) => {
         const userId = req.userDoc._id;
         const updates = req.body;
 
-        // الحقول المسموح بتحديثها
         const allowedFields = ['name', 'phoneNumber'];
         const filteredUpdates = {};
 
@@ -211,7 +190,6 @@ exports.updateProfile = async (req, res) => {
             return sendError(res, 400, 'No valid fields to update');
         }
 
-        // تحديث المستخدم
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             filteredUpdates,
@@ -257,33 +235,29 @@ exports.changePassword = async (req, res) => {
 // ==========================================
 exports.registerAdmin = async (req, res) => {
     try {
-        const { 
-            firebaseUid, email, name, phoneNumber, role 
+        const {
+            firebaseUid, email, name, phoneNumber, role
         } = req.body;
 
-        // 1. التحقق من الحقول المطلوبة
         const requiredFields = ['firebaseUid', 'email', 'name', 'phoneNumber', 'role'];
         const missingFields = requiredFields.filter(field => !req.body[field]);
         if (missingFields.length > 0) {
             return sendError(res, 400, `Missing required fields: ${missingFields.join(', ')}`);
         }
 
-        // التحقق من الدور
         const validRoles = ['admin', 'supervisor', 'floor_admin', 'meal_admin', 'security'];
         if (!validRoles.includes(role)) {
             return sendError(res, 400, 'Invalid role. Must be admin, supervisor, floor_admin, meal_admin, or security');
         }
 
-        // 2. التأكد من عدم وجود المستخدم مسبقاً
-        const existingUser = await User.findOne({ 
-            $or: [{ email }, { firebaseUid }] 
+        const existingUser = await User.findOne({
+            $or: [{ email }, { firebaseUid }]
         }).select('_id').lean();
 
         if (existingUser) {
             return sendError(res, 409, 'User already exists with this email or Firebase UID');
         }
 
-        // 3. إنشاء المستخدم الجديد
         const newUser = new User({
             firebaseUid,
             email,

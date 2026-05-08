@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 
 // ==========================================
-// Helpers للتنسيق الموحد
+// Helpers  
 // ==========================================
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
@@ -22,15 +22,14 @@ const sendError = (res, statusCode, message, errorDetails = null) => {
     return res.status(statusCode).json(response);
 };
 
-// إعدادات QR Code الموصى بها
 const QR_OPTIONS = {
-    errorCorrectionLevel: 'M', // مستوى تصحيح الأخطاء متوسط (مناسب للطباعة)
+    errorCorrectionLevel: 'M',
     type: 'image/png',
-    margin: 2,                // هامش أبيض حول الكود
-    scale: 8,                 // جودة عالية
+    margin: 2,
+    scale: 8,
     color: {
-        dark: '#000000',      // لون الكود
-        light: '#FFFFFF'      // لون الخلفية
+        dark: '#000000',
+        light: '#FFFFFF'
     }
 };
 
@@ -41,21 +40,17 @@ exports.generateStudentQRCodes = async (req, res) => {
     try {
         const studentId = req.userDoc._id;
 
-        // التحقق من أن المستخدم طالب
         if (req.userDoc.role !== 'student') {
             return sendError(res, 403, 'Only students can generate QR codes');
         }
 
-        // استخدام ID الطالب ككود QR بدلاً من توليد أكواد عشوائية
         const userIdString = studentId.toString();
 
-        // توليد صور Base64 بالتوازي لتحسين الأداء
         const [attendanceQR, mealQR] = await Promise.all([
             QRCode.toDataURL(userIdString, QR_OPTIONS),
             QRCode.toDataURL(userIdString, QR_OPTIONS)
         ]);
 
-        // تحديث الطالب
         const updatedUser = await Student.findByIdAndUpdate(
             studentId,
             {
@@ -118,7 +113,7 @@ exports.getStudentQRCodes = async (req, res) => {
 };
 
 // ==========================================
-// POST /api/qr/refresh (Student - تجديد الأكواد)
+// POST /api/qr/refresh 
 // ==========================================
 exports.refreshStudentQRCodes = async (req, res) => {
     try {
@@ -128,7 +123,6 @@ exports.refreshStudentQRCodes = async (req, res) => {
             return sendError(res, 403, 'Only students can refresh QR codes');
         }
 
-        // استخدام ID الطالب ككود QR بدلاً من توليد أكواد عشوائية
         const userIdString = studentId.toString();
 
         const [attendanceQR, mealQR] = await Promise.all([
@@ -160,7 +154,7 @@ exports.refreshStudentQRCodes = async (req, res) => {
 };
 
 // ==========================================
-// GET /api/qr/verify (للاختبار أو التحقق من صحة الكود)
+// GET /api/qr/verify  
 // ==========================================
 exports.verifyQRCode = async (req, res) => {
     try {
@@ -174,12 +168,10 @@ exports.verifyQRCode = async (req, res) => {
             return sendError(res, 400, 'Type must be "attendance" or "meal"');
         }
 
-        // التحقق من صحة ObjectId
         if (!mongoose.Types.ObjectId.isValid(code)) {
             return sendError(res, 400, 'Invalid user ID format');
         }
 
-        // البحث عن الطالب بالـ ID مباشرة
         const student = await Student.findOne({
             _id: code,
             role: 'student'

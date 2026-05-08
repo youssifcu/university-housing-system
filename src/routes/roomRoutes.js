@@ -5,9 +5,8 @@ const verifyToken = require('../middlewares/verifyFirebaseToken');
 const { isAdmin, isStudent, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
 
 // ==========================================
-// مسارات الطالب (Student Only)
+//   (Student Only)
 // ==========================================
-// عرض غرفتي
 router.get(
     '/my',
     verifyToken,
@@ -16,30 +15,25 @@ router.get(
 );
 
 // ==========================================
-// مسارات عامة (للمستخدمين المسجلين)
 // ==========================================
-// عرض جميع الغرف (مع Pagination وفلترة)
 router.get(
     '/',
     verifyToken,
     roomController.getAllRooms
 );
 
-// عرض الغرف المتاحة فقط
 router.get(
     '/available',
     verifyToken,
     roomController.getAvailableRooms
 );
 
-// عرض غرف مبنى محدد
 router.get(
     '/building/:buildingId',
     verifyToken,
     roomController.getRoomsByBuilding
 );
 
-// عرض تفاصيل غرفة محددة
 router.get(
     '/:id',
     verifyToken,
@@ -47,9 +41,8 @@ router.get(
 );
 
 // ==========================================
-// مسارات الإدارة (Admin/Supervisor)
+//   (Admin/Supervisor)
 // ==========================================
-// إنشاء غرفة جديدة
 router.post(
     '/',
     verifyToken,
@@ -57,7 +50,6 @@ router.post(
     roomController.createRoom
 );
 
-// تحديث بيانات غرفة
 router.put(
     '/:id',
     verifyToken,
@@ -65,7 +57,6 @@ router.put(
     roomController.updateRoom
 );
 
-// تحديث حالة الغرفة (متاحة، صيانة، ممتلئة)
 router.patch(
     '/:id/status',
     verifyToken,
@@ -73,7 +64,6 @@ router.patch(
     roomController.updateRoomStatus
 );
 
-// تسكين طالب يدوياً في غرفة محددة
 router.patch(
     '/:id/assign',
     verifyToken,
@@ -81,7 +71,6 @@ router.patch(
     roomController.assignStudent
 );
 
-// إزالة طالب من غرفة
 router.patch(
     '/:id/remove',
     verifyToken,
@@ -89,7 +78,6 @@ router.patch(
     roomController.removeStudent
 );
 
-// تسكين تلقائي (يبحث عن غرفة متاحة للطالب)
 router.post(
     '/auto-assign/:studentId',
     verifyToken,

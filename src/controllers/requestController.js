@@ -4,7 +4,7 @@ const { User } = require('../models/User');
 const admin = require('../config/firebase');
 
 // ==========================================
-// Helpers للتنسيق الموحد
+// Helpers  
 // ==========================================
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
@@ -22,12 +22,10 @@ const sendError = (res, statusCode, message, errorDetails = null) => {
     return res.status(statusCode).json(response);
 };
 
-// القيم المسموحة
 const ALLOWED_REQUEST_TYPES = ['room_change', 'complaint', 'leave_request', 'meal_exception', 'maintenance'];
 const ALLOWED_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const ALLOWED_STATUSES = ['submitted', 'in_review', 'needs_revision', 'approved', 'rejected', 'closed'];
 
-// تعيين الدور الإداري المسؤول عن كل نوع طلب
 const getRequestedAdminRole = (type) => {
     const roleMap = {
         room_change: 'supervisor',
@@ -39,7 +37,6 @@ const getRequestedAdminRole = (type) => {
     return roleMap[type] || 'supervisor';
 };
 
-// التحقق من صلاحيات الإدارة
 const canManageRequests = (role) => ['admin', 'supervisor', 'floor_admin', 'meal_admin'].includes(role);
 
 // ==========================================
@@ -50,7 +47,6 @@ exports.submitRequest = async (req, res) => {
         const { requestType, title, description, priority } = req.body;
         const studentId = req.userDoc._id;
 
-        // التحقق من المدخلات
         if (!requestType || !ALLOWED_REQUEST_TYPES.includes(requestType)) {
             return sendError(res, 400, `Invalid request type. Allowed: ${ALLOWED_REQUEST_TYPES.join(', ')}`);
         }
@@ -106,7 +102,6 @@ exports.getRequestsForAdmin = async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
 
-        // الفلترة حسب دور المشرف
         const filter = { requestedAdminRole: req.userDoc.role };
         if (req.query.status) filter.status = req.query.status;
         if (req.query.type) filter.requestType = req.query.type;
@@ -145,7 +140,6 @@ exports.assignRequestToSelf = async (req, res) => {
             return sendError(res, 400, 'Invalid request ID format');
         }
 
-        // التأكد من أن الطلب تابع لدور المشرف
         const request = await StudentRequest.findOne({
             _id: requestId,
             requestedAdminRole: req.userDoc.role
@@ -197,11 +191,10 @@ exports.addRequestMessage = async (req, res) => {
             return sendError(res, 404, 'Request not found');
         }
 
-        // صلاحيات: الطالب صاحب الطلب فقط أو المشرف المسؤول
         const isOwner = request.studentId.toString() === userId.toString();
         const isAssigned = request.assignedToUserId?.toString() === userId.toString();
-        const isManager = canManageRequests(req.userDoc.role) && 
-                          request.requestedAdminRole === req.userDoc.role;
+        const isManager = canManageRequests(req.userDoc.role) &&
+            request.requestedAdminRole === req.userDoc.role;
 
         if (!isOwner && !isAssigned && !isManager) {
             return sendError(res, 403, 'You are not authorized to message on this request');
@@ -245,7 +238,6 @@ exports.respondToRequest = async (req, res) => {
             return sendError(res, 400, 'Status reason is required for final decisions');
         }
 
-        // التأكد من الصلاحية (مشرف مكلف أو نفس الدور)
         const request = await StudentRequest.findOne({
             _id: requestId,
             $or: [
@@ -268,11 +260,9 @@ exports.respondToRequest = async (req, res) => {
         request.reviewedAt = new Date();
         await request.save();
 
-        // محاولة إرسال إشعار (اختياري)
         try {
             const student = await User.findById(request.studentId).select('email').lean();
             if (student?.email) {
-                // يمكن استخدام Firebase أو أي خدمة أخرى
                 await admin.auth().getUserByEmail(student.email);
             }
         } catch (notifError) {
@@ -313,10 +303,9 @@ exports.getRequestDetails = async (req, res) => {
             return sendError(res, 404, 'Request not found');
         }
 
-        // صلاحيات الوصول
         const isOwner = request.studentId._id.toString() === req.userDoc._id.toString();
         const isManager = canManageRequests(req.userDoc.role) &&
-                          request.requestedAdminRole === req.userDoc.role;
+            request.requestedAdminRole === req.userDoc.role;
 
         if (!isOwner && !isManager) {
             return sendError(res, 403, 'Access denied');

@@ -5,9 +5,8 @@ const verifyToken = require('../middlewares/verifyFirebaseToken');
 const { isAdmin, isStudent, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
 
 // ==========================================
-// مسارات الطالب (Student Only)
+//   (Student Only)
 // ==========================================
-// عرض بروفايلي
 router.get(
     '/me',
     verifyToken,
@@ -15,7 +14,6 @@ router.get(
     studentController.getMyProfile
 );
 
-// عرض QR Codes الخاصة بي
 router.get(
     '/me/qr',
     verifyToken,
@@ -23,7 +21,6 @@ router.get(
     studentController.getMyQRCode
 );
 
-// توليد QR Codes جديدة
 router.post(
     '/me/generate-qr',
     verifyToken,
@@ -31,7 +28,6 @@ router.post(
     studentController.generateMyQRCode
 );
 
-// طلب إجازة
 router.post(
     '/me/leave',
     verifyToken,
@@ -39,7 +35,6 @@ router.post(
     studentController.requestLeave
 );
 
-// عرض سجل حضوري
 router.get(
     '/me/attendance',
     verifyToken,
@@ -48,9 +43,8 @@ router.get(
 );
 
 // ==========================================
-// مسارات الإدارة (Admin/Supervisor)
+//   (Admin/Supervisor)
 // ==========================================
-// التحقق من صحة QR Code
 router.post(
     '/validate-qr',
     verifyToken,
@@ -58,7 +52,6 @@ router.post(
     studentController.validateQRCode
 );
 
-// عرض جميع الطلاب (مع Pagination)
 router.get(
     '/',
     verifyToken,
@@ -66,7 +59,6 @@ router.get(
     studentController.getAllStudents
 );
 
-// عرض تفاصيل طالب محدد
 router.get(
     '/:id',
     verifyToken,
@@ -74,7 +66,6 @@ router.get(
     studentController.getStudentById
 );
 
-// تحديث بيانات طالب
 router.patch(
     '/:id',
     verifyToken,
@@ -82,7 +73,6 @@ router.patch(
     studentController.updateStudent
 );
 
-// الموافقة على طلب إجازة
 router.patch(
     '/leave/:requestId/approve',
     verifyToken,
@@ -90,7 +80,6 @@ router.patch(
     studentController.approveLeave
 );
 
-// إنهاء إجازة طالب
 router.patch(
     '/:studentId/end-leave',
     verifyToken,
@@ -98,7 +87,6 @@ router.patch(
     studentController.endLeave
 );
 
-// عرض تقرير حضور طالب محدد
 router.get(
     '/:studentId/attendance',
     verifyToken,

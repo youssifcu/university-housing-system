@@ -4,7 +4,7 @@ const paymentSchema = new mongoose.Schema(
     {
         studentId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'User', // تم التغيير إلى User ليتوافق مع النظام الموحد
+            ref: 'User',
             required: [true, 'Student reference is required'],
             index: true
         },
@@ -35,7 +35,7 @@ const paymentSchema = new mongoose.Schema(
         dueDate: {
             type: Date,
             validate: {
-                validator: function(value) {
+                validator: function (value) {
                     return !value || value >= this.paymentDate;
                 },
                 message: 'Due date must be after payment date'
@@ -53,7 +53,7 @@ const paymentSchema = new mongoose.Schema(
         transactionId: {
             type: String,
             unique: true,
-            sparse: true // يسمح بقيم null متعددة
+            sparse: true
         },
         receiptUrl: {
             type: String
@@ -84,12 +84,12 @@ const paymentSchema = new mongoose.Schema(
 // ==========================================
 // Virtuals
 // ==========================================
-paymentSchema.virtual('isOverdue').get(function() {
+paymentSchema.virtual('isOverdue').get(function () {
     if (!this.dueDate) return false;
     return this.status === 'pending' && new Date() > this.dueDate;
 });
 
-paymentSchema.virtual('isPaid').get(function() {
+paymentSchema.virtual('isPaid').get(function () {
     return this.status === 'completed';
 });
 
@@ -103,7 +103,7 @@ paymentSchema.index({ paymentDate: -1 });
 // ==========================================
 // Static Methods
 // ==========================================
-paymentSchema.statics.getStudentPaymentSummary = async function(studentId) {
+paymentSchema.statics.getStudentPaymentSummary = async function (studentId) {
     const result = await this.aggregate([
         { $match: { studentId: mongoose.Types.ObjectId(studentId) } },
         {
@@ -114,23 +114,23 @@ paymentSchema.statics.getStudentPaymentSummary = async function(studentId) {
             }
         }
     ]);
-    
+
     const summary = {
         totalPaid: 0,
         totalPending: 0,
         totalRefunded: 0
     };
-    
+
     result.forEach(item => {
         if (item._id === 'completed') summary.totalPaid = item.totalAmount;
         if (item._id === 'pending') summary.totalPending = item.totalAmount;
         if (item._id === 'refunded') summary.totalRefunded = item.totalAmount;
     });
-    
+
     return summary;
 };
 
-paymentSchema.statics.getOverallStats = async function() {
+paymentSchema.statics.getOverallStats = async function () {
     return this.aggregate([
         {
             $group: {
@@ -147,22 +147,19 @@ paymentSchema.statics.getOverallStats = async function() {
 // ==========================================
 // Pre-save Middleware
 // ==========================================
-paymentSchema.pre('save', function() {
-    // توليد transactionId فريد إذا لم يكن موجوداً
+paymentSchema.pre('save', function () {
     if (!this.transactionId) {
         this.transactionId = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
     }
-    
-    // تعيين confirmedAt عند تغيير الحالة إلى completed
+
     if (this.isModified('status') && this.status === 'completed' && !this.confirmedAt) {
         this.confirmedAt = new Date();
     }
-    
-    // تعيين refundedAt عند تغيير الحالة إلى refunded
+
     if (this.isModified('status') && this.status === 'refunded' && !this.refundedAt) {
         this.refundedAt = new Date();
     }
-    
+
 });
 
 const Payment = mongoose.model('Payment', paymentSchema);

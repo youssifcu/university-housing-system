@@ -6,7 +6,7 @@ const Room = require('../models/Room');
 const crypto = require('crypto');
 
 // ==========================================
-// Helpers للتنسيق الموحد للاستجابة
+// Helpers 
 // ==========================================
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
@@ -25,7 +25,7 @@ const sendError = (res, statusCode, message, errorDetails = null) => {
 };
 
 // ==========================================
-// POST /api/applications (تقديم طلب جديد)
+// POST /api/applications (new application)
 // ==========================================
 
 exports.submitApplication = async (req, res) => {
@@ -42,19 +42,19 @@ exports.submitApplication = async (req, res) => {
         }
 
         const allowedFields = [
-            'studentType', 'fullName', 'nationalId', 'gender', 'dateOfBirth', 
+            'studentType', 'fullName', 'nationalId', 'gender', 'dateOfBirth',
             'phoneNumber', 'email', 'address', 'emergencyContact',
             'college', 'department', 'academicYear', 'gpa',
             'housingType', 'specialNeeds', 'preferredRoommate'
         ];
-        
-        const applicationData = {}; 
-        
+
+        const applicationData = {};
+
         if (req.body.emergencyContact && typeof req.body.emergencyContact === 'string') {
-            try { req.body.emergencyContact = JSON.parse(req.body.emergencyContact); } catch (e) {}
+            try { req.body.emergencyContact = JSON.parse(req.body.emergencyContact); } catch (e) { }
         }
         if (req.body.specialNeeds && typeof req.body.specialNeeds === 'string') {
-            try { req.body.specialNeeds = JSON.parse(req.body.specialNeeds); } catch (e) {}
+            try { req.body.specialNeeds = JSON.parse(req.body.specialNeeds); } catch (e) { }
         }
 
         allowedFields.forEach(field => {
@@ -101,10 +101,10 @@ exports.submitApplication = async (req, res) => {
         }
 
         const requiredFields = [
-            'studentType', 'fullName', 'nationalId', 'gender', 'dateOfBirth', 
+            'studentType', 'fullName', 'nationalId', 'gender', 'dateOfBirth',
             'phoneNumber', 'address', 'college', 'academicYear'
         ];
-        
+
         const missingFields = requiredFields.filter(field => !applicationData[field]);
         if (missingFields.length > 0) {
             return sendError(res, 400, `Missing required fields: ${missingFields.join(', ')}`);
@@ -115,23 +115,23 @@ exports.submitApplication = async (req, res) => {
 
         const newApplication = new Application(applicationData);
         const savedApplication = await newApplication.save();
-        
+
         await User.findOneAndUpdate(
-        { _id: userId },
-        { 
-            $set: { 
-                housingStatus: 'suspended', 
-                applicationId: savedApplication._id 
-                } 
+            { _id: userId },
+            {
+                $set: {
+                    housingStatus: 'suspended',
+                    applicationId: savedApplication._id
+                }
             },
-            { new: true, runValidators: false } // تعطيل الـ validators مؤقتاً لو الـ enum فيه مشكلة
+            { new: true, runValidators: false }
         );
 
 
         await User.findByIdAndUpdate(userId, {
-            $set: { 
+            $set: {
                 housingStatus: 'suspended',
-                applicationId: savedApplication._id 
+                applicationId: savedApplication._id
             }
         });
 
@@ -160,7 +160,6 @@ exports.approveApplication = async (req, res) => {
         const { id } = req.params;
         const reviewerId = req.userDoc._id;
 
-        // 1. جلب الطلب والتأكد من وجود بيانات الجنس
         const application = await Application.findById(id).session(session);
         if (!application) {
             await session.abortTransaction();
@@ -180,23 +179,21 @@ exports.approveApplication = async (req, res) => {
             return sendError(res, 400, 'Student gender is missing in the application');
         }
 
-        // 2. حساب درجة الطالب الأكاديمية (GPA to Grade 1-10)
         const MAX_GPA = 4.0;
-        let studentGrade = 5; 
-        
+        let studentGrade = 5;
+
         if (application.gpa) {
-            studentGrade = Math.ceil((application.gpa / MAX_GPA) * 10); 
+            studentGrade = Math.ceil((application.gpa / MAX_GPA) * 10);
             if (studentGrade > 10) studentGrade = 10;
             if (studentGrade < 1) studentGrade = 1;
         }
-        
-        // 3. البحث عن المباني (فلترة صارمة بالجنس والدرجة والحالة)
-        const targetBuildings = await Building.find({ 
-            gender: application.gender, // 🛡️ الشرط الأساسي: منع الاختلاط
-            grade: { $lte: studentGrade }, 
-            status: 'active' 
+
+        const targetBuildings = await Building.find({
+            gender: application.gender,
+            grade: { $lte: studentGrade },
+            status: 'active'
         }).session(session);
-        
+
         const buildingIds = targetBuildings.map(b => b._id);
         if (buildingIds.length === 0) {
             await session.abortTransaction();
@@ -204,14 +201,13 @@ exports.approveApplication = async (req, res) => {
             return sendError(res, 400, `No active buildings found matching Gender: ${application.gender} and Grade: ${studentGrade}`);
         }
 
-        // 4. البحث عن أول غرفة متاحة داخل المباني المحددة فقط
         const selectedRoom = await Room.findOne({
             buildingId: { $in: buildingIds },
             status: 'available'
         })
-        .sort({ floorNumber: 1, roomNumber: 1 })
-        .populate('buildingId') // مهم جداً عشان التشييك الأخير
-        .session(session);
+            .sort({ floorNumber: 1, roomNumber: 1 })
+            .populate('buildingId')
+            .session(session);
 
         if (!selectedRoom) {
             await session.abortTransaction();
@@ -219,7 +215,6 @@ exports.approveApplication = async (req, res) => {
             return sendError(res, 400, `Housing is full for ${application.gender} students in this grade level.`);
         }
 
-        // 🛡️ صمام أمان أخير: التأكد يدويًا من مطابقة جنس المبنى لجنس الطالب
         if (selectedRoom.buildingId.gender !== application.gender) {
             await session.abortTransaction();
             session.endSession();
@@ -228,9 +223,8 @@ exports.approveApplication = async (req, res) => {
 
         const userIdString = application.userId.toString();
 
-        // 5. تحديث بيانات المستخدم وتحويله لطالب مفعل
         const student = await User.findById(application.userId).session(session);
-        
+
         if (!student) {
             await session.abortTransaction();
             session.endSession();
@@ -245,7 +239,7 @@ exports.approveApplication = async (req, res) => {
         student.applicationId = application._id;
         student.assignedRoomId = selectedRoom._id;
         student.roomAllocationDate = new Date();
-        
+
         // Save profile picture as buffer from application
         if (application.documents && application.documents.personalPhoto) {
             student.profilePicture = {
@@ -253,29 +247,25 @@ exports.approveApplication = async (req, res) => {
                 contentType: application.documents.personalPhoto.contentType
             };
         }
-        
+
         if (!student.qrCode) student.qrCode = {};
         student.qrCode.attendanceCode = userIdString;
         student.qrCode.mealCode = userIdString;
 
         await student.save({ session });
 
-        // 6. تحديث الغرفة (إضافة الطالب لقائمة الساكنين)
         selectedRoom.currentOccupants.push(application.userId);
-        
-        // إذا وصلت الغرفة لسعتها القصوى، نغير حالتها (اختياري حسب الموديل عندك)
+
         if (selectedRoom.currentOccupants.length >= selectedRoom.capacity) {
             selectedRoom.status = 'full';
         }
-        
+
         await selectedRoom.save({ session });
 
-        // 7. تحديث حالة الطلب
         application.status = 'approved';
         application.reviewedBy = reviewerId;
         await application.save({ session });
 
-        // تنفيذ كافة العمليات بنجاح
         await session.commitTransaction();
         session.endSession();
 
@@ -382,7 +372,7 @@ exports.getMyApplication = async (req, res) => {
     try {
         const application = await Application.findOne({ userId: req.userDoc._id })
             .sort({ createdAt: -1 })
-            .select('-__v') // نخفي الحقول الداخلية غير المهمة
+            .select('-__v')
             .lean();
 
         if (!application) {
@@ -415,7 +405,6 @@ exports.getApplicationById = async (req, res) => {
             return sendError(res, 404, 'Application not found');
         }
 
-        // التحقق من الصلاحيات: المالك أو الأدمن أو المشرف
         const isOwner = application.userId._id.toString() === user._id.toString();
         const isAdmin = user.role === 'admin';
         const isSupervisor = user.role === 'supervisor';
@@ -438,7 +427,6 @@ exports.getApplicationById = async (req, res) => {
 // ==========================================
 // DELETE /api/applications/:id
 // ==========================================
-// داخل exports.deleteApplication
 exports.deleteApplication = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -461,13 +449,11 @@ exports.deleteApplication = async (req, res) => {
             return sendError(res, 400, 'Cannot delete reviewed application');
         }
 
-        // 1. حذف الطلب
         await Application.findByIdAndDelete(id).session(session);
 
-        // 2. إعادة حالة المستخدم لوضعها الطبيعي
         await User.findByIdAndUpdate(application.userId, {
-            $set: { housingStatus: 'new_applicant' }, // أو 'none' حسب الـ default عندك
-            $unset: { applicationId: "" } // حذف الربط بالطلب الممسوح
+            $set: { housingStatus: 'new_applicant' },
+            $unset: { applicationId: "" }
         }).session(session);
 
         await session.commitTransaction();

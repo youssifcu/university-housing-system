@@ -1,18 +1,16 @@
 const express = require('express');
 const cors = require('cors');
-const swaggerUi = require('swagger-ui-express'); 
+const swaggerUi = require('swagger-ui-express');
 const path = require('path');
 
-// 1. استدعاء ملف السواجر الجديد
-const swaggerDocument = require('../swagger-complete.json'); 
+const swaggerDocument = require('../swagger-complete.json');
 
-// استدعاء المسارات
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const applicationRoutes = require('./routes/applicationRoutes');
 const buildingRoutes = require('./routes/buildingRoutes');
-const roomRoutes = require('./routes/roomRoutes'); 
-const housingRequestRoutes = require('./routes/housingRequestRoutes'); 
+const roomRoutes = require('./routes/roomRoutes');
+const housingRequestRoutes = require('./routes/housingRequestRoutes');
 const mealRoutes = require('./routes/mealRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const reportRoutes = require('./routes/reportRoutes');
@@ -22,13 +20,13 @@ const statsRoutes = require('./routes/statsRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const qrRoutes = require('./routes/qrRoutes');
-const mainRoutes = require('./routes/mainRoutes'); 
+const mainRoutes = require('./routes/mainRoutes');
 
 
 const app = express();
 
 // ==========================================
-// 1. Middleware أساسي
+// 1. Middleware 
 // ==========================================
 
 app.disable('x-powered-by');
@@ -39,9 +37,9 @@ app.use((req, res, next) => {
     next();
 });
 
-const allowedOrigins = process.env.CORS_ORIGIN 
-    ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()) 
-    : ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173' , 'https://university-housing-system-production-64e5.up.railway.app'];
+const allowedOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+    : ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173', 'https://university-housing-system-production-64e5.up.railway.app'];
 
 app.use(cors({
     origin: function (origin, callback) {
@@ -77,7 +75,7 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 2. ملفات ثابتة
+// 2.  
 // ==========================================
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
     maxAge: '1d',
@@ -89,7 +87,7 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
 }));
 
 // ==========================================
-// 3. Swagger Documentation (الجديد)
+// 3. Swagger Documentation ()
 // ==========================================
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
     customCss: `
@@ -104,7 +102,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
 }));
 
 // ==========================================
-// 4. الصفحة الرئيسية
+// 4.  Main Page
 // ==========================================
 app.get('/', (req, res) => {
     res.json({
@@ -116,7 +114,7 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// 5. تسجيل المسارات
+// 5. Routes 
 // ==========================================
 const routesMap = [
     { path: '/api/auth', router: authRoutes },
@@ -133,7 +131,7 @@ const routesMap = [
     { path: '/api/stats', router: statsRoutes },
     { path: '/api/announcements', router: announcementRoutes },
     { path: '/api/notifications', router: notificationRoutes },
-     { path: '/api/qr', router: qrRoutes },
+    { path: '/api/qr', router: qrRoutes },
     { path: '/api/v2', router: mainRoutes }
 ];
 
@@ -142,7 +140,7 @@ routesMap.forEach(route => {
 });
 
 // ==========================================
-// 6. معالج 404
+// 6. Error 404
 // ==========================================
 app.use((req, res, next) => {
     res.status(404).json({
@@ -152,7 +150,7 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 7. Global Error Handler (متصلح)
+// 7. Global Error Handler 
 // ==========================================
 app.use((err, req, res, next) => {
     console.error('💥 ERROR:', {

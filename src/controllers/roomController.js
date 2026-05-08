@@ -3,7 +3,7 @@ const Room = require('../models/Room');
 const { User } = require('../models/User');
 
 // ==========================================
-// Helpers للتنسيق الموحد
+// Helpers  
 // ==========================================
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
@@ -26,7 +26,7 @@ const sendError = (res, statusCode, message, errorDetails = null) => {
 // ==========================================
 exports.getAllRooms = async (req, res) => {
     try {
-        const userRole = req.userDoc.role; // 🚀 معرفة وظيفة المستخدم الحالي
+        const userRole = req.userDoc.role;
 
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
@@ -37,19 +37,17 @@ exports.getAllRooms = async (req, res) => {
         if (req.query.status) filter.status = req.query.status;
         if (req.query.floorNumber) filter.floorNumber = parseInt(req.query.floorNumber);
 
-        // بناء الـ Query الأساسي
         let query = Room.find(filter).populate('buildingId', 'name gender');
 
-        // 🚀 لو أدمن أو مشرف، هات تفاصيل الطلبة اللي في الأوضة
         if (userRole === 'admin' || userRole === 'supervisor') {
             query = query.populate('currentOccupants', 'name email studentId');
         }
 
         const [rooms, total] = await Promise.all([
             query.sort({ buildingId: 1, roomNumber: 1 })
-                 .skip(skip)
-                 .limit(limit)
-                 .lean(),
+                .skip(skip)
+                .limit(limit)
+                .lean(),
             Room.countDocuments(filter)
         ]);
 
@@ -67,8 +65,8 @@ exports.getAllRooms = async (req, res) => {
                 amenities: room.amenities || []
             }));
             return sendSuccess(res, 200, 'Rooms fetched successfully', {
-            rooms: shapedRooms,
-            pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+                rooms: shapedRooms,
+                pagination: { page, limit, total, pages: Math.ceil(total / limit) }
             });
         }
         return sendSuccess(res, 200, 'Rooms fetched successfully', {
@@ -87,9 +85,9 @@ exports.getAllRooms = async (req, res) => {
 // ==========================================
 exports.getAvailableRooms = async (req, res) => {
     try {
-        const userRole = req.userDoc.role; // 🚀 معرفة وظيفة المستخدم الحالي
+        const userRole = req.userDoc.role;
         const filter = { status: 'available' };
-        
+
         if (req.query.buildingId) filter.buildingId = req.query.buildingId;
         if (req.query.floorNumber) filter.floorNumber = parseInt(req.query.floorNumber);
 
@@ -133,7 +131,6 @@ exports.createRoom = async (req, res) => {
     try {
         const { roomNumber, capacity, buildingId, floorNumber, amenities } = req.body;
 
-        // التحقق من الحقول المطلوبة
         if (!roomNumber || !capacity || !buildingId) {
             return sendError(res, 400, 'roomNumber, capacity, and buildingId are required');
         }
@@ -142,7 +139,6 @@ exports.createRoom = async (req, res) => {
             return sendError(res, 400, 'Invalid building ID format');
         }
 
-        // التحقق من عدم وجود غرفة بنفس الرقم في نفس المبنى
         const existingRoom = await Room.findOne({ roomNumber, buildingId }).select('_id').lean();
         if (existingRoom) {
             return sendError(res, 400, 'A room with this number already exists in the selected building');
@@ -186,9 +182,8 @@ exports.assignStudent = async (req, res) => {
     try {
         const { id: roomId } = req.params;
         const { studentId } = req.body;
-        
-        // جلب بيانات المستخدم اللي بيعمل الطلب (أدمن أو مشرف)
-        const operatorRole = req.userDoc.role; 
+
+        const operatorRole = req.userDoc.role;
 
         if (!studentId) {
             return sendError(res, 400, 'studentId is required');
@@ -197,7 +192,6 @@ exports.assignStudent = async (req, res) => {
             return sendError(res, 400, 'Invalid ID format');
         }
 
-        // 1. جلب الغرفة + جلب بيانات المبنى المرتبط بيها عشان نجيب الـ grade
         const room = await Room.findById(roomId).populate('buildingId').session(session);
         if (!room) {
             await session.abortTransaction();
@@ -211,7 +205,6 @@ exports.assignStudent = async (req, res) => {
             return sendError(res, 400, 'Room is full');
         }
 
-        // 2. جلب بيانات الطالب عشان نجيب الـ grade بتاعه
         const student = await User.findOne({ _id: studentId, role: 'student' }).session(session);
         if (!student) {
             await session.abortTransaction();
@@ -226,33 +219,29 @@ exports.assignStudent = async (req, res) => {
         }
 
         // ========================================================
-        // 🚀 الـ Business Logic الجديد: فحص الصلاحيات والتقدير
+        //  Business Logic   
         // ========================================================
         if (operatorRole === 'supervisor') {
             const buildingGrade = room.buildingId.grade;
-            const studentGrade = student.grade || 5; // لو ملوش تقدير بنعتبره 5 كافتراضي
+            const studentGrade = student.grade || 5;
 
-            // بناءً على منطق التسكين بتاعك: تقدير المبنى لازم يكون أكبر من أو يساوي تقدير الطالب
             if (buildingGrade < studentGrade) {
                 await session.abortTransaction();
                 session.endSession();
                 return sendError(
-                    res, 
-                    403, 
+                    res,
+                    403,
                     `Access Denied: Supervisor cannot assign this student. Student's grade (${studentGrade}) does not match the building's minimum requirement (${buildingGrade}).`
                 );
             }
         }
-        // لو operatorRole === 'admin' هيكمل عادي جداً ومش هيدخل في الشرط ده
         // ========================================================
 
-        // 3. إضافة الطالب للغرفة
         if (!room.currentOccupants.includes(studentId)) {
             room.currentOccupants.push(studentId);
             await room.save({ session });
         }
 
-        // 4. تحديث حالة الطالب
         student.assignedRoomId = room._id;
         student.roomAllocationDate = new Date();
         student.housingStatus = 'active';
@@ -298,11 +287,9 @@ exports.removeStudent = async (req, res) => {
             return sendError(res, 404, 'Room not found');
         }
 
-        // إزالة الطالب من الغرفة
         room.currentOccupants = room.currentOccupants.filter(id => id.toString() !== studentId);
         await room.save({ session });
 
-        // تحديث الطالب
         await User.findByIdAndUpdate(
             studentId,
             {
@@ -370,9 +357,9 @@ exports.getRoomsByBuilding = async (req, res) => {
 
         const [rooms, total] = await Promise.all([
             query.sort({ roomNumber: 1 })
-                 .skip(skip)
-                 .limit(limit)
-                 .lean(),
+                .skip(skip)
+                .limit(limit)
+                .lean(),
             Room.countDocuments({ buildingId })
         ]);
 
@@ -428,9 +415,8 @@ exports.getRoomsByBuilding = async (req, res) => {
 exports.getRoomById = async (req, res) => {
     try {
         const { id } = req.params;
-        const userRole = req.userDoc.role; // 🚀 1. نعرف مين اللي بيطلب الداتا
+        const userRole = req.userDoc.role;
 
-        // بناء الـ Query الأساسي
         let query = Room.findById(id)
             .populate({
                 path: 'buildingId',
@@ -456,11 +442,11 @@ exports.getRoomById = async (req, res) => {
                 status: room.status,
                 amenities: room.amenities || [],
                 building: room.buildingId
-                    ? { 
+                    ? {
                         id: room.buildingId._id,
                         name: room.buildingId.name,
                         gender: room.buildingId.gender
-                    } 
+                    }
                     : null
             };
 
@@ -485,7 +471,6 @@ exports.updateRoom = async (req, res) => {
         const { id } = req.params;
         const updates = req.body;
 
-        // الحقول المسموح بتحديثها
         const allowedFields = ['roomNumber', 'floorNumber', 'capacity', 'amenities'];
         const filteredUpdates = {};
 
@@ -560,29 +545,25 @@ exports.autoAssignRoom = async (req, res) => {
     try {
         const { studentId } = req.params;
 
-        // البحث عن الطالب
         const student = await User.findOne({ _id: studentId, role: 'student' });
         if (!student) {
             return sendError(res, 404, 'Student not found');
         }
 
-        // التحقق من عدم وجود غرفة مخصصة مسبقاً
         if (student.assignedRoomId) {
             return sendError(res, 400, 'Student already has a room assigned');
         }
 
-        // البحث عن غرفة متاحة مناسبة
         const availableRoom = await Room.findOne({
             status: 'available',
-            gender: student.gender || 'mixed', // افتراض mixed إذا لم يحدد
-            currentOccupants: { $size: 0 } // غرفة فارغة
+            gender: student.gender || 'mixed',
+            currentOccupants: { $size: 0 }
         }).populate('buildingId', 'name gender');
 
         if (!availableRoom) {
             return sendError(res, 404, 'No available rooms found for auto-assignment');
         }
 
-        // تحديث الغرفة والطالب
         await Promise.all([
             Room.findByIdAndUpdate(availableRoom._id, {
                 $push: { currentOccupants: student._id },

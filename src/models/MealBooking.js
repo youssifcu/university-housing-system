@@ -4,7 +4,7 @@ const mealBookingSchema = new mongoose.Schema(
     {
         studentId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'User', // تم التغيير إلى User ليتوافق مع نظام المستخدم الموحد
+            ref: 'User',
             required: [true, 'Student reference is required'],
             index: true
         },
@@ -70,22 +70,19 @@ const mealBookingSchema = new mongoose.Schema(
 // ==========================================
 // Virtuals
 // ==========================================
-mealBookingSchema.virtual('isActive').get(function() {
+mealBookingSchema.virtual('isActive').get(function () {
     return this.status === 'booked' && !this.isServed;
 });
 
-mealBookingSchema.virtual('canCancel').get(function() {
-    // يمكن الإلغاء إذا كانت الحالة booked ولم يتم التقديم
+mealBookingSchema.virtual('canCancel').get(function () {
     return this.status === 'booked' && !this.isServed;
 });
 
 // ==========================================
 // Indexes
 // ==========================================
-// منع تكرار الحجز لنفس الطالب لنفس الوجبة
 mealBookingSchema.index({ studentId: 1, mealId: 1 }, { unique: true });
 
-// فهارس مركبة للاستعلامات الشائعة
 mealBookingSchema.index({ date: 1, status: 1 });
 mealBookingSchema.index({ mealId: 1, isServed: 1 });
 mealBookingSchema.index({ studentId: 1, date: -1 });
@@ -93,7 +90,7 @@ mealBookingSchema.index({ studentId: 1, date: -1 });
 // ==========================================
 // Static Methods
 // ==========================================
-mealBookingSchema.statics.getStudentBookingStats = async function(studentId) {
+mealBookingSchema.statics.getStudentBookingStats = async function (studentId) {
     const result = await this.aggregate([
         { $match: { studentId: mongoose.Types.ObjectId(studentId) } },
         {
@@ -109,7 +106,7 @@ mealBookingSchema.statics.getStudentBookingStats = async function(studentId) {
     return result[0] || { totalBookings: 0, servedCount: 0, cancelledCount: 0, missedCount: 0 };
 };
 
-mealBookingSchema.statics.hasActiveBooking = async function(studentId, mealId) {
+mealBookingSchema.statics.hasActiveBooking = async function (studentId, mealId) {
     const booking = await this.findOne({
         studentId,
         mealId,
@@ -118,7 +115,7 @@ mealBookingSchema.statics.hasActiveBooking = async function(studentId, mealId) {
     return !!booking;
 };
 
-mealBookingSchema.statics.getMealBookingSummary = async function(mealId) {
+mealBookingSchema.statics.getMealBookingSummary = async function (mealId) {
     return this.aggregate([
         { $match: { mealId: mongoose.Types.ObjectId(mealId) } },
         {
@@ -134,18 +131,16 @@ mealBookingSchema.statics.getMealBookingSummary = async function(mealId) {
 // ==========================================
 // Pre-save Middleware
 // ==========================================
-mealBookingSchema.pre('save', function() {
-    // تعيين تاريخ الإلغاء عند تغيير الحالة إلى cancelled
+mealBookingSchema.pre('save', function () {
     if (this.isModified('status') && this.status === 'cancelled') {
         this.cancelledAt = new Date();
     }
-    
-    // إذا تم تقديم الوجبة، نضمن أن الحالة booked
+
     if (this.isModified('isServed') && this.isServed) {
         this.servedAt = new Date();
         this.status = 'booked';
     }
-    
+
 });
 
 const MealBooking = mongoose.model('MealBooking', mealBookingSchema);

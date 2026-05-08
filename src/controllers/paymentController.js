@@ -3,7 +3,7 @@ const Payment = require('../models/Payment');
 const { User } = require('../models/User');
 
 // ==========================================
-// Helpers للتنسيق الموحد
+// Helpers  
 // ==========================================
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
@@ -21,7 +21,6 @@ const sendError = (res, statusCode, message, errorDetails = null) => {
     return res.status(statusCode).json(response);
 };
 
-// الحالات المسموحة للدفع
 const ALLOWED_STATUSES = ['pending', 'completed', 'failed', 'refunded'];
 const ALLOWED_METHODS = ['cash', 'card', 'bank_transfer', 'online'];
 
@@ -34,7 +33,6 @@ exports.getAllPayments = async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
 
-        // فلترة
         const filter = {};
         if (req.query.status) filter.status = req.query.status;
         if (req.query.paymentMethod) filter.paymentMethod = req.query.paymentMethod;
@@ -71,7 +69,7 @@ exports.getAllPayments = async (req, res) => {
 // ==========================================
 exports.getMyPayments = async (req, res) => {
     try {
-        const studentId = req.userDoc._id; // الطالب هو User
+        const studentId = req.userDoc._id;
 
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
@@ -107,7 +105,6 @@ exports.createPayment = async (req, res) => {
         const studentId = req.userDoc._id;
         const { amount, paymentMethod, description, dueDate } = req.body;
 
-        // التحقق من المدخلات
         if (!amount || amount <= 0) {
             return sendError(res, 400, 'Valid amount is required');
         }
@@ -169,7 +166,6 @@ exports.getPaymentById = async (req, res) => {
             return sendError(res, 404, 'Payment not found');
         }
 
-        // صلاحيات: الأدمن يشوف أي دفع، الطالب يشوف دفعاته فقط
         const isAdmin = req.userDoc.role === 'admin';
         const isOwner = payment.studentId._id.toString() === req.userDoc._id.toString();
 
@@ -196,7 +192,6 @@ exports.updatePayment = async (req, res) => {
             return sendError(res, 400, 'Invalid payment ID format');
         }
 
-        // الحقول المسموح بتحديثها
         const allowedUpdates = ['amount', 'paymentMethod', 'status', 'description', 'dueDate', 'paymentDate'];
         const updates = {};
 

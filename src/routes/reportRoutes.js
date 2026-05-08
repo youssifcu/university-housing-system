@@ -5,9 +5,8 @@ const verifyToken = require('../middlewares/verifyFirebaseToken');
 const { isStudent, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
 
 // ==========================================
-// مسارات الطالب (Student Only)
+//   (Student Only)
 // ==========================================
-// تقديم بلاغ جديد
 router.post(
     '/',
     verifyToken,
@@ -15,7 +14,6 @@ router.post(
     reportController.createReport
 );
 
-// عرض بلاغاتي
 router.get(
     '/me',
     verifyToken,
@@ -23,7 +21,6 @@ router.get(
     reportController.getMyReports
 );
 
-// عرض تفاصيل بلاغ (للطالب - بشروط الملكية داخل الكنترولر)
 router.get(
     '/:id',
     verifyToken,
@@ -31,7 +28,6 @@ router.get(
     reportController.getReportById
 );
 
-// تحديث بلاغ (للطالب)
 router.put(
     '/:id',
     verifyToken,
@@ -40,9 +36,8 @@ router.put(
 );
 
 // ==========================================
-// مسارات الإدارة (Admin/Supervisor)
+//   (Admin/Supervisor)
 // ==========================================
-// عرض جميع البلاغات (مع Pagination وفلترة)
 router.get(
     '/',
     verifyToken,
@@ -50,7 +45,6 @@ router.get(
     reportController.getAllReports
 );
 
-// تحديث حالة بلاغ
 router.patch(
     '/:id/status',
     verifyToken,
@@ -58,7 +52,6 @@ router.patch(
     reportController.updateReportStatus
 );
 
-// حذف بلاغ (اختياري - إن أردت إضافته للكنترولر)
 router.delete(
     '/:id',
     verifyToken,

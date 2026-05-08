@@ -6,9 +6,8 @@ const { isAdmin, isAdminOrSupervisor } = require('../middlewares/roleMiddleware'
 const upload = require('../config/multer');
 
 // ==========================================
-// مسارات الطالب (Student Only)
+//   (Student Only)
 // ==========================================
-// تقديم طلب جديد
 router.post(
     '/',
     verifyToken,
@@ -21,21 +20,18 @@ router.post(
     applicationController.submitApplication
 );
 
-// عرض طلباتي
 router.get(
     '/my',
     verifyToken,
-    applicationController.getMyApplication // تم التغيير إلى getMyApplication كما في الكنترولر المحسن
+    applicationController.getMyApplication
 );
 
-// عرض طلب محدد (بصلاحيات مالك الطلب أو الأدمن)
 router.get(
     '/:id',
     verifyToken,
     applicationController.getApplicationById
 );
 
-// حذف طلب (للطالب قبل المراجعة)
 router.delete(
     '/:id',
     verifyToken,
@@ -43,9 +39,8 @@ router.delete(
 );
 
 // ==========================================
-// مسارات الإدارة (Admin/Supervisor)
+//   (Admin/Supervisor)
 // ==========================================
-// عرض كل الطلبات (مع Pagination)
 router.get(
     '/',
     verifyToken,
@@ -53,7 +48,6 @@ router.get(
     applicationController.getAllApplications
 );
 
-// الموافقة على طلب (مع التسكين التلقائي)
 router.patch(
     '/:id/approve',
     verifyToken,
@@ -61,7 +55,6 @@ router.patch(
     applicationController.approveApplication
 );
 
-// رفض الطلب
 router.patch(
     '/:id/reject',
     verifyToken,

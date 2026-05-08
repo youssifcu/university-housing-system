@@ -1,12 +1,12 @@
 const Announcement = require('../models/Announcement');
 
-// قيم مسموح بها للتحقق من المدخلات
+// Allowed values ​​for input validation
 const ALLOWED_PRIORITIES = ['low', 'medium', 'high'];
-const ALLOWED_TARGET_ROLES = ['all', 'student', 'supervisor', 'security', 'admin']; // عدل حسب نظامك
+const ALLOWED_TARGET_ROLES = ['all', 'student', 'supervisor', 'security', 'admin'];// Modify according to your system
 const ALLOWED_STATUSES = ['active', 'archived', 'draft'];
 
 /**
- * Helper: تنسيق موحد للاستجابة الناجحة
+ * Helper: Standardized format for successful response
  */
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
@@ -17,7 +17,7 @@ const sendSuccess = (res, statusCode, message, data = null) => {
 };
 
 /**
- * Helper: تنسيق موحد للاستجابة الفاشلة
+ * Helper: Unified format for failed response
  */
 const sendError = (res, statusCode, message, errorDetails = null) => {
     const response = {
@@ -37,12 +37,12 @@ exports.createAnnouncement = async (req, res) => {
     try {
         const { title, content, priority, targetRole } = req.body;
 
-        // 1. التحقق من الحقول المطلوبة
+        // 1. Check required fields
         if (!title?.trim() || !content?.trim()) {
             return sendError(res, 400, 'Title and content are required');
         }
 
-        // 2. التحقق من القيم المسموح بها
+        // 2. Check the allowed values
         if (priority && !ALLOWED_PRIORITIES.includes(priority)) {
             return sendError(res, 400, `Invalid priority. Allowed: ${ALLOWED_PRIORITIES.join(', ')}`);
         }
@@ -50,25 +50,24 @@ exports.createAnnouncement = async (req, res) => {
             return sendError(res, 400, `Invalid targetRole. Allowed: ${ALLOWED_TARGET_ROLES.join(', ')}`);
         }
 
-        // التحقق من أن المستخدم موجود ومعه _id تجنباً لأي TypeError
+        // Verify that the user exists and has the _id to avoid any TypeError
         if (!req.userDoc || !req.userDoc._id) {
             return sendError(res, 403, 'User profile is invalid or missing _id');
         }
 
-        // 3. إنشاء الإعلان
+        // 3. Create the ad
         const announcement = await Announcement.create({
             title: title.trim(),
             content: content.trim(),
             priority: priority || 'medium',
             targetRole: targetRole || 'all',
-            createdBy: req.userDoc._id, 
+            createdBy: req.userDoc._id,
             status: 'active'
         });
 
-        // 4. إرسال إشعار Real-Time (نبعت بيانات الإعلان الأساسية مش الـ ID بس)
+        // 4. Send a Real-Time notification (the basic ad data is sent, not just the ID)
         const io = req.app.get('io');
         if (io && typeof io.emit === 'function') {
-            // نختار الحقول اللي هتبعت للسوكيت عشان منبعتش بيانات حساسة
             const announcementForSocket = {
                 id: announcement._id,
                 title: announcement.title,
@@ -85,12 +84,12 @@ exports.createAnnouncement = async (req, res) => {
 
     } catch (error) {
         console.error('Create Announcement Error:', error);
-        // لو الخطأ من Mongoose Validation
+        // If the error is from Mongoose Validation
         if (error.name === 'ValidationError') {
             const messages = Object.values(error.errors).map(e => e.message);
             return sendError(res, 400, 'Validation failed', messages);
         }
-        // إرفاق نص الخطأ في الاستجابة للمساعدة في الـ debugging
+        // Attach error text to the response to aid in debugging
         return sendError(res, 500, `Failed to create announcement: ${error.message}`);
     }
 };
@@ -100,7 +99,7 @@ exports.createAnnouncement = async (req, res) => {
 // ==========================================
 exports.getAllAnnouncements = async (req, res) => {
     try {
-        // بناء الفلتر حسب دور المستخدم
+        // Build the filter based on the user role
         let filter = {};
         if (req.user.role !== 'admin') {
             filter = {
@@ -112,13 +111,13 @@ exports.getAllAnnouncements = async (req, res) => {
             };
         }
 
-        // استخدام .lean() لتحسين الأداء لأننا مش محتاجين دوال الـ Document
+        // Use .lean() to improve performance because we do not need Document functions
         const announcements = await Announcement.find(filter)
-            .select('_id title status priority targetRole createdAt') // نحدد الحقول المطلوبة
+            .select('_id title status priority targetRole createdAt') // We select the required fields
             .sort({ createdAt: -1 })
             .lean();
 
-        // تنسيق البيانات المرجعة
+        //Format the returned data
         const formatted = announcements.map(a => ({
             id: a._id,
             title: a.title,
@@ -149,18 +148,18 @@ exports.getAnnouncementById = async (req, res) => {
             return sendError(res, 404, 'Announcement not found');
         }
 
-        // صلاحيات الوصول لغير الأدمن
+        // Access permissions for non-admins
         if (req.user.role !== 'admin') {
-            const canAccess = 
+            const canAccess =
                 announcement.status === 'active' &&
                 (announcement.targetRole === 'all' || announcement.targetRole === req.user.role);
-            
+
             if (!canAccess) {
                 return sendError(res, 403, 'You do not have permission to view this announcement');
             }
         }
 
-        // تنسيق البيانات (إزالة الحقول الداخلية لو موجودة)
+        //Format the data (remove internal fields if they exist)
         const data = {
             id: announcement._id,
             title: announcement.title,
@@ -177,7 +176,7 @@ exports.getAnnouncementById = async (req, res) => {
 
     } catch (error) {
         console.error('Get Announcement By ID Error:', error);
-        // لو الـ ID مش صحيح
+        // If the ID is incorrect
         if (error.name === 'CastError') {
             return sendError(res, 400, 'Invalid announcement ID format');
         }
@@ -191,11 +190,11 @@ exports.getAnnouncementById = async (req, res) => {
 exports.updateAnnouncement = async (req, res) => {
     try {
         const { id } = req.params;
-        
-        // الحقول المسموح بتعديلها فقط (منع الـ Mass Assignment)
+
+        // Only fields allowed to be modified (prevent mass assignment)
         const allowedUpdates = ['title', 'content', 'priority', 'targetRole'];
         const updates = {};
-        
+
         allowedUpdates.forEach(field => {
             if (req.body[field] !== undefined) {
                 let value = req.body[field];
@@ -206,7 +205,7 @@ exports.updateAnnouncement = async (req, res) => {
             }
         });
 
-        // التحقق من القيم لو تم إرسالها
+        // Check the values ​​if they were sent
         if (updates.priority && !ALLOWED_PRIORITIES.includes(updates.priority)) {
             return sendError(res, 400, `Invalid priority. Allowed: ${ALLOWED_PRIORITIES.join(', ')}`);
         }
@@ -218,7 +217,7 @@ exports.updateAnnouncement = async (req, res) => {
             return sendError(res, 400, 'No valid fields provided for update');
         }
 
-        // إضافة تاريخ التعديل
+        // Add modification date
         updates.updatedAt = Date.now();
 
         const updated = await Announcement.findByIdAndUpdate(
@@ -267,11 +266,11 @@ exports.updateAnnouncementStatus = async (req, res) => {
 
         const updated = await Announcement.findByIdAndUpdate(
             id,
-            { 
-                $set: { 
+            {
+                $set: {
                     status,
                     updatedAt: Date.now()
-                } 
+                }
             },
             { new: true }
         ).select('_id status');
@@ -307,7 +306,7 @@ exports.deleteAnnouncement = async (req, res) => {
             return sendError(res, 404, 'Announcement not found');
         }
 
-        // ممكن تبعت إشعار Real-Time بالحذف لو عايز
+        // You can send a Real-Time deletion notification if you want
         // const io = req.app.get('io');
         // if (io) {
         //     io.emit('announcement:deleted', { id });

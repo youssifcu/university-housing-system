@@ -3,7 +3,7 @@ const Notification = require('../models/Notification');
 const { User } = require('../models/User');
 
 // ==========================================
-// Helpers للتنسيق الموحد
+// Helpers  
 // ==========================================
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
@@ -21,7 +21,6 @@ const sendError = (res, statusCode, message, errorDetails = null) => {
     return res.status(statusCode).json(response);
 };
 
-// الأنواع المسموحة للإشعارات
 const ALLOWED_TYPES = ['info', 'warning', 'success', 'meal', 'attendance', 'announcement'];
 const ALLOWED_TARGET_ROLES = ['all', 'student', 'supervisor', 'security', 'admin'];
 
@@ -33,32 +32,27 @@ exports.createNotification = async (req, res) => {
         const { title, message, targetUser, targetRole, type } = req.body;
         const senderId = req.userDoc._id;
 
-        // التحقق من المدخلات الأساسية
         if (!title?.trim() || !message?.trim()) {
             return sendError(res, 400, 'Title and message are required');
         }
 
-        // التحقق من النوع
         if (type && !ALLOWED_TYPES.includes(type)) {
             return sendError(res, 400, `Invalid notification type. Allowed: ${ALLOWED_TYPES.join(', ')}`);
         }
 
-        // التحقق من targetRole
         if (targetRole && !ALLOWED_TARGET_ROLES.includes(targetRole)) {
             return sendError(res, 400, `Invalid target role. Allowed: ${ALLOWED_TARGET_ROLES.join(', ')}`);
         }
 
-        // لا يمكن تحديد targetUser و targetRole معًا (الـ targetUser له الأولوية)
         if (targetUser && !mongoose.Types.ObjectId.isValid(targetUser)) {
             return sendError(res, 400, 'Invalid target user ID format');
         }
 
-        // إنشاء الإشعار
         const notification = new Notification({
             title: title.trim(),
             message: message.trim(),
             targetUser: targetUser || null,
-            targetRole: targetUser ? null : (targetRole || 'all'), // إذا وجد targetUser نتجاهل targetRole
+            targetRole: targetUser ? null : (targetRole || 'all'),
             type: type || 'info',
             sender: senderId,
             isRead: false
@@ -66,7 +60,6 @@ exports.createNotification = async (req, res) => {
 
         await notification.save();
 
-        // إرسال تنبيه لحظي عبر Socket.io
         const io = req.app.get('io');
         if (io) {
             const notificationData = {
@@ -78,10 +71,8 @@ exports.createNotification = async (req, res) => {
             };
 
             if (targetUser) {
-                // إرسال لمستخدم محدد (نفترض أنه متصل ولديه socket id)
                 io.to(targetUser.toString()).emit('notification:new', notificationData);
             } else {
-                // إرسال للدور المحدد (نفترض أن المستخدمين انضموا لغرف بأسماء أدوارهم)
                 const role = targetRole || 'all';
                 io.to(`role:${role}`).emit('notification:new', notificationData);
             }
@@ -118,7 +109,6 @@ exports.getMyNotifications = async (req, res) => {
             ]
         };
 
-        // فلترة حسب حالة القراءة (اختياري)
         if (req.query.isRead === 'true') {
             filter.isRead = true;
         } else if (req.query.isRead === 'false') {
@@ -163,7 +153,6 @@ exports.markAsRead = async (req, res) => {
             return sendError(res, 400, 'Invalid notification ID format');
         }
 
-        // التأكد من أن الإشعار يخص المستخدم الحالي
         const notification = await Notification.findOne({
             _id: id,
             $or: [

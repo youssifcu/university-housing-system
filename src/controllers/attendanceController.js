@@ -3,7 +3,7 @@ const Attendance = require('../models/Attendance');
 const Room = require('../models/Room');
 const { User, Student } = require('../models/User');
 
-// Helpers للتنسيق الموحد
+//Helper
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
         success: true,
@@ -27,29 +27,25 @@ exports.scanAttendance = async (req, res) => {
     try {
         const { qrCodeString, buildingId } = req.body;
 
-        // التحقق من وجود الكود
         if (!qrCodeString || qrCodeString.trim() === '') {
             return sendError(res, 400, 'QR Code string is required');
         }
 
-        // 1. التحقق من صحة ObjectId
         if (!mongoose.Types.ObjectId.isValid(qrCodeString)) {
             return sendError(res, 400, 'Invalid QR Code format');
         }
 
-        // 2. البحث عن الطالب بالـ ID مباشرة
         const student = await Student.findOne({
             _id: qrCodeString,
             role: 'student'
         })
-        .select('_id name studentId housingStatus assignedRoomId')
-        .lean();
+            .select('_id name studentId housingStatus assignedRoomId')
+            .lean();
 
         if (!student) {
             return sendError(res, 404, 'Invalid QR Code - Student not found');
         }
 
-        // 2. التحقق من حالة الإجازة (suspended)
         if (student.housingStatus === 'suspended') {
             return sendSuccess(res, 200, 'Student is on approved leave. Attendance not required.', {
                 onLeave: true,
@@ -57,7 +53,6 @@ exports.scanAttendance = async (req, res) => {
             });
         }
 
-        // 3. منع تسجيل الحضور مرتين في نفس اليوم
         const today = new Date();
         const startOfDay = new Date(today);
         startOfDay.setHours(0, 0, 0, 0);
@@ -73,7 +68,6 @@ exports.scanAttendance = async (req, res) => {
             return sendError(res, 400, 'Attendance already recorded for today');
         }
 
-        // 4. تحديد الـ buildingId: إما المرسَل من المشرف أو المأخوذ من الغرفة المعينة للطالب
         let effectiveBuildingId = null;
 
         if (buildingId) {
@@ -95,7 +89,6 @@ exports.scanAttendance = async (req, res) => {
             return sendError(res, 400, 'Building ID could not be determined. Please provide it.');
         }
 
-        // 5. تسجيل الحضور
         const attendance = await Attendance.create({
             studentId: student._id,
             buildingId: effectiveBuildingId,
@@ -114,7 +107,6 @@ exports.scanAttendance = async (req, res) => {
 
     } catch (error) {
         console.error('Scan Attendance Error:', error);
-        // لو الخطأ بسبب CastError (بناءً على ID غير صالح مثلاً)
         if (error.name === 'CastError') {
             return sendError(res, 400, 'Invalid ID format in request');
         }
@@ -129,13 +121,13 @@ exports.getMyAttendance = async (req, res) => {
     try {
         // Pagination
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 30; // عدد معقول لسجل الحضور
+        const limit = parseInt(req.query.limit) || 30;
         const skip = (page - 1) * limit;
 
         // جلب السجلات مع Pagination
         const [records, total] = await Promise.all([
             Attendance.find({ studentId: req.userDoc._id })
-                .select('date status buildingId') // الحقول المطلوبة فقط
+                .select('date status buildingId')
                 .sort({ date: -1 })
                 .skip(skip)
                 .limit(limit)
@@ -143,7 +135,6 @@ exports.getMyAttendance = async (req, res) => {
             Attendance.countDocuments({ studentId: req.userDoc._id })
         ]);
 
-        // تنسيق بسيط للتاريخ
         const formattedRecords = records.map(record => ({
             id: record._id,
             date: record.date,
@@ -177,18 +168,15 @@ exports.getStudentAttendance = async (req, res) => {
         const limit = parseInt(req.query.limit) || 30;
         const skip = (page - 1) * limit;
 
-        // التحقق من صحة الـ studentId
         if (!studentId) {
             return sendError(res, 400, 'Student ID is required');
         }
 
-        // التحقق من وجود الطالب
         const student = await User.findById(studentId).select('name studentId').lean();
         if (!student) {
             return sendError(res, 404, 'Student not found');
         }
 
-        // فلترة حسب التاريخ إذا كان محدد
         const filter = { studentId };
         if (req.query.startDate && req.query.endDate) {
             const startDate = new Date(req.query.startDate);
@@ -246,7 +234,6 @@ exports.getAttendanceByBuilding = async (req, res) => {
             return sendError(res, 400, 'Building ID is required');
         }
 
-        // تحديد نطاق التاريخ (يوم كامل)
         const startOfDay = new Date(date);
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(date);
@@ -268,7 +255,6 @@ exports.getAttendanceByBuilding = async (req, res) => {
             Attendance.countDocuments(filter)
         ]);
 
-        // إحصائيات سريعة
         const stats = {
             totalRecords: total,
             presentCount: records.filter(r => r.status === 'present').length,
@@ -312,13 +298,11 @@ exports.updateAttendance = async (req, res) => {
             return sendError(res, 404, 'Attendance record not found');
         }
 
-        // التحقق من صحة الحالة الجديدة
         const validStatuses = ['present', 'absent', 'late', 'excused'];
         if (status && !validStatuses.includes(status)) {
             return sendError(res, 400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
         }
 
-        // تحديث الحقول المسموحة
         if (status) attendance.status = status;
         if (notes !== undefined) attendance.notes = notes;
 

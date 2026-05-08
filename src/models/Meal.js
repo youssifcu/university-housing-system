@@ -77,16 +77,16 @@ const mealSchema = new mongoose.Schema(
 // ==========================================
 // Virtuals
 // ==========================================
-mealSchema.virtual('availableBookings').get(function() {
+mealSchema.virtual('availableBookings').get(function () {
     if (this.maxBookings === 0) return Infinity;
     return Math.max(0, this.maxBookings - this.currentBookings);
 });
 
-mealSchema.virtual('isFullyBooked').get(function() {
+mealSchema.virtual('isFullyBooked').get(function () {
     return this.maxBookings > 0 && this.currentBookings >= this.maxBookings;
 });
 
-mealSchema.virtual('bookingRate').get(function() {
+mealSchema.virtual('bookingRate').get(function () {
     if (this.maxBookings === 0) return 0;
     return (this.currentBookings / this.maxBookings) * 100;
 });
@@ -94,7 +94,6 @@ mealSchema.virtual('bookingRate').get(function() {
 // ==========================================
 // Indexes
 // ==========================================
-// منع تكرار نفس نوع الوجبة في نفس اليوم (اختياري)
 mealSchema.index(
     { date: 1, mealType: 1 },
     { unique: true, partialFilterExpression: { mealType: { $exists: true } } }
@@ -106,7 +105,7 @@ mealSchema.index({ mealType: 1, date: -1 });
 // ==========================================
 // Static Methods
 // ==========================================
-mealSchema.statics.findAvailable = function(date = null) {
+mealSchema.statics.findAvailable = function (date = null) {
     const query = { isAvailable: true };
     if (date) {
         const start = new Date(date);
@@ -118,7 +117,7 @@ mealSchema.statics.findAvailable = function(date = null) {
     return this.find(query).sort({ date: 1, mealType: 1 });
 };
 
-mealSchema.statics.getMealsForDate = async function(date) {
+mealSchema.statics.getMealsForDate = async function (date) {
     const start = new Date(date);
     start.setHours(0, 0, 0, 0);
     const end = new Date(date);
@@ -155,8 +154,7 @@ mealSchema.statics.getMealsForDate = async function(date) {
 // ==========================================
 // Pre-save Middleware
 // ==========================================
-mealSchema.pre('save', function() {
-    // تحديث isAvailable تلقائياً إذا اكتمل الحجز
+mealSchema.pre('save', function () {
     if (this.maxBookings > 0 && this.currentBookings >= this.maxBookings) {
         this.isAvailable = false;
     }

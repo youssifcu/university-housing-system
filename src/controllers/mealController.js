@@ -4,7 +4,7 @@ const MealBooking = require('../models/MealBooking');
 const { User } = require('../models/User');
 
 // ==========================================
-// Helpers للتنسيق الموحد
+// Helpers  
 // ==========================================
 const sendSuccess = (res, statusCode, message, data = null) => {
     return res.status(statusCode).json({
@@ -23,7 +23,7 @@ const sendError = (res, statusCode, message, errorDetails = null) => {
 };
 
 // ==========================================
-// GET /api/meals (الحصول على قائمة الوجبات)
+// GET /api/meals
 // ==========================================
 exports.getMeals = async (req, res) => {
     try {
@@ -31,7 +31,6 @@ exports.getMeals = async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
 
-        // فلترة حسب التاريخ
         const filter = {};
         if (req.query.date) {
             const date = new Date(req.query.date);
@@ -56,7 +55,6 @@ exports.getMeals = async (req, res) => {
             Meal.countDocuments(filter)
         ]);
 
-        // إذا المستخدم طالب، نضيف حالة الحجز له
         if (req.userDoc.role === 'student') {
             const mealIds = meals.map(m => m._id);
             const bookings = await MealBooking.find({
@@ -85,14 +83,13 @@ exports.getMeals = async (req, res) => {
 };
 
 // ==========================================
-// POST /api/meals/book (حجز وجبة - طالب)
+// POST /api/meals/book 
 // ==========================================
 exports.bookMeal = async (req, res) => {
     try {
         const { mealId } = req.body;
         const studentId = req.userDoc._id;
 
-        // التحقق من المدخلات
         if (!mealId) {
             return sendError(res, 400, 'Meal ID is required');
         }
@@ -100,7 +97,6 @@ exports.bookMeal = async (req, res) => {
             return sendError(res, 400, 'Invalid meal ID format');
         }
 
-        // التحقق من حالة الطالب
         if (req.userDoc.housingStatus === 'suspended') {
             return sendError(res, 403, 'Cannot book meals while on leave');
         }
@@ -108,20 +104,17 @@ exports.bookMeal = async (req, res) => {
             return sendError(res, 403, 'Only active residents can book meals');
         }
 
-        // جلب الوجبة
         const meal = await Meal.findById(mealId).select('date name type').lean();
         if (!meal) {
             return sendError(res, 404, 'Meal not found');
         }
 
-        // التحقق من أن الوجبة لم تنتهي بعد (يمكن الحجز قبلها بـ 24 ساعة مثلاً)
         const mealDate = new Date(meal.date);
         const now = new Date();
         if (mealDate < now) {
             return sendError(res, 400, 'Cannot book past meals');
         }
 
-        // إنشاء الحجز (مع التعامل مع Duplicate Key)
         try {
             const booking = await MealBooking.create({
                 studentId,
@@ -146,13 +139,12 @@ exports.bookMeal = async (req, res) => {
 };
 
 // ==========================================
-// POST /api/meals/scan (مسح QR وصرف الوجبة)
+// POST /api/meals/scan 
 // ==========================================
 exports.scanMeal = async (req, res) => {
     try {
         const { qrCodeString, mealId } = req.body;
 
-        // التحقق من المدخلات
         if (!qrCodeString || !mealId) {
             return sendError(res, 400, 'QR code string and meal ID are required');
         }
@@ -160,12 +152,10 @@ exports.scanMeal = async (req, res) => {
             return sendError(res, 400, 'Invalid meal ID format');
         }
 
-        // التحقق من صحة ObjectId
         if (!mongoose.Types.ObjectId.isValid(qrCodeString)) {
             return sendError(res, 400, 'Invalid QR Code format');
         }
 
-        // البحث عن الطالب بالـ ID مباشرة
         const student = await User.findOne({
             _id: qrCodeString,
             role: 'student'
@@ -179,7 +169,6 @@ exports.scanMeal = async (req, res) => {
             return sendError(res, 403, 'Student is on leave and cannot receive meals');
         }
 
-        // البحث عن الحجز
         const booking = await MealBooking.findOne({
             studentId: student._id,
             mealId,
@@ -194,7 +183,6 @@ exports.scanMeal = async (req, res) => {
             return sendError(res, 400, 'Meal already served to this student');
         }
 
-        // تحديث الحجز
         booking.isServed = true;
         booking.servedAt = new Date();
         booking.servedBy = req.userDoc._id;
@@ -213,7 +201,7 @@ exports.scanMeal = async (req, res) => {
 };
 
 // ==========================================
-// GET /api/meals/my-bookings (حجوزات الطالب)
+// GET /api/meals/my-bookings 
 // ==========================================
 exports.getMyBookings = async (req, res) => {
     try {
@@ -243,7 +231,7 @@ exports.getMyBookings = async (req, res) => {
 };
 
 // ==========================================
-// GET /api/meals/week (قائمة الوجبات للأسبوع)
+// GET /api/meals/week 
 // ==========================================
 exports.getWeeklyMenu = async (req, res) => {
     try {
@@ -299,7 +287,7 @@ exports.getWeeklyMenu = async (req, res) => {
 };
 
 // ==========================================
-// DELETE /api/meals/book/:bookingId (إلغاء الحجز)
+// DELETE /api/meals/book/:bookingId 
 // ==========================================
 exports.cancelBooking = async (req, res) => {
     try {
@@ -336,7 +324,7 @@ exports.cancelBooking = async (req, res) => {
 };
 
 // ==========================================
-// POST /api/meals (إنشاء وجبة)
+// POST /api/meals  
 // ==========================================
 exports.createMeal = async (req, res) => {
     try {
@@ -388,7 +376,7 @@ exports.createMeal = async (req, res) => {
 };
 
 // ==========================================
-// PUT /api/meals/:id (تحديث وجبة)
+// PUT /api/meals/:id 
 // ==========================================
 exports.updateMeal = async (req, res) => {
     try {
@@ -445,7 +433,7 @@ exports.updateMeal = async (req, res) => {
 };
 
 // ==========================================
-// DELETE /api/meals/:id (حذف وجبة)
+// DELETE /api/meals/:id 
 // ==========================================
 exports.deleteMeal = async (req, res) => {
     try {
