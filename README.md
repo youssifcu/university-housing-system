@@ -1,135 +1,141 @@
 # 🏢 University Housing System Backend
 
-> Comprehensive backend for **Cairo University Housing Management System**. Built to oversee massive scale student dormitory processing, building management, real-time analytics, and automated logic deployment.
+> Comprehensive backend for **Cairo University Housing Management System**. Built to oversee massive scale student dormitory processing, building management, real-time analytics, automated room allocation, meals, and attendance tracking.
 
 ---
 
-## 🏗️ Core Architecture Overview
+## 🌟 Features Overview
 
-This server provides the rigid business logic required to orchestrate a modern university complex.
-
-### 1. Database & Polymorphism
-We utilize **MongoDB** alongside **Mongoose** (v9.x). Because of the diversity of users involved, the system features a **Polymorphic Data Architecture**:
-- All users inherit from a base `User` schema containing shared traits (Auth references, Name, Contact).
-- Mongoose **Discriminators** branch this logic seamlessly into sub-collections under the same namespace: `Student`, `Admin`, `Supervisor`, `FloorAdmin`, and `MealAdmin`.
-- Operations on users automatically pull schema-specific constraints safely.
-
-### 2. Authentication & Authorization
-Stateless safety is heavily relied upon:
-- All users register through heavily encrypted API chains handled natively by **Firebase Authorization**. 
-- Token payloads (`JWT`) are passed back to our Node.js `/login` controller.
-- **Custom Middlewares** (`verifyFirebaseToken`, `roleMiddleware`) intercept requests dynamically checking role strings (e.g., `isAdmin`, `isSupervisor`) allowing rapid closure to sensitive endpoints.
-
-### 3. File Buffering
-To circumvent broken image URLs and complicated scaling dependencies, specific high-traffic photos (like physical ID cards and **Student Profile Pictures**) are pushed up through `Multer`, digested, and stored as scalable **Native MongoDB Buffers**. Our APIs format this to standard HTTP Image endpoints that browser `<img>` tags digest effortlessly!
-
-### 4. Real-time Broadcasting (Socket.IO)
-Events critical to resident awareness scale broadly using **Socket.io**. Actions such as creating an Announcement, filing an Emergency Report, or updating System Status broadcast globally or to filtered active channels instilling a "live" feel to the interface.
+- **Role-Based Access Control (RBAC):** Distinct roles for Students, Admins, Supervisors, Floor Admins, Meal Admins, and Security.
+- **Automated Room Allocation:** Smart logic that assigns rooms based on student gender, academic grade, and building constraints.
+- **QR Code Integration:** Secure attendance tracking and meal redemption using dynamically generated QR codes.
+- **Real-time Notifications:** Web-Socket (Socket.io) integration for instant alerts, announcements, and report updates.
+- **Comprehensive Meal Planning:** Weekly menus, booking systems, and serving limits.
+- **Leave & Attendance Management:** Students can request leaves, which temporarily suspend their housing status and pause meal/attendance requirements.
+- **Payment Processing:** Tracking for dorm fees and financial obligations.
+- **Maintenance & Reports:** Ticketing system for students to report damages or file complaints, tracked by admins.
 
 ---
 
-## 🚦 System Modules & Business Workflows
+## 🏗️ Core Architecture & Tech Stack
 
-### 📝 Housing Applications
-The backbone of the university cycle. 
-1. `Students` apply, submitting necessary document buffers (IDs, medical) and parameters (GPA, Gender).
-2. The logic halts their `housingStatus` into `suspended` ensuring they await verification safely.
-3. Once an `Admin` runs an Application Review, the system automatically runs **Grading Algorithms**, finds matching active `Buildings` explicitly isolating cross-gendered structures, and scans for optimal `Rooms` before incrementing capacity parameters.
+- **Runtime Environment:** Node.js
+- **Framework:** Express.js (v5)
+- **Database:** MongoDB via Mongoose (v9.x)
+- **Authentication:** Firebase Admin SDK (Stateless JWT verification)
+- **File Uploads:** Multer (Buffers stored in MongoDB)
+- **Real-time Engine:** Socket.io
+- **API Documentation:** Swagger UI & Swagger JSDoc
+- **Testing:** Jest & Supertest
+
+---
+
+## 👥 User Roles & Permissions
+
+The system utilizes a **Polymorphic Data Architecture** where all users inherit from a base `User` schema.
+- **Student:** Can apply for housing, book meals, generate QR codes, submit maintenance reports, request leaves, and view their own data.
+- **Admin:** Global access. Can manage buildings, rooms, users, approve applications, and view all statistics.
+- **Supervisor:** Can manage housing applications, assign rooms, approve leaves, and manage announcements.
+- **Floor Admin:** Localized control over specific buildings/floors. Can view attendance and reports.
+- **Meal Admin:** Can create meal menus and scan QR codes to serve meals.
+- **Security:** Can scan QR codes to verify student attendance and campus entry/exit.
+
+---
+
+## 🚦 System Modules & Workflows
+
+### 📝 Housing Applications & Room Allocation
+1. **Application:** Students apply by submitting necessary documents and parameters (GPA, Gender, College).
+2. **Review:** Admins/Supervisors review the application.
+3. **Auto-Allocation:** Upon approval, the system's algorithm finds matching active buildings (isolating by gender and required academic grade) and assigns an optimal room, automatically updating capacities.
 
 ### 🏨 Buildings & Rooms
-Manages geographical assets. 
-- Administrators generate entire Building assets mapping out specific limitations (`grades`, `gender matching`) and maximum floor densities.
-- Students interact primarily with "Safe Endpoints" that strictly format outputs—masking sensitive supervisor IDs, precise internal capacities, or neighbor details for strict privacy standards.
-
-### ⚠️ Maintenance & Reports
-Students encountering room damages or complaints file reports natively. The workflow tracks these into open, in-progress, or resolved conditions. Admins assign priority queues internally depending on severity logic.
+- Administrators manage entire building assets, mapping out limitations (grades, gender matching, supervisors) and maximum floor densities.
+- The system prevents capacity overflow and mixed-gender allocations natively.
 
 ### 🍔 Meal Planning Ecosystem
-Controls dormitory cafeteria assets. 
-- Meal operators publish rotating weekly Menus (Breakfast, Lunch, Dinner).
-- Students ping the server booking slots prior to expiration conditions—which automatically regulates internal food allocation predictions avoiding waste.
+- Meal operators publish rotating weekly Menus (Breakfast, Lunch, Dinner) with specific capacities.
+- Students book meals in advance.
+- Redemption is validated physically via **QR Code scanning** by Meal Admins.
 
-### 🛡️ Secure QR & Attendance System
-Physical presence logic.
-- The server generates distinct, cryptographically unique strings securely logged inside the `Student` Profile payload.
-- External scanners ping the QR endpoints validating student attendance against active database leases tracking physical compliance in dormitories securely.
+### 🛡️ Attendance & Leaves
+- **QR Attendance:** Physical presence is verified via unique QR codes scanned by Security or Floor Admins.
+- **Leaves:** Students can request formal leaves. Upon approval, their housing status is temporarily `suspended`, exempting them from daily attendance tracking and preventing meal bookings until they return.
+
+### ⚠️ Maintenance & Reports
+- Students encountering room damages file reports natively.
+- The workflow tracks tickets through `open`, `in_progress`, and `resolved` states.
+- Real-time updates notify students when their ticket status changes.
+
+### 💳 Payments
+- The system logs and tracks student payments for housing fees.
+- Integrated receipt tracking and status updates (`pending`, `completed`, `failed`).
+
+### 📣 Announcements & Notifications
+- Global broadcasting system targeting specific channels (e.g., all students, floor admins).
+- Triggers active Web-Socket listeners for instant browser/app updates.
 
 ---
 
-## 🔌 Core API Endpoints
+## 📂 Project Structure
 
-### 🔐 Auth & Identity
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Registers a new student securely checking Firebase & local database validation. |
-| `POST` | `/api/auth/login` | Passes stateless JWT Token checking database blocks, statuses, and role validation. |
-| `GET` | `/api/auth/profile` | Yields the formatted JSON details mapped explicitly to the authenticated user. |
-| `PUT` | `/api/auth/profile` | Restricted updater for minor non-critical fields (name, phone). |
+```text
+src/
+├── config/         # Database, Firebase, Swagger, and Multer configurations
+├── controllers/    # Core business logic for each route
+├── middlewares/    # Custom middlewares (Firebase verification, Role checking, Error handling)
+├── models/         # Mongoose schemas (Polymorphic User, Building, Meal, Report, etc.)
+├── routes/         # Express route definitions
+├── utils/          # Helper functions and utilities
+└── app.js          # Express app setup and middleware pipeline
+server.js           # Entry point and server initialization
+```
 
-### 👥 User Management
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/users/` | *Admin-Only.* Yields the global user pool separated by parameters. |
-| `GET` | `/api/users/:id/profile-picture` | Buffers dynamic MongoDB profiles explicitly to `image/*` formats. |
-| `PUT` | `/api/users/:id` | *Admin-Only.* Handles role/housingStatus elevations natively. |
-| `DELETE` | `/api/users/:id` | Double-deletes targeting Firebase memory & local instances synchronously. |
+---
 
-### 🏠 Housing Application Lifecycle
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/applications` | Uploads the initial student form (PDFs, Images, Details) into memory. |
-| `GET` | `/api/applications` | Polls the system for incoming forms. |
-| `PATCH` | `/api/applications/:id/approve` | The internal assigning script executing the room allocation and changing Student `housingStatus`. |
+## 🔌 API Documentation (Swagger)
 
-### 🏬 Buildings & Rooms API
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/buildings` | Generates a new facility assigning specific thresholds and constraints. |
-| `GET` | `/api/buildings/:id` | Polymorphic. Admins see full data; Students see "Shaped" safe visual data points. |
-| `GET` | `/api/rooms/available` | Pulls dynamically empty/partially-empty units depending on student gender logic flags. |
+The entire API is comprehensively documented using Swagger. Once the server is running, you can access the interactive documentation and test endpoints directly at:
 
-### 📣 Announcements & Notifications
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/announcements` | Global broadcasting system targeting specific channels (`student`, `floor_admin`, etc.). Triggers active Web-Socket listeners. |
-| `GET` | `/api/announcements` | Standard fetching logic parsing active memory against expired triggers. |
+👉 **`http://localhost:<PORT>/api-docs`**
 
-### 🛠️ Analytics & Reports
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/stats/dashboard` | Compiles extensive array calculations reflecting room fullness, application queues, and building health statuses globally! |
-| `POST` | `/api/reports` | Intake standard for student problems mapped tightly to their active `$Room`. |
-
-*(Note: Test endpoints locally via the completely synced `Swagger UI` located magically at `/api-docs`!)*
+*See `SWAGGER_TESTING_GUIDE.md` and `API_QUICK_START.md` for specific endpoint testing workflows.*
 
 ---
 
 ## 🛠️ Environmental Setup & Boot Protocol
 
-**1. Database Check**
-Ensure you have a MongoDB cluster active or running on a local docker daemon. The Mongoose connections trigger natively upon booting `server.js`.
+### 1. Prerequisites
+- **Node.js** (v18+ recommended)
+- **MongoDB** (Local instance or Atlas cluster)
+- **Firebase Project** (For Authentication)
 
-**2. Configurations**
-Create a root `.env` config with mapping parameters:
+### 2. Environment Variables
+Create a root `.env` file with the following parameters:
 ```env
 PORT=5000
 MONGO_URI=mongodb://localhost:27017/university-housing
 NODE_ENV=development
 ```
+*(Note: You must securely place your Firebase Admin SDK credentials JSON file as required by your Firebase initialization config.)*
 
-*(You must securely inject your Firebase Admin JSON credentials here based on standard Firebase environment keys.)*
+### 3. Installation & Execution
 
-**3. Execution**
 ```bash
-# Package pulling
+# Install dependencies
 npm install
 
-# Live Development (Auto-resets on save via Nodemon)
+# Start the server in Development mode (Auto-restarts via Nodemon)
 npm run dev
 
-# Testing logic validations explicitly 
+# Start the server in Production mode
+npm start
+
+# Run the test suite (Jest)
 npm run test
 ```
+
+---
 
 ## 👩‍💻 Contributors
 Engineered by Youssif & Team - Cairo University Backend Dev Unit.
