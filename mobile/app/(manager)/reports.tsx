@@ -24,7 +24,7 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string }> = {
   resolved:    { color: '#16A34A', bg: '#DCFCE7' },
 };
 
-// 🔌 Mock data — replace with real API
+
 const MOCK_REPORTS = [
   { _id: 'r1', type: 'Maintenance', description: 'Broken window in room 204', severity: 'high',   status: 'open'        },
   { _id: 'r2', type: 'Noise',       description: 'Loud music after midnight', severity: 'medium', status: 'in_progress' },
@@ -48,12 +48,12 @@ export default function FloorReportsScreen() {
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Confirm', onPress: async () => {
-          // 🔌 Uncomment when backend ready:
-          // await fetch(`${BACKEND_URL}/api/reports/${id}`, {
-          //   method: 'PATCH',
-          //   headers: { 'Content-Type': 'application/json' },
-          //   body: JSON.stringify({ status: newStatus }),
-          // });
+          
+          
+          
+          
+          
+          
           setReports((prev) => prev.map((r) => r._id === id ? { ...r, status: newStatus } : r));
         }
       },

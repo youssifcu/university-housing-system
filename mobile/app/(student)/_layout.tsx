@@ -106,6 +106,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="(housing)/[id]/apply" options={{ href: null }} />
       <Tabs.Screen name="(housing)/[id]/status" options={{ href: null }} />
       <Tabs.Screen name="(info)/notifications" options={{ href: null }} />
+      <Tabs.Screen name="(info)/ai-chat" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="(meals)/bookings" options={{ href: null }} />
       <Tabs.Screen name="(services)/attendance" options={{ href: null }} />
       <Tabs.Screen name="(services)/reports" options={{ href: null }} />

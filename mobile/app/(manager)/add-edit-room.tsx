@@ -24,11 +24,11 @@ export default function AddEditRoomScreen() {
 
   useEffect(() => {
     if (isEdit) {
-      // 🔌 Fetch room details when backend ready:
-      // fetch(`${BACKEND_URL}/api/rooms/${roomId}`)
-      //   .then(r => r.json()).then(data => {
-      //     setRoomNumber(data.roomNumber); setFloor(String(data.floor)); setCapacity(String(data.capacity));
-      //   });
+      
+      
+      
+      
+      
     }
   }, []);
 
@@ -41,11 +41,11 @@ export default function AddEditRoomScreen() {
     try {
       const payload = { roomNumber: roomNumber.trim(), buildingId, floor: parseInt(floor), capacity: parseInt(capacity) };
 
-      // 🔌 Uncomment when backend ready:
-      // const url = isEdit ? `${BACKEND_URL}/api/rooms/${roomId}` : `${BACKEND_URL}/api/rooms`;
-      // const method = isEdit ? 'PUT' : 'POST';
-      // const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      // if (!res.ok) throw new Error('Failed to save room');
+      
+      
+      
+      
+      
 
       Alert.alert('Success', isEdit ? 'Room updated!' : 'Room created!', [
         { text: 'OK', onPress: () => router.back() },

@@ -27,12 +27,12 @@ export default function AddEditBuildingScreen() {
 
   useEffect(() => {
     if (isEdit) {
-      // 🔌 Fetch building details when backend ready:
-      // fetch(`${BACKEND_URL}/api/buildings/${buildingId}`)
-      //   .then(r => r.json()).then(data => {
-      //     setName(data.name); setGender(data.gender);
-      //     setFloors(String(data.floors)); setDescription(data.description);
-      //   });
+      
+      
+      
+      
+      
+      
       setName(buildingName || '');
     }
   }, []);
@@ -47,15 +47,15 @@ export default function AddEditBuildingScreen() {
     try {
       const payload = { name: name.trim(), gender, floors: parseInt(floors), description: description.trim() };
 
-      // 🔌 Uncomment when backend ready:
-      // const url = isEdit ? `${BACKEND_URL}/api/buildings/${buildingId}` : `${BACKEND_URL}/api/buildings`;
-      // const method = isEdit ? 'PUT' : 'POST';
-      // const res = await fetch(url, {
-      //   method,
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(payload),
-      // });
-      // if (!res.ok) throw new Error('Failed to save building');
+      
+      
+      
+      
+      
+      
+      
+      
+      
 
       Alert.alert('Success', isEdit ? 'Building updated!' : 'Building created!', [
         { text: 'OK', onPress: () => router.back() },

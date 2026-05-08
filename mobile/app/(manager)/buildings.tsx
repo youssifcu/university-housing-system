@@ -12,7 +12,7 @@ const SOFT_WHITE = '#F8FAFC';
 const SLATE_GRAY = '#475569';
 const BORDER_COLOR = '#E2E8F0';
 
-// 🔌 Mock data — replace with GET /api/buildings
+
 const MOCK_BUILDINGS = [
   { _id: 'b1', name: 'Building A', gender: 'male',   floors: 4, totalRooms: 40, availableRooms: 12 },
   { _id: 'b2', name: 'Building B', gender: 'female', floors: 3, totalRooms: 30, availableRooms: 5  },
@@ -63,11 +63,11 @@ export default function BuildingsScreen() {
   const router = useRouter();
   const [buildings, setBuildings] = useState<Building[]>(MOCK_BUILDINGS);
 
-  // 🔌 Uncomment when backend ready:
-  // useEffect(() => {
-  //   fetch(`${BACKEND_URL}/api/buildings`)
-  //     .then(r => r.json()).then(setBuildings);
-  // }, []);
+  
+  
+  
+  
+  
 
   return (
     <SafeAreaView style={styles.container}>

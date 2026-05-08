@@ -44,6 +44,10 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "AI_ASSISTANT_URL": "https://aversion-clad-gag.ngrok-free.dev",
+      "AI_ASSISTANT_MODEL": "qwen2.5:7b"
     }
   }
 }

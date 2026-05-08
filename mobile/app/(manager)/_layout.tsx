@@ -90,7 +90,7 @@ export default function ManagerLayout() {
         }}
       />
 
-      {/* Hidden screens — accessible via navigation, not shown in tab bar */}
+      {}
       <Tabs.Screen
         name="rooms"
         options={{ href: null }}

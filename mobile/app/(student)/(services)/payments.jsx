@@ -107,7 +107,7 @@ export default function PaymentsScreen() {
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
 
-      {/* Header */}
+      {}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Payments</Text>
@@ -116,7 +116,7 @@ export default function PaymentsScreen() {
         <MaterialCommunityIcons name="credit-card-outline" size={28} color={COLORS.WHITE} />
       </View>
 
-      {/* Summary Cards */}
+      {}
       <View style={styles.summaryRow}>
         <View style={[styles.summaryCard, { flex: 1.2, borderColor: COLORS.PRIMARY }]}>
           <MaterialCommunityIcons name="sigma" size={18} color={COLORS.PRIMARY} />

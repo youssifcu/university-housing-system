@@ -82,7 +82,7 @@ export default function ReportsScreen() {
       
       const method = editingReport ? 'PATCH' : 'POST';
 
-      // نرسل نوع البلاغ كعنوان (title) بشكل تلقائي
+      
       const selectedTypeLabel = REPORT_TYPES.find(t => t.key === type)?.label || type;
 
       const res = await fetch(url, {

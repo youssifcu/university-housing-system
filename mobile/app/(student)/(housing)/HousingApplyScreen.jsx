@@ -162,7 +162,7 @@ export default function HousingApplyScreen() {
 
     if (res.ok) {
       Alert.alert("Success", "Application submitted successfully", [
-        { text: "OK", onPress: () => router.replace("/(tabs)/profile") }
+        { text: "OK", onPress: () => router.replace("/(student)") }
       ]);
     } else {
       Alert.alert("Error", result.message || "Failed to submit application");

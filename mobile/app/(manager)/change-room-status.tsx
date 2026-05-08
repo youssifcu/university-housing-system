@@ -26,13 +26,13 @@ export default function ChangeRoomStatusScreen() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      // 🔌 Uncomment when backend ready:
-      // const res = await fetch(`${BACKEND_URL}/api/rooms/${roomId}/status`, {
-      //   method: 'PATCH',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ status: selected }),
-      // });
-      // if (!res.ok) throw new Error('Failed to update status');
+      
+      
+      
+      
+      
+      
+      
 
       Alert.alert('Success', 'Room status updated!', [
         { text: 'OK', onPress: () => router.back() },

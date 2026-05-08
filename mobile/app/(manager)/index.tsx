@@ -27,7 +27,7 @@ export default function FloorHomeScreen() {
       <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={styles.scroll}>
 
-        {/* Header */}
+        {}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Welcome back 👋</Text>
@@ -38,7 +38,7 @@ export default function FloorHomeScreen() {
           </View>
         </View>
 
-        {/* Cards */}
+        {}
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.grid}>
           {CARDS.map((card) => (

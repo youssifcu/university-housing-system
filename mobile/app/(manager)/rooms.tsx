@@ -18,7 +18,7 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }
   maintenance: { color: '#D97706', bg: '#FEF3C7', label: 'Maintenance' },
 };
 
-// 🔌 Mock data — replace with GET /api/buildings/:id/rooms
+
 const MOCK_ROOMS = [
   { _id: 'r1', roomNumber: '101', floor: 1, capacity: 4, occupancy: 3, status: 'available'   },
   { _id: 'r2', roomNumber: '102', floor: 1, capacity: 2, occupancy: 2, status: 'full'        },
@@ -85,7 +85,7 @@ export default function BuildingRoomsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Status filter */}
+      {}
       <View style={styles.filterRow}>
         {FILTERS.map((f) => (
           <TouchableOpacity key={f} style={[styles.filterTab, statusFilter === f && styles.filterTabActive]} onPress={() => setStatusFilter(f)}>

@@ -133,6 +133,13 @@ export default function HomeScreen() {
       disabled: false
     },
     {
+      label: 'AI Assistant',
+      icon: 'robot-happy-outline',
+      route: '/(student)/(info)/ai-chat',
+      color: '#6366F1',
+      disabled: false
+    },
+    {
       label: 'Meal Bookings',
       icon: 'food-fork-drink',
       route: '/(student)/(meals)/bookings',
