@@ -4,11 +4,13 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebaseConfig';
 import Button from '../components/Button';
+import { useAIChatContext } from '../context/AIChatContext';
 import '../styles/RegisterPage.css';
 import '../styles/DashboardPage.css';
 
 const DashboardPage = () => {
   const navigate = useNavigate();
+  const { setScreenContext } = useAIChatContext();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('');
@@ -40,6 +42,18 @@ const DashboardPage = () => {
     return () => unsubscribe();
     
   }, [userName]);
+
+  useEffect(() => {
+    setScreenContext({
+      screen: 'dashboard',
+      pageTitle: 'General Dashboard',
+      loading,
+      userName,
+      currentUserEmail: user?.email || '',
+      guidance:
+        'This is a simple dashboard page for the student accommodation system.',
+    });
+  }, [loading, setScreenContext, user, userName]);
 
   const handleLogout = async () => {
     try {

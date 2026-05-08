@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAllBuildings } from '../services/buildingService';
-import { createRoom, getAllRooms, getRoomById, updateRoom, deleteRoom, assignStudentToRoom, removeStudentFromRoom, updateRoomStatus } from '../services/roomService';
+import { createRoom, getAllRooms, getRoomById, updateRoom, deleteRoom, assignStudentToRoom } from '../services/roomService';
+import { clearAssignedRoomByStudentId, getAllUsers } from '../services/userService';
 import '../styles/ManageRooms.css';
 
 const ManageRooms = () => {
@@ -9,13 +10,14 @@ const ManageRooms = () => {
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
-  
+
   const [roomForm, setRoomForm] = useState({
     id: '',
     buildingId: '',
     floorNumber: 1,
     roomNumber: '',
     capacity: 2,
+    status: 'available',
     amenities: [{ name: '', isWorking: true }]
   });
 
@@ -30,7 +32,7 @@ const ManageRooms = () => {
         getAllRooms(),
         getAllBuildings()
       ]);
-      
+
       // Enrich rooms with building names
       const enrichedRooms = roomsData.map(room => {
         const building = buildingsData.find(b => (b.id || b._id) === room.buildingId);
@@ -40,7 +42,7 @@ const ManageRooms = () => {
           buildingName: building ? building.name : 'Unknown'
         };
       });
-      
+
       setRooms(enrichedRooms);
       setBuildings(buildingsData);
     } catch (error) {
@@ -87,6 +89,7 @@ const ManageRooms = () => {
       floorNumber: 1,
       roomNumber: '',
       capacity: 2,
+      status: 'available',
       amenities: [{ name: '', isWorking: true }]
     });
     setShowRoomModal(true);
@@ -118,9 +121,11 @@ const ManageRooms = () => {
     e.preventDefault();
     try {
       const roomData = {
+        buildingId: roomForm.buildingId,
         roomNumber: roomForm.roomNumber,
         floorNumber: parseInt(roomForm.floorNumber),
         capacity: parseInt(roomForm.capacity),
+        status: roomForm.status,
         amenities: roomForm.amenities.filter((amenity) => amenity.name.trim())
       };
 
@@ -128,7 +133,6 @@ const ManageRooms = () => {
         await updateRoom(roomForm.id, roomData);
         alert('Room updated successfully!');
       } else {
-        roomData.buildingId = roomForm.buildingId;
         await createRoom(roomData);
         alert('Room added successfully!');
       }
@@ -165,18 +169,140 @@ const ManageRooms = () => {
     }
   };
 
-  const handleRemoveStudent = async (roomId) => {
+  const handleRemoveStudent = async (roomId, roomNumber) => {
     try {
-      await removeStudentFromRoom(roomId);
+      const fullRoom = await getRoomById(roomId);
+      const roomDetails = {
+        ...fullRoom,
+        id: fullRoom?.id || fullRoom?._id || roomId,
+      };
+      const allStudents = await getAllUsers({ limit: 500, role: 'student' });
+      const studentsInRoom = getStudentsAssignedToRoom(roomDetails, allStudents);
+
+      if (studentsInRoom.length === 0) {
+        alert(`No students are currently assigned to Room ${roomNumber || 'selected room'}.`);
+        return;
+      }
+
+      const studentChoiceInput = window.prompt(
+        `Students in Room ${roomNumber || 'selected room'}:\n\n${studentsInRoom
+          .map((student, index) => formatStudentLabel(student, index))
+          .join('\n')}\n\nEnter the number of the student you want to remove:`
+      );
+
+      if (studentChoiceInput === null) {
+        return;
+      }
+
+      const selectedIndex = Number.parseInt(studentChoiceInput.trim(), 10) - 1;
+      const selectedStudent = studentsInRoom[selectedIndex];
+
+      if (!selectedStudent) {
+        alert('Please enter a valid student number from the list.');
+        return;
+      }
+
+      const selectedStudentLabel =
+        selectedStudent.name ||
+        selectedStudent.fullName ||
+        selectedStudent.studentId ||
+        selectedStudent.id ||
+        selectedStudent._id;
+
+      if (!window.confirm(`Are you sure you want to remove ${selectedStudentLabel} from Room ${roomNumber || 'selected room'}?`)) {
+        return;
+      }
+      console.log(selectedStudent._id);
+
+      await clearAssignedRoomByStudentId(
+        roomId,
+        selectedStudent._id,
+        selectedStudent
+      );
+
+
       await loadData();
+      alert('Student removed successfully!');
     } catch (error) {
       console.error('Error removing student:', error);
       alert(error.message);
     }
   };
 
+  const handleDeleteRoom = async (roomId, roomNumber) => {
+    if (!window.confirm(`Are you sure you want to delete Room ${roomNumber}?`)) {
+      return;
+    }
+
+    try {
+      await deleteRoom(roomId);
+      await loadData();
+      alert('Room deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting room:', error);
+      alert('Error deleting room: ' + error.message);
+    }
+  };
+
   const getOccupancyPercentage = (current, capacity) => {
-    return (current / capacity) * 100;
+    if (!capacity) return 0;
+    return Math.min((current / capacity) * 100, 100);
+  };
+
+  const normalizeId = (value) => String(value || '').trim();
+
+  const formatStudentLabel = (student, index) => {
+    const studentName = student.name || student.fullName || 'Unknown Student';
+    const studentIdentifier = student.studentId || student.id || student._id || 'No ID';
+    return `${index + 1}. ${studentName} (${studentIdentifier})`;
+  };
+
+  const getStudentsAssignedToRoom = (roomDetails, allUsers = []) => {
+    const roomId = normalizeId(roomDetails?.id || roomDetails?._id);
+    const occupants = Array.isArray(roomDetails?.currentOccupants) ? roomDetails.currentOccupants : [];
+    const usersByKey = new Map();
+
+    allUsers.forEach((user) => {
+      [user.id, user._id, user.studentId]
+        .map(normalizeId)
+        .filter(Boolean)
+        .forEach((key) => usersByKey.set(key, user));
+    });
+
+    const studentsFromOccupants = occupants
+      .map((occupant) => {
+        if (occupant && typeof occupant === 'object') {
+          const occupantKey = normalizeId(occupant.id || occupant._id || occupant.studentId);
+          return usersByKey.get(occupantKey) || occupant;
+        }
+
+        return usersByKey.get(normalizeId(occupant));
+      })
+      .filter(Boolean);
+
+    const studentsFromAssignedRoom = allUsers.filter((user) => {
+      const assignedRoomId = normalizeId(
+        user.assignedRoomId?._id || user.assignedRoomId?.id || user.assignedRoomId
+      );
+
+      return assignedRoomId && assignedRoomId === roomId;
+    });
+
+    const uniqueStudents = [];
+    const seen = new Set();
+
+    [...studentsFromOccupants, ...studentsFromAssignedRoom].forEach((student) => {
+      const studentKey = normalizeId(student.id || student._id || student.studentId);
+
+      if (!studentKey || seen.has(studentKey)) {
+        return;
+      }
+
+      seen.add(studentKey);
+      uniqueStudents.push(student);
+    });
+
+    return uniqueStudents;
   };
 
   if (loading) {
@@ -192,53 +318,68 @@ const ManageRooms = () => {
             + Add New Room
           </button>
         </div>
-        
-        <div className="rooms-grid">
-          {rooms.map(room => (
-            <div key={room.id} className={`room-card status-${room.status}`}>
-              <div className="room-header">
-                <div>
-                  <h3>Room {room.roomNumber}</h3>
-                  <span className="room-building-label">{room.buildingName} - Floor {room.floorNumber}</span>
-                </div>
-                <span className={`room-status-badge ${room.status}`}>{room.status}</span>
-              </div>
-              
-              <div className="room-body">
-                <div className="occupancy-info">
-                  <span>Occupancy</span>
-                  <span className="occupancy-numbers">{room.currentOccupancy || 0} / {room.capacity}</span>
-                </div>
-                <div className="progress-bar-bg">
-                  <div 
-                    className={`progress-bar-fill ${(room.currentOccupancy || 0) >= room.capacity ? 'full' : ''}`} 
-                    style={{ width: `${getOccupancyPercentage(room.currentOccupancy || 0, room.capacity)}%` }}
-                  ></div>
-                </div>
-              </div>
 
-              <div className="room-actions-grid">
-                <button 
-                  className="btn-icon add-student" 
-                  onClick={() => handleAssignStudent(room.id || room._id, room.roomNumber)}
-                  disabled={(room.currentOccupancy || 0) >= room.capacity || room.status === 'maintenance'}
-                >
-                  + Assign
-                </button>
-                <button 
-                  className="btn-icon remove-student" 
-                  onClick={() => handleRemoveStudent(room.id)}
-                  disabled={(room.currentOccupancy || 0) <= 0}
-                >
-                  - Remove
-                </button>
-                <button className="btn-icon edit full-width" onClick={() => handleOpenEdit(room)}>
-                  Edit Details
-                </button>
+        <div className="rooms-grid">
+          {rooms.map(room => {
+            const roomId = room.id || room._id;
+            const currentOccupancy = Array.isArray(room.currentOccupants)
+              ? room.currentOccupants.length
+              : Number(room.currentOccupancy || 0);
+            const roomCapacity = Number(room.capacity || 0);
+
+            return (
+              <div key={roomId} className={`room-card status-${room.status}`}>
+                <div className="room-header">
+                  <div>
+                    <h3>Room {room.roomNumber}</h3>
+                    <span className="room-building-label">{room.buildingName} - Floor {room.floorNumber}</span>
+                  </div>
+                  <span className={`room-status-badge ${room.status}`}>{room.status}</span>
+                </div>
+
+                <div className="room-body">
+                  <div className="room-meta-row">
+                    <span>Capacity</span>
+                    <strong>{roomCapacity} Beds</strong>
+                  </div>
+                  <div className="occupancy-info">
+                    <span>Occupancy</span>
+                    <span className="occupancy-numbers">{currentOccupancy} / {roomCapacity}</span>
+                  </div>
+                  <div className="progress-bar-bg">
+                    <div
+                      className={`progress-bar-fill ${currentOccupancy >= roomCapacity ? 'full' : ''}`}
+                      style={{ width: `${getOccupancyPercentage(currentOccupancy, roomCapacity)}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div className="room-actions-grid">
+                  <button
+                    className="btn-icon add-student"
+                    onClick={() => handleAssignStudent(roomId, room.roomNumber)}
+                    disabled={currentOccupancy >= roomCapacity || room.status === 'maintenance'}
+                  >
+                    + Assign
+                  </button>
+                  <button
+                    className="btn-icon remove-student"
+                    onClick={() => handleRemoveStudent(roomId, room.roomNumber)}
+                    disabled={currentOccupancy <= 0}
+                  >
+                    - Remove
+                  </button>
+                  <button className="btn-icon edit" onClick={() => handleOpenEdit(room)}>
+                    Edit Details
+                  </button>
+                  <button className="btn-icon delete-room" onClick={() => handleDeleteRoom(roomId, room.roomNumber)}>
+                    Delete Room
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-          {rooms.length === 0 && <div style={{padding: '2rem', textAlign: 'center', gridColumn: '1/-1'}}>No rooms found.</div>}
+            )
+          })}
+          {rooms.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', gridColumn: '1/-1' }}>No rooms found.</div>}
         </div>
       </div>
 
@@ -259,7 +400,7 @@ const ManageRooms = () => {
                   ))}
                 </select>
               </div>
-              
+
               <div className="form-group-row">
                 <div className="form-group">
                   <label>Room Number</label>
@@ -275,6 +416,14 @@ const ManageRooms = () => {
                 <div className="form-group">
                   <label>Capacity (Beds)</label>
                   <input type="number" name="capacity" value={roomForm.capacity} onChange={handleFormChange} required min="1" className="form-input" />
+                </div>
+                <div className="form-group">
+                  <label>Status</label>
+                  <select name="status" value={roomForm.status} onChange={handleFormChange} className="form-input">
+                    <option value="available">Available</option>
+                    <option value="full">Full</option>
+                    <option value="maintenance">Maintenance</option>
+                  </select>
                 </div>
               </div>
 

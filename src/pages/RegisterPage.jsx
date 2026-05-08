@@ -1,12 +1,15 @@
+import { useEffect } from 'react';
 import { useRegistration } from '../hooks/useRegistration';
 import { useNavigate } from 'react-router-dom';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
 import FormContainer from '../components/FormContainer';
+import { useAIChatContext } from '../context/AIChatContext';
 import '../styles/RegisterPage.css';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const { setScreenContext } = useAIChatContext();
   
   const {
     formData,
@@ -18,6 +21,27 @@ const RegisterPage = () => {
     handleSubmit,
     resetForm
   } = useRegistration();
+
+  useEffect(() => {
+    setScreenContext({
+      screen: 'register',
+      pageTitle: 'Create Account',
+      registrationFields: [
+        'name',
+        'studentId',
+        'email',
+        'password',
+        'phoneNumber',
+        'nationalId',
+        'faculty',
+        'universityYear',
+        'gender',
+      ],
+      registrationSuccess: success,
+      guidance:
+        'This screen is for creating a new student housing system account.',
+    });
+  }, [setScreenContext, success]);
 
   return (
     <div className="register-page">

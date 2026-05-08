@@ -13,25 +13,34 @@ const isNoApplicationsError = (error) => {
 export const submitApplication = async (applicationData, files) => {
   try {
     const formData = new FormData();
-    
-    // Add text fields
+
     formData.append('studentType', applicationData.studentType);
+    // formData.append('userId', applicationData.userId);
+    formData.append('nationalId', applicationData.nationalId);
     formData.append('fullName', applicationData.fullName);
     formData.append('gender', applicationData.gender);
     formData.append('dateOfBirth', applicationData.dateOfBirth);
     formData.append('phoneNumber', applicationData.phoneNumber);
+    formData.append('email', applicationData.email);
     formData.append('address', applicationData.address);
     formData.append('college', applicationData.college);
+    formData.append('department', applicationData.department);
     formData.append('academicYear', applicationData.academicYear);
     formData.append('gpa', applicationData.gpa);
-    formData.append('nationalId', applicationData.nationalId);
-    
-    // Add files
+    formData.append('housingType', applicationData.housingType);
+    if (applicationData.preferredRoommate?.trim()) {
+      formData.append('preferredRoommate', applicationData.preferredRoommate);
+    } formData.append('emergencyContact[name]', applicationData.emergencyContact.name);
+    formData.append('emergencyContact[phone]', applicationData.emergencyContact.phone);
+    formData.append('emergencyContact[relation]', applicationData.emergencyContact.relation);
+    formData.append('specialNeeds[hasSpecialNeeds]', String(applicationData.specialNeeds.hasSpecialNeeds));
+    formData.append('specialNeeds[description]', applicationData.specialNeeds.description || '');
+
     if (files.nationalIdCard) formData.append('nationalIdCard', files.nationalIdCard);
     if (files.personalPhoto) formData.append('personalPhoto', files.personalPhoto);
     if (files.medicalReport) formData.append('medicalReport', files.medicalReport);
     if (files.universityIdCard) formData.append('universityIdCard', files.universityIdCard);
-    
+
     const response = await apiMultipart('/api/applications', 'POST', formData);
     return response.data;
   } catch (error) {
@@ -61,7 +70,7 @@ export const getAllApplications = async (page = 1, limit = 10, status = '') => {
       limit: limit.toString(),
       ...(status && { status }),
     });
-    
+
     const response = await api.get(`/api/applications?${params}`);
     return {
       applications: response.data.applications || response.data || [],

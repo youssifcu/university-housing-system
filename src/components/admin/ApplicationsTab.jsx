@@ -130,7 +130,7 @@ const ApplicationsTab = ({
             <table className="enterprise-table">
               <thead>
                 <tr>
-                  <th>App ID</th>
+                  <th>Student ID</th>
                   <th>Student Info</th>
                   <th>College</th>
                   <th>GPA</th>
@@ -139,35 +139,48 @@ const ApplicationsTab = ({
                 </tr>
               </thead>
               <tbody>
-                {applications?.map((app) => (
-                  <tr key={app.id}>
-                    <td className="fw-bold text-blue">{app.id.substring(0, 8).toUpperCase()}</td>
-                    <td>
-                      <div className="student-info-col">
-                        <span className="fw-bold">{app.fullName}</span>
-                        <span className="text-muted text-small">ID: {app.nationalId}</span>
-                      </div>
-                    </td>
-                    <td>{app.college}</td>
-                    <td>{app.gpa}</td>
-                    <td>
-                      <span className={`status-pill status-${app.status.toLowerCase()}`}>
-                        {app.status.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="action-cell">
-                        <button className="btn-icon review" onClick={() => handleReviewApp(app)}>👁️ Review</button>
-                        {app.status === 'pending' && (
-                          <>
-                            <button className="btn-icon approve" onClick={() => handleApproveApp(app.id)}>✓</button>
-                            <button className="btn-icon reject" onClick={() => handleRejectApp(app.id)}>✕</button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {applications?.map((app) => {
+                  const appId = app.id || app._id || '0';
+                  const displayName = app.fullName || app.studentName || 'Unknown';
+                  const studentId = app.userId?._id || 'N/A';
+                  const nationalId = app.nationalId || 'N/A';
+                  const college = app.college || app.faculty || 'N/A';
+                  const gpa = app.gpa || 'N/A';
+                  const status = app.status || 'pending';
+                  console.log(app.userId?._id);
+
+                  return (
+                    <tr key={appId}>
+                      <td className="fw-bold text-blue">
+                        {studentId}
+                      </td>
+                      <td>
+                        <div className="student-info-col">
+                          <span className="fw-bold">{displayName}</span>
+                          <span className="text-muted text-small">National ID: {nationalId}</span>
+                        </div>
+                      </td>
+                      <td>{college}</td>
+                      <td>{gpa}</td>
+                      <td>
+                        <span className={`status-pill status-${status.toLowerCase()}`}>
+                          {status.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="action-cell">
+                          <button className="btn-icon review" onClick={() => handleReviewApp(app)}>👁️ Review</button>
+                          {status === 'pending' && appId !== 'N/A' && (
+                            <>
+                              <button className="btn-icon approve" onClick={() => handleApproveApp(appId)}>✓</button>
+                              <button className="btn-icon reject" onClick={() => handleRejectApp(appId)}>✕</button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
                 {applications?.length === 0 && (
                   <tr>
                     <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>

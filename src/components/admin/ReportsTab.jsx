@@ -2,83 +2,97 @@ import React from 'react';
 import '../../styles/AdminDashboard.css';
 
 const ReportsTab = ({
-  reports,
-  reportPage,
-  reportTotalPages,
-  reportLimit,
-  setReportLimit,
-  reportFilters,
-  setReportFilters,
-  reportLoading,
-  loadReports,
-  handleViewReportDetails,
-  handleUpdateReportStatus,
-  handleDeleteReport,
+  buildings,
+  attendanceRecords,
+  attendanceSelectedBuildingId,
+  setAttendanceSelectedBuildingId,
+  attendanceLoading,
+  loadAttendanceByBuilding,
 }) => {
+  const toText = (value, fallback = 'N/A') => {
+    if (value === null || value === undefined || value === '') return fallback;
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+    if (typeof value === 'object') {
+      return value.name || value.title || value.studentId || value._id || value.id || fallback;
+    }
+    return fallback;
+  };
+
+  const getStudentName = (record) =>
+    toText(record.studentName, '') ||
+    record.userName ||
+    record.name ||
+    record.student?.name ||
+    record.user?.name ||
+    toText(record.student, '') ||
+    toText(record.user, 'N/A');
+
+  const getStudentId = (record) =>
+    toText(record.studentId, '') ||
+    record.student?.studentId ||
+    record.user?.studentId ||
+    record.userId ||
+    record.student?._id ||
+    record.user?._id ||
+    'N/A';
+
+  const getAttendanceStatus = (record) =>
+    toText(record.status, '') ||
+    record.attendanceStatus ||
+    record.state ||
+    'N/A';
+
+  const formatDateTime = (value) => {
+    if (!value) return 'N/A';
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return toText(value);
+    }
+
+    return date.toLocaleString();
+  };
+
   return (
     <div className="admin-section">
       <div className="admin-table-panel">
         <div className="panel-header">
-          <h2>Reports Management</h2>
+          <h2>Attendance Management</h2>
         </div>
 
         <div style={{ padding: '1.5rem', borderBottom: '1px solid #e2e8f0' }}>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'end' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Type</label>
+              <label>Building</label>
               <select
-                value={reportFilters.type}
-                onChange={(e) => setReportFilters({ ...reportFilters, type: e.target.value })}
+                value={attendanceSelectedBuildingId}
+                onChange={(e) => setAttendanceSelectedBuildingId(e.target.value)}
                 className="form-input"
               >
-                <option value="">All Types</option>
-                <option value="complaint">Complaint</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="incident">Incident</option>
-                <option value="feedback">Feedback</option>
+                <option value="">Select Building</option>
+                {buildings?.map((building) => (
+                  <option key={building.id || building._id} value={building.id || building._id}>
+                    {building.name}
+                  </option>
+                ))}
               </select>
             </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Status</label>
-              <select
-                value={reportFilters.status}
-                onChange={(e) => setReportFilters({ ...reportFilters, status: e.target.value })}
-                className="form-input"
-              >
-                <option value="">All Status</option>
-                <option value="open">Open</option>
-                <option value="in_progress">In Progress</option>
-                <option value="resolved">Resolved</option>
-                <option value="closed">Closed</option>
-              </select>
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Severity</label>
-              <select
-                value={reportFilters.severity}
-                onChange={(e) => setReportFilters({ ...reportFilters, severity: e.target.value })}
-                className="form-input"
-              >
-                <option value="">All Severity</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
+
             <button
               className="btn-primary"
-              onClick={() => loadReports({ page: 1 })}
-              disabled={reportLoading}
+              onClick={() => loadAttendanceByBuilding(attendanceSelectedBuildingId)}
+              disabled={attendanceLoading || !attendanceSelectedBuildingId}
             >
-              {reportLoading ? 'Loading...' : 'Apply Filter'}
+              {attendanceLoading ? 'Loading...' : 'Show Attendance'}
             </button>
+
             <button
               className="btn-secondary"
               onClick={() => {
-                const emptyFilters = { type: '', status: '', severity: '' };
-                setReportFilters(emptyFilters);
-                loadReports({ page: 1, filters: emptyFilters });
+                setAttendanceSelectedBuildingId('');
+                loadAttendanceByBuilding('');
               }}
             >
               Clear
@@ -86,89 +100,45 @@ const ReportsTab = ({
           </div>
         </div>
 
-        <div style={{ padding: '1rem 1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'center', borderBottom: '1px solid #e2e8f0' }}>
-          <label style={{ color: '#64748b' }}>Page</label>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => loadReports({ page: Math.max(1, reportPage - 1) })}
-            disabled={reportPage === 1 || reportLoading}
-          >
-            Previous
-          </button>
-          <span style={{ color: '#0f172a', minWidth: '3rem', textAlign: 'center', fontWeight: 600 }}>
-            {reportPage} / {reportTotalPages}
-          </span>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => loadReports({ page: Math.min(reportTotalPages, reportPage + 1) })}
-            disabled={reportPage >= reportTotalPages || reportLoading}
-          >
-            Next
-          </button>
-          <label style={{ color: '#64748b', marginLeft: '0.5rem' }}>Rows</label>
-          <select
-            value={reportLimit}
-            onChange={(e) => {
-              const nextLimit = Number(e.target.value);
-              setReportLimit(nextLimit);
-              loadReports({ page: 1, limit: nextLimit });
-            }}
-            className="form-input"
-            style={{ width: 'auto' }}
-          >
-            <option value="10">10</option>
-            <option value="20">20</option>
-            <option value="50">50</option>
-          </select>
-        </div>
-
         <div className="table-responsive">
-          {reportLoading ? (
+          {attendanceLoading ? (
             <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
-              Loading reports...
+              Loading attendance...
             </div>
           ) : (
             <table className="enterprise-table">
               <thead>
                 <tr>
-                  <th>Report ID</th>
-                  <th>Type</th>
+                  <th>Student Name</th>
+                  <th>Student ID</th>
+                  <th>Building</th>
+                  <th>Date</th>
+                  <th>Check In</th>
+                  <th>Check Out</th>
                   <th>Status</th>
-                  <th>Severity</th>
-                  <th>Title</th>
-                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {reports?.map((report) => {
-                  const reportId = report.id || report._id || 'N/A';
-                  return (
-                    <tr key={reportId}>
-                      <td className="fw-bold text-blue">{String(reportId).substring(0, 8).toUpperCase()}</td>
-                      <td>{report.type || '—'}</td>
-                      <td>{report.status || '—'}</td>
-                      <td>{report.severity || '—'}</td>
-                      <td>{report.title || report.subject || report.description || '—'}</td>
-                      <td>
-                        <div className="action-cell">
+                {attendanceRecords?.map((record, index) => {
+                  const recordKey = record.id || record._id || `${getStudentId(record)}-${record.date || record.createdAt || index}`;
 
-                          <button className="btn-icon edit" onClick={() => handleUpdateReportStatus(reportId)}>
-                            Status
-                          </button>
-                          <button className="btn-icon delete" onClick={() => handleDeleteReport(reportId)}>
-                            Delete
-                          </button>
-                        </div>
-                      </td>
+                  return (
+                    <tr key={recordKey}>
+                      <td>{getStudentName(record)}</td>
+                      <td>{getStudentId(record)}</td>
+                      <td>{toText(record.buildingName, '') || record.building?.name || toText(record.building)}</td>
+                      <td>{formatDateTime(record.date || record.attendanceDate || record.createdAt)}</td>
+                      <td>{formatDateTime(record.checkInTime || record.checkIn || record.entryTime)}</td>
+                      <td>{formatDateTime(record.checkOutTime || record.checkOut || record.exitTime)}</td>
+                      <td>{getAttendanceStatus(record)}</td>
                     </tr>
                   );
                 })}
-                {reports?.length === 0 && (
+
+                {attendanceRecords?.length === 0 && (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-                      No reports found.
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                      {attendanceSelectedBuildingId ? 'No attendance found for this building.' : 'Select a building to view attendance.'}
                     </td>
                   </tr>
                 )}

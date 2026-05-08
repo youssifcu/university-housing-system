@@ -72,6 +72,19 @@
   margin-bottom: 1.5rem;
 }
 
+.room-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.room-meta-row strong {
+  color: #0f172a;
+}
+
 .occupancy-info {
   display: flex;
   justify-content: space-between;
@@ -119,6 +132,9 @@
 
 .btn-icon.remove-student { background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; }
 .btn-icon.remove-student:hover:not(:disabled) { background: #e11d48; color: #ffffff; }
+
+.btn-icon.delete-room { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.btn-icon.delete-room:hover:not(:disabled) { background: #dc2626; color: #ffffff; }
 
 .btn-icon:disabled {
   opacity: 0.5;

@@ -11,7 +11,7 @@ const MealsTab = ({
   setMealFilters,
   mealLoading,
   loadMeals,
-  handleAddMeal,
+  handleCreateMeal,
   handleEditMeal,
   handleDeleteMeal
 }) => {
@@ -44,7 +44,7 @@ const MealsTab = ({
       <div className="admin-table-panel">
         <div className="panel-header">
           <h2>Meals Management</h2>
-          <button className="btn-primary" onClick={handleAddMeal}>
+          <button className="btn-primary" onClick={handleCreateMeal}>
             + Add New Meal
           </button>
         </div>
@@ -85,7 +85,7 @@ const MealsTab = ({
               className="btn-secondary"
               onClick={() => {
                 setMealFilters({ date: '', mealType: '' });
-                loadMeals({ page: 1 });
+                loadMeals({ page: 1, filters: { date: '', mealType: '' } });
               }}
             >
               Clear Filters
@@ -151,7 +151,7 @@ const MealsTab = ({
               </thead>
               <tbody>
                 {meals?.map((meal) => (
-                  <tr key={meal.id}>
+                  <tr key={meal.id || meal._id}>
                     <td className="fw-bold">{meal.name}</td>
                     <td>{new Date(meal.date).toLocaleDateString()}</td>
                     <td>
@@ -165,7 +165,7 @@ const MealsTab = ({
                     <td>
                       <div className="action-cell">
                         <button className="btn-icon edit" onClick={() => handleEditMeal(meal)}>Edit</button>
-                        <button className="btn-icon delete" onClick={() => handleDeleteMeal(meal.id)}>Delete</button>
+                        <button className="btn-icon delete" onClick={() => handleDeleteMeal(meal.id || meal._id)}>Delete</button>
                       </div>
                     </td>
                   </tr>

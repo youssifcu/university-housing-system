@@ -1,19 +1,20 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where, 
-  addDoc, 
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  addDoc,
   updateDoc,
   setDoc,
-  deleteDoc 
+  deleteDoc
 } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, getAuth as getSecondaryAuth } from 'firebase/auth'; 
+import { createUserWithEmailAndPassword, deleteUser as deleteAuthUser, getAuth as getSecondaryAuth } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, auth, storage, firebaseConfig } from '../../lib/firebaseConfig'; 
+import { db, auth, storage, firebaseConfig } from '../../lib/firebaseConfig';
 import { initializeApp, deleteApp } from 'firebase/app';
+import { api } from './api';
 
 const USERS_COLLECTION = 'users';
 
@@ -24,7 +25,7 @@ export const checkUserExists = async (email, studentId) => {
       collection(db, USERS_COLLECTION),
       where('universityEmail', '==', email)
     );
-    
+
     const studentIdQuery = query(
       collection(db, USERS_COLLECTION),
       where('studentId', '==', studentId)
@@ -45,14 +46,14 @@ export const createUserInFirestore = async (userData) => {
   try {
     const userEmail = userData.universityEmail;
     const userDocRef = doc(db, USERS_COLLECTION, userEmail);
-    
+
     await setDoc(userDocRef, {
       ...userData,
       role: userData.role || 'admin',
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    
+
     return userDocRef.id;
   } catch (error) {
     console.error('Error creating user in Firestore:', error);
@@ -66,12 +67,12 @@ export const registerUserWithAuth = async (email, password) => {
     if (!auth) {
       throw new Error('Firebase Auth is not properly initialized');
     }
-    
+
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     return userCredential.user;
   } catch (error) {
     console.error('Error registering user with Firebase Auth:', error);
-    
+
     if (error.code === 'auth/network-request-failed') {
       throw new Error('Network error. Please check your connection and try again.');
     } else if (error.code === 'auth/configuration-not-found') {
@@ -121,14 +122,14 @@ export const getUserByEmail = async (email) => {
   try {
     const userDocRef = doc(db, USERS_COLLECTION, email);
     const docSnap = await getDoc(userDocRef);
-    
+
     if (docSnap.exists()) {
       return {
         id: docSnap.id,
         ...docSnap.data()
       };
     }
-    
+
     return null;
   } catch (error) {
     console.error('Error getting user by email:', error);
@@ -181,7 +182,7 @@ export const updateUserProfile = async (email, userData) => {
 
 export const deleteUser = async (email) => {
   try {
-    const userRef = doc(db, USERS_COLLECTION, email);  
+    const userRef = doc(db, USERS_COLLECTION, email);
     await deleteDoc(userRef);
   } catch (error) {
     console.error('Error deleting user:', error);
@@ -194,8 +195,8 @@ export const adminRegisterUser = async (userData) => {
 
   try {
     const userCredential = await createUserWithEmailAndPassword(
-      secondaryAuth, 
-      userData.universityEmail, 
+      secondaryAuth,
+      userData.email || userData.universityEmail, 
       userData.password
     );
 
@@ -205,16 +206,46 @@ export const adminRegisterUser = async (userData) => {
       createdAt: new Date(),
       updatedAt: new Date()
     };
-    
-    delete userDataWithId.password; 
 
-    const userDocRef = doc(db, 'users', userData.universityEmail);
+    delete userDataWithId.password;
+
+    const authHeaders = {
+      Authorization: `Bearer ${await userCredential.user.getIdToken()}`,
+    };
+
+    const registrationData = {
+      firebaseUid: userCredential.user.uid,
+      name: userData.name || userData.fullName || '',
+      phoneNumber: userData.phoneNumber || '',
+      studentId: userData.studentId || '',
+      nationalId: userData.nationalId || '',
+      universityYear: Number(userData.universityYear),
+      faculty: userData.faculty || userData.universityName || '',
+      email: userData.email || userData.universityEmail || '',
+      gender: userData.gender || 'male',
+    };
+
+    console.log('Admin add user payload -> /api/auth/register:', registrationData);
+
+    // Main source of truth used by admin listing is backend /api users.
+    await api.post('/api/auth/register', registrationData, authHeaders);
+
+    // Keep Firestore profile for legacy reads in some screens.
+    const userEmail = userData.email || userData.universityEmail;
+    const userDocRef = doc(db, 'users', userEmail);
     await setDoc(userDocRef, userDataWithId);
 
     await deleteApp(secondaryApp);
 
     return userCredential.user.uid;
   } catch (error) {
+    try {
+      if (secondaryAuth.currentUser) {
+        await deleteAuthUser(secondaryAuth.currentUser);
+      }
+    } catch (rollbackError) {
+      console.error('Failed to roll back admin-created auth user:', rollbackError);
+    }
     await deleteApp(secondaryApp);
     console.error('Error in admin register:', error);
     throw error;
@@ -327,16 +358,16 @@ export const assignStudentToRoom = async (roomId) => {
   try {
     const roomRef = doc(db, 'rooms', roomId);
     const roomSnap = await getDoc(roomRef);
-    
+
     if (!roomSnap.exists()) {
       throw new Error('Room not found');
     }
-    
+
     const roomData = roomSnap.data();
     if (roomData.currentOccupancy >= roomData.capacity) {
       throw new Error('Room is full');
     }
-    
+
     const newOccupancy = roomData.currentOccupancy + 1;
     await updateDoc(roomRef, {
       currentOccupancy: newOccupancy,
@@ -353,16 +384,16 @@ export const removeStudentFromRoom = async (roomId) => {
   try {
     const roomRef = doc(db, 'rooms', roomId);
     const roomSnap = await getDoc(roomRef);
-    
+
     if (!roomSnap.exists()) {
       throw new Error('Room not found');
     }
-    
+
     const roomData = roomSnap.data();
     if (roomData.currentOccupancy <= 0) {
       return;
     }
-    
+
     const newOccupancy = roomData.currentOccupancy - 1;
     await updateDoc(roomRef, {
       currentOccupancy: newOccupancy,
@@ -551,9 +582,9 @@ export const assignUserToNewRoom = async (userEmail, oldRoomId, newRoomId, newRo
     if (oldRoomId && oldRoomId !== newRoomId) {
       await removeStudentFromRoom(oldRoomId);
     }
-    
+
     await assignStudentToRoom(newRoomId);
-    
+
     const userRef = doc(db, 'users', userEmail);
     await updateDoc(userRef, {
       currentRoomId: newRoomId,
@@ -573,9 +604,9 @@ export const adminChangeUserRoom = async (userEmail, oldRoomId, newRoomId, newRo
     if (oldRoomId && oldRoomId !== newRoomId) {
       await removeStudentFromRoom(oldRoomId);
     }
-    
+
     await assignStudentToRoom(newRoomId);
-    
+
     const userRef = doc(db, 'users', userEmail);
     await updateDoc(userRef, {
       currentRoomId: newRoomId,
@@ -597,7 +628,7 @@ export const adminChangeUserRoom = async (userEmail, oldRoomId, newRoomId, newRo
       changedBy: 'admin',
       changedAt: new Date()
     });
-    
+
     return docRef.id;
   } catch (error) {
     console.error('Error in admin room change:', error);

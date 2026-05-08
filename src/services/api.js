@@ -33,15 +33,14 @@ const apiRequest = async (endpoint, method = 'GET', body = null, customHeaders =
   }
 
   try {
-    console.log('API Request:', { API_BASE_URL, endpoint, method, body });
-    console.log('Request Headers:', headers);
-    
+    // console.log('API Request:', { API_BASE_URL, endpoint, method, body });
+    // console.log('Request Headers:', headers);
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-    
-    // Check if response is JSON
+
     const contentType = response.headers.get('content-type');
     let data;
-    
+
     if (contentType && contentType.includes('application/json')) {
       data = await response.json();
     } else {
@@ -51,12 +50,12 @@ const apiRequest = async (endpoint, method = 'GET', body = null, customHeaders =
     }
 
     if (!response.ok) {
-      console.error('API Error Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        data: data,
-        endpoint: endpoint
-      });
+      // console.error('API Error Response:', {
+      //   status: response.status,
+      //   statusText: response.statusText,
+      //   data: data,
+      //   endpoint: endpoint
+      // });
       throw new Error(data.message || data.error || `Request failed with status ${response.status}`);
     }
 
@@ -98,8 +97,8 @@ export const apiMultipart = async (endpoint, method = 'POST', formData, customHe
   };
 
   try {
-    console.log('API Multipart Request:', { API_BASE_URL, endpoint, method });
-    
+    // console.log('API Multipart Request:', { API_BASE_URL, endpoint, method });
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
     const data = await response.json();
 

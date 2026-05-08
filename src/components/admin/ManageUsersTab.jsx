@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import '../styles/AdminDashboard.css';
+import React from 'react';
+import '../../styles/AdminDashboard.css';
 
 const ManageUsersTab = ({
   users,
@@ -11,10 +11,12 @@ const ManageUsersTab = ({
   setUserLimit,
   loadUsers,
   handleEditUser,
+  handleRoleChange,
   handleDeleteUser,
   openAdminRoomChangeModal,
   availableRoles,
-  setShowAddModal
+  setShowAddModal,
+  updatingRoleUserId
 }) => {
   return (
     <div className="admin-section">
@@ -22,21 +24,21 @@ const ManageUsersTab = ({
         <div className="stat-box">
           <div className="stat-box-icon">👥</div>
           <div className="stat-box-data">
-            <h3>{users.length}</h3>
+            <h3>{users?.length}</h3>
             <p>Total Users</p>
           </div>
         </div>
         <div className="stat-box">
           <div className="stat-box-icon">🎓</div>
           <div className="stat-box-data">
-            <h3>{users.filter(u => u.role === 'student').length}</h3>
+            <h3>{users?.filter((u) => u.role === 'student')?.length}</h3>
             <p>Students</p>
           </div>
         </div>
         <div className="stat-box">
           <div className="stat-box-icon">🛡️</div>
           <div className="stat-box-data">
-            <h3>{users.filter(u => u.role === 'admin').length}</h3>
+            <h3>{users?.filter((u) => u.role === 'admin')?.length}</h3>
             <p>Admins</p>
           </div>
         </div>
@@ -94,7 +96,7 @@ const ManageUsersTab = ({
               setUserPage(nextPage);
               await loadUsers({ page: nextPage });
             }}
-            disabled={users.length < userLimit}
+            disabled={users?.length < userLimit}
           >
             Next
           </button>
@@ -127,7 +129,7 @@ const ManageUsersTab = ({
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {users?.map((u) => (
                 <tr key={u.id || u._id}>
                   <td>
                     <div className="user-cell">
@@ -146,13 +148,17 @@ const ManageUsersTab = ({
                       value={u.role}
                       onChange={(e) => handleRoleChange(u.id || u._id, e.target.value)}
                       className="role-dropdown"
+                      disabled={updatingRoleUserId === (u.id || u._id)}
                     >
-                      {availableRoles.map((role) => (
+                      {availableRoles?.map((role) => (
                         <option key={role} value={role}>
                           {role}
                         </option>
                       ))}
                     </select>
+                    {updatingRoleUserId === (u.id || u._id) && (
+                      <div className="inline-status-text">Updating...</div>
+                    )}
                   </td>
                   <td>
                     <div className="action-cell">

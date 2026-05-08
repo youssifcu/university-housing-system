@@ -1,19 +1,31 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../services/authService';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
 import FormContainer from '../components/FormContainer';
+import { useAIChatContext } from '../context/AIChatContext';
 import '../styles/RegisterPage.css';
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { setScreenContext } = useAIChatContext();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setScreenContext({
+      screen: 'login',
+      pageTitle: 'Sign In',
+      availableActions: ['sign in', 'navigate to register', 'navigate to forgot password'],
+      guidance:
+        'This screen lets users sign in to the university housing system. No private dashboard data is available until login succeeds.',
+    });
+  }, [setScreenContext]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

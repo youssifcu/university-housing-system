@@ -53,8 +53,10 @@ export const updateRoom = async (roomId, roomData) => {
   try {
     const response = await api.put(`/api/rooms/${roomId}`, {
       roomNumber: roomData.roomNumber,
+      buildingId: roomData.buildingId,
       floorNumber: parseInt(roomData.floorNumber),
       capacity: parseInt(roomData.capacity),
+      status: roomData.status,
       amenities: (roomData.amenities || []).map((amenity) => ({
         name: amenity.name,
         isWorking: Boolean(amenity.isWorking),
@@ -119,13 +121,45 @@ export const assignStudentToRoom = async (roomId, studentId) => {
     throw new Error('studentId is required');
   }
 
-  const endpoint = `/api/rooms/${encodeURIComponent(normalizedRoomId)}/assign`;
+  try {
+    const response = await api.patch(
+      `/api/rooms/${encodeURIComponent(normalizedRoomId)}/assign`,
+      {
+        studentId: normalizedStudentId,
+      }
+    );
+
+    // console.log('Assign response:', response.data);
+
+    return response?.data?.room || response?.room || response?.data;
+  } catch (error) {
+    console.error('Assign student error:', error);
+
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.message ||
+      'Failed to assign student'
+    );
+  }
+};
+
+export const removeStudentFromRoom = async (roomId, studentId) => {
+  const normalizedRoomId = String(roomId || '').trim();
+  const normalizedStudentId = String(studentId || '').trim();
+
+  if (!normalizedRoomId) {
+    throw new Error('roomId is required');
+  }
+
+  if (!normalizedStudentId) {
+    throw new Error('studentId is required');
+  }
+
+  const roomEndpoint = `/api/rooms/${encodeURIComponent(normalizedRoomId)}/remove`;
   const payload = { studentId: normalizedStudentId };
 
   const attempts = [
-    () => api.patch(endpoint, payload),
-    () => api.put(endpoint, payload),
-    () => api.post(endpoint, payload),
+    () => api.patch(roomEndpoint, payload),
   ];
 
   let lastError = null;
@@ -139,18 +173,8 @@ export const assignStudentToRoom = async (roomId, studentId) => {
     }
   }
 
-  console.error('Assign student error:', lastError);
-  throw new Error(lastError?.message || 'Failed to assign student');
-};
-
-export const removeStudentFromRoom = async (roomId) => {
-  try {
-    const response = await api.patch(`/api/rooms/${roomId}/remove`, {});
-    return response?.data?.room || response?.room || response;
-  } catch (error) {
-    console.error('Remove student error:', error);
-    throw error;
-  }
+  console.error('Remove student error:', lastError);
+  throw new Error(lastError?.message || 'Failed to remove student');
 };
 
 export const autoAssignRoom = async (studentId) => {

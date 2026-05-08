@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../../lib/firebaseConfig';
@@ -6,14 +6,27 @@ import { getUserByEmail } from '../services/user_Service';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
 import FormContainer from '../components/FormContainer';
+import { useAIChatContext } from '../context/AIChatContext';
 import '../styles/ForgotPassword.css';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
+  const { setScreenContext } = useAIChatContext();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setScreenContext({
+      screen: 'forgot-password',
+      pageTitle: 'Forgot Password',
+      email,
+      success,
+      guidance:
+        'This screen helps users request a password reset email for the university housing system.',
+    });
+  }, [email, setScreenContext, success]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

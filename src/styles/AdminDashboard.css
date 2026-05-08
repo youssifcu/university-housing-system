@@ -301,6 +301,18 @@
   border-color: #2563eb;
 }
 
+.role-dropdown:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.inline-status-text {
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: #2563eb;
+  font-weight: 600;
+}
+
 .status-pill {
   padding: 0.35rem 0.85rem;
   border-radius: 20px;
@@ -483,6 +495,55 @@ body .enterprise-modal .form-input::placeholder {
   bottom: 0;
   background: #ffffff;
   padding-top: 0.75rem;
+}
+
+.admin-success-modal {
+  max-width: 560px;
+  padding: 2rem;
+  text-align: center;
+}
+
+.admin-success-icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #15803d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.admin-success-modal h3 {
+  margin: 0 0 0.75rem;
+  color: #0f172a;
+  font-size: 1.5rem;
+}
+
+.admin-success-modal p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.admin-success-details {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  text-align: left;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-success-actions {
+  justify-content: center;
 }
 
 .empty-state-panel {
