@@ -19,9 +19,8 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const statsRoutes = require('./routes/statsRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
-const qrRoutes = require('./routes/qrRoutes');
 const mainRoutes = require('./routes/mainRoutes');
-
+const leaveRoutes = require('./routes/leaveRoutes');
 
 const app = express();
 
@@ -132,6 +131,7 @@ const routesMap = [
     { path: '/api/announcements', router: announcementRoutes },
     { path: '/api/notifications', router: notificationRoutes },
     { path: '/api/qr', router: qrRoutes },
+    { path: '/api/leave', router: leaveRoutes },
     { path: '/api/v2', router: mainRoutes }
 ];
 

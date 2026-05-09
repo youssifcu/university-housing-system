@@ -44,20 +44,21 @@ exports.generateStudentQRCodes = async (req, res) => {
             return sendError(res, 403, 'Only students can generate QR codes');
         }
 
-        const userIdString = studentId.toString();
+        const attendanceCode = crypto.randomUUID();
+        const mealCode = crypto.randomUUID();
 
         const [attendanceQR, mealQR] = await Promise.all([
-            QRCode.toDataURL(userIdString, QR_OPTIONS),
-            QRCode.toDataURL(userIdString, QR_OPTIONS)
+            QRCode.toDataURL(attendanceCode, QR_OPTIONS),
+            QRCode.toDataURL(mealCode, QR_OPTIONS)
         ]);
 
         const updatedUser = await Student.findByIdAndUpdate(
             studentId,
             {
                 $set: {
-                    'qrCode.attendanceCode': userIdString,
+                    'qrCode.attendanceCode': attendanceCode,
                     'qrCode.attendanceQR': attendanceQR,
-                    'qrCode.mealCode': userIdString,
+                    'qrCode.mealCode': mealCode,
                     'qrCode.mealQR': mealQR,
                     'qrCode.generatedAt': new Date()
                 }
@@ -68,11 +69,11 @@ exports.generateStudentQRCodes = async (req, res) => {
         return sendSuccess(res, 200, 'QR codes generated successfully', {
             qrCodes: {
                 attendance: {
-                    code: userIdString,
+                    code: attendanceCode,
                     qrImage: attendanceQR
                 },
                 meal: {
-                    code: userIdString,
+                    code: mealCode,
                     qrImage: mealQR
                 }
             },
@@ -123,18 +124,19 @@ exports.refreshStudentQRCodes = async (req, res) => {
             return sendError(res, 403, 'Only students can refresh QR codes');
         }
 
-        const userIdString = studentId.toString();
+        const attendanceCode = crypto.randomUUID();
+        const mealCode = crypto.randomUUID();
 
         const [attendanceQR, mealQR] = await Promise.all([
-            QRCode.toDataURL(userIdString, QR_OPTIONS),
-            QRCode.toDataURL(userIdString, QR_OPTIONS)
+            QRCode.toDataURL(attendanceCode, QR_OPTIONS),
+            QRCode.toDataURL(mealCode, QR_OPTIONS)
         ]);
 
         await Student.findByIdAndUpdate(studentId, {
             $set: {
-                'qrCode.attendanceCode': userIdString,
+                'qrCode.attendanceCode': attendanceCode,
                 'qrCode.attendanceQR': attendanceQR,
-                'qrCode.mealCode': userIdString,
+                'qrCode.mealCode': mealCode,
                 'qrCode.mealQR': mealQR,
                 'qrCode.generatedAt': new Date()
             }
@@ -142,8 +144,8 @@ exports.refreshStudentQRCodes = async (req, res) => {
 
         return sendSuccess(res, 200, 'QR codes refreshed successfully', {
             qrCodes: {
-                attendance: { code: userIdString, qrImage: attendanceQR },
-                meal: { code: userIdString, qrImage: mealQR }
+                attendance: { code: attendanceCode, qrImage: attendanceQR },
+                meal: { code: mealCode, qrImage: mealQR }
             }
         });
 
@@ -168,14 +170,11 @@ exports.verifyQRCode = async (req, res) => {
             return sendError(res, 400, 'Type must be "attendance" or "meal"');
         }
 
-        if (!mongoose.Types.ObjectId.isValid(code)) {
-            return sendError(res, 400, 'Invalid user ID format');
-        }
+        const query = { role: 'student' };
+        if (type === 'attendance') query['qrCode.attendanceCode'] = code;
+        else query['qrCode.mealCode'] = code;
 
-        const student = await Student.findOne({
-            _id: code,
-            role: 'student'
-        }).select('_id name studentId housingStatus').lean();
+        const student = await Student.findOne(query).select('_id name studentId housingStatus').lean();
 
         if (!student) {
             return sendError(res, 404, 'Invalid QR code or student not found');

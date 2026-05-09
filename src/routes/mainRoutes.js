@@ -66,6 +66,8 @@ router.patch(
     studentRequestController.respondToRequest
 );
 
+const leaveController = require('../controllers/leaveController');
+
 // ==========================================
 //  QR Codes
 // ==========================================
@@ -91,7 +93,7 @@ router.get(
 );
 
 // ==========================================
-//    (Attendance & Leave)
+//  Legacy API v2 Paths (Preserved for Mobile/Frontend)
 // ==========================================
 router.post(
     '/attendance/scan',
@@ -111,36 +113,33 @@ router.post(
     '/leave/request',
     verifyToken,
     isStudent,
-    studentController.requestLeave
+    leaveController.requestLeave
 );
 
 router.patch(
     '/leave/:requestId/approve',
     verifyToken,
     isAdminOrSupervisor,
-    studentController.approveLeave
+    leaveController.approveLeave
 );
 
 router.patch(
     '/leave/:studentId/end',
     verifyToken,
     isAdminOrSupervisor,
-    studentController.endLeave
+    leaveController.endLeave
 );
 
-
-// Route without the studentId parameter
 router.get(
     '/attendance/report',
     verifyToken,
-    studentController.getAttendanceReport
+    attendanceController.getMyAttendance
 );
 
-// Route with the studentId parameter
 router.get(
     '/attendance/report/:studentId',
     verifyToken,
-    studentController.getAttendanceReport
+    attendanceController.getStudentAttendance
 );
 
 module.exports = router;

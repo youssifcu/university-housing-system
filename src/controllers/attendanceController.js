@@ -31,12 +31,8 @@ exports.scanAttendance = async (req, res) => {
             return sendError(res, 400, 'QR Code string is required');
         }
 
-        if (!mongoose.Types.ObjectId.isValid(qrCodeString)) {
-            return sendError(res, 400, 'Invalid QR Code format');
-        }
-
         const student = await Student.findOne({
-            _id: qrCodeString,
+            'qrCode.attendanceCode': qrCodeString,
             role: 'student'
         })
             .select('_id name studentId housingStatus assignedRoomId')
@@ -124,16 +120,34 @@ exports.getMyAttendance = async (req, res) => {
         const limit = parseInt(req.query.limit) || 30;
         const skip = (page - 1) * limit;
 
-        // جلب السجلات مع Pagination
+        const { startDate, endDate } = req.query;
+        const query = { studentId: req.userDoc._id };
+
+        if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            if (!isNaN(start) && !isNaN(end)) {
+                query.date = { $gte: start, $lte: end };
+            }
+        }
+
         const [records, total] = await Promise.all([
-            Attendance.find({ studentId: req.userDoc._id })
+            Attendance.find(query)
                 .select('date status buildingId')
                 .sort({ date: -1 })
                 .skip(skip)
                 .limit(limit)
                 .lean(),
-            Attendance.countDocuments({ studentId: req.userDoc._id })
+            Attendance.countDocuments(query)
         ]);
+
+        const summary = {
+            total,
+            present: records.filter(r => r.status === 'present').length,
+            absent: records.filter(r => r.status === 'absent').length,
+            excused: records.filter(r => r.status === 'excused').length,
+            late: records.filter(r => r.status === 'late').length
+        };
 
         const formattedRecords = records.map(record => ({
             id: record._id,
@@ -143,6 +157,7 @@ exports.getMyAttendance = async (req, res) => {
         }));
 
         return sendSuccess(res, 200, 'Attendance records fetched successfully', {
+            summary,
             records: formattedRecords,
             pagination: {
                 page,

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const attendanceController = require('../controllers/attendanceController');
 const verifyToken = require('../middlewares/verifyFirebaseToken');
-const { isAdmin, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
+const { isAdmin, isAdminOrSupervisor, isAdminOrSupervisorOrFloorAdmin } = require('../middlewares/roleMiddleware');
 
 // ==========================================
 // ==========================================
@@ -17,7 +17,7 @@ router.get(
 router.post(
     '/scan',
     verifyToken,
-    isAdminOrSupervisor,
+    isAdminOrSupervisorOrFloorAdmin,
     attendanceController.scanAttendance
 );
 

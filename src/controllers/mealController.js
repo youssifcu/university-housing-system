@@ -152,12 +152,8 @@ exports.scanMeal = async (req, res) => {
             return sendError(res, 400, 'Invalid meal ID format');
         }
 
-        if (!mongoose.Types.ObjectId.isValid(qrCodeString)) {
-            return sendError(res, 400, 'Invalid QR Code format');
-        }
-
         const student = await User.findOne({
-            _id: qrCodeString,
+            'qrCode.mealCode': qrCodeString,
             role: 'student'
         }).select('_id name studentId housingStatus').lean();
 

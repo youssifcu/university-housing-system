@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const studentController = require('../controllers/studentController');
+const leaveController = require('../controllers/leaveController');
+const attendanceController = require('../controllers/attendanceController');
 const verifyToken = require('../middlewares/verifyFirebaseToken');
 const { isAdmin, isStudent, isAdminOrSupervisor } = require('../middlewares/roleMiddleware');
 
@@ -32,14 +34,14 @@ router.post(
     '/me/leave',
     verifyToken,
     isStudent,
-    studentController.requestLeave
+    leaveController.requestLeave
 );
 
 router.get(
     '/me/attendance',
     verifyToken,
     isStudent,
-    studentController.getAttendanceReport
+    attendanceController.getMyAttendance
 );
 
 // ==========================================
@@ -77,21 +79,21 @@ router.patch(
     '/leave/:requestId/approve',
     verifyToken,
     isAdminOrSupervisor,
-    studentController.approveLeave
+    leaveController.approveLeave
 );
 
 router.patch(
     '/:studentId/end-leave',
     verifyToken,
     isAdminOrSupervisor,
-    studentController.endLeave
+    leaveController.endLeave
 );
 
 router.get(
     '/:studentId/attendance',
     verifyToken,
     isAdminOrSupervisor,
-    studentController.getAttendanceReport
+    attendanceController.getStudentAttendance
 );
 
 module.exports = router;
