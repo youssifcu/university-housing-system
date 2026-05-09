@@ -43,7 +43,10 @@ const baseOrigins = [
     'http://localhost:5173',
     'https://university-housing-system-production-64e5.up.railway.app',
     'https://university-housing-system.vercel.app',
-    'https://university-housing-system-2.vercel.app'
+    'https://university-housing-system-2.vercel.app',
+    'https://university-housing-system3.vercel.app'
+
+
 ];
 
 const envOrigins = process.env.CORS_ORIGIN
