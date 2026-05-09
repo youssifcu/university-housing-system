@@ -42,7 +42,7 @@ const allowedOrigins = process.env.CORS_ORIGIN
     : ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173', 'https://university-housing-system-production-64e5.up.railway.app', 'https://university-housing-system.vercel.app'];
 
 // Handle OPTIONS preflight requests globally BEFORE any other middleware
-app.options('*', (req, res) => {
+app.options('/{*path}', (req, res) => {
     const origin = req.headers.origin;
     if (origin && allowedOrigins.includes(origin)) {
         res.setHeader('Access-Control-Allow-Origin', origin);
@@ -158,7 +158,7 @@ routesMap.forEach(route => {
 // ==========================================
 // 6. Error 404
 // ==========================================
-app.use((req, res, next) => {
+app.use('/{*path}', (req, res) => {
     res.status(404).json({
         success: false,
         message: `Route ${req.method} ${req.originalUrl} not found`
