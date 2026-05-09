@@ -21,20 +21,20 @@ export const submitApplication = async (applicationData, files) => {
     formData.append('gender', applicationData.gender);
     formData.append('dateOfBirth', applicationData.dateOfBirth);
     formData.append('phoneNumber', applicationData.phoneNumber);
-    formData.append('email', applicationData.email);
+    // formData.append('email', applicationData.email);
     formData.append('address', applicationData.address);
     formData.append('college', applicationData.college);
-    formData.append('department', applicationData.department);
+    // formData.append('department', applicationData.department);
     formData.append('academicYear', applicationData.academicYear);
     formData.append('gpa', applicationData.gpa);
-    formData.append('housingType', applicationData.housingType);
-    if (applicationData.preferredRoommate?.trim()) {
-      formData.append('preferredRoommate', applicationData.preferredRoommate);
-    } formData.append('emergencyContact[name]', applicationData.emergencyContact.name);
-    formData.append('emergencyContact[phone]', applicationData.emergencyContact.phone);
-    formData.append('emergencyContact[relation]', applicationData.emergencyContact.relation);
-    formData.append('specialNeeds[hasSpecialNeeds]', String(applicationData.specialNeeds.hasSpecialNeeds));
-    formData.append('specialNeeds[description]', applicationData.specialNeeds.description || '');
+    // formData.append('housingType', applicationData.housingType);
+    // if (applicationData.preferredRoommate?.trim()) {
+    //   formData.append('preferredRoommate', applicationData.preferredRoommate);
+    // } formData.append('emergencyContact[name]', applicationData.emergencyContact.name);
+    // formData.append('emergencyContact[phone]', applicationData.emergencyContact.phone);
+    // formData.append('emergencyContact[relation]', applicationData.emergencyContact.relation);
+    // formData.append('specialNeeds[hasSpecialNeeds]', String(applicationData.specialNeeds.hasSpecialNeeds));
+    // formData.append('specialNeeds[description]', applicationData.specialNeeds.description || '');
 
     if (files.nationalIdCard) formData.append('nationalIdCard', files.nationalIdCard);
     if (files.personalPhoto) formData.append('personalPhoto', files.personalPhoto);

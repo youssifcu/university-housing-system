@@ -8,7 +8,6 @@ import { getCurrentUserWithDetails } from '../services/userService';
 import '../styles/SubmitApplication.css';
 
 const initialFormData = {
-  userId: '',
   studentType: '',
   nationalId: '',
   fullName: '',
@@ -70,7 +69,6 @@ const SubmitApplication = () => {
         setUserData(mergedUserData);
         setFormData((prev) => ({
           ...prev,
-          userId: mergedUserData?.id || mergedUserData?._id || prev.userId,
           nationalId: mergedUserData?.nationalId || '',
           fullName: mergedUserData?.name || mergedUserData?.fullName || '',
           phoneNumber: mergedUserData?.phoneNumber || '',
@@ -190,7 +188,6 @@ const SubmitApplication = () => {
     setFilePreviews(initialFilePreviews);
     setFormData({
       ...initialFormData,
-      userId: userData?.id || userData?._id || '',
       nationalId: userData?.nationalId || '',
       fullName: userData?.name || userData?.fullName || '',
       phoneNumber: userData?.phoneNumber || '',
@@ -212,16 +209,10 @@ const SubmitApplication = () => {
       return;
     }
 
-    if (!formData.userId) {
-      alert('Unable to identify the current student account.');
-      return;
-    }
-
-    setLoading(true);
+      setLoading(true);
 
     try {
       const applicationData = {
-        userId: formData.userId,
         studentType: formData.studentType,
         nationalId: formData.nationalId,
         fullName: formData.fullName,
@@ -438,7 +429,6 @@ const SubmitApplication = () => {
               </div>
 
               <div className="review-summary">
-                <div className="review-item"><strong>User ID:</strong> {formData.userId || 'N/A'}</div>
                 <div className="review-item"><strong>Student Type:</strong> {formData.studentType}</div>
                 <div className="review-item"><strong>Full Name:</strong> {formData.fullName}</div>
                 <div className="review-item"><strong>Email:</strong> {formData.email}</div>

@@ -1,12 +1,8 @@
 import { useState } from 'react';
-import {
-  getAllRoomChangeRequests,
-  updateRoomChangeRequestStatus,
-  assignUserToNewRoom,
-  getRoomById,
-  getBuildingById,
-  adminChangeUserRoom,
-} from '../../services/user_Service';
+import { getAllRoomChangeRequests, updateRoomChangeRequestStatus } from './../../services/roomChangeService';
+import { getRoomById } from './../../services/roomService';
+import { getBuildingById } from './../../services/buildingService';
+import { assignUserToNewRoom, adminChangeUserRoom } from './../../services/user_Service';
 
 const initialAdminRoomChangeData = {
   buildingId: '',

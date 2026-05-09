@@ -16,6 +16,7 @@ const SubmitApplication = lazy(() => import('../components/SubmitApplication'));
 const MyApplications = lazy(() => import('../components/MyApplications'));
 const RoomChangeRequest = lazy(() => import('../components/RoomChangeRequest'));
 const MemberProfileTab = lazy(() => import('../components/member/MemberProfileTab'));
+const MemberBookMealsTab = lazy(() => import('../components/member/MemberBookMealsTab'));
 const AUTH_USER_STORAGE_KEY = 'authUser';
 
 const normalizeOptionalNumber = (value) => {
@@ -202,7 +203,7 @@ const MemberDashboard = () => {
       profileEditing: editing,
       profileImageSelected: Boolean(profileImage),
       assignedRoomName,
-      availableTabs: ['profile', 'submitApp', 'myApps', 'roomChange'],
+      availableTabs: ['profile', 'submitApp', 'myApps', 'roomChange', 'bookMeals'],
       guidance:
         'This is the member dashboard. Use the provided member profile and housing data when answering.',
     });
@@ -378,6 +379,13 @@ const MemberDashboard = () => {
           >
             🔄 Room Change Request
           </button>
+
+          <button
+            onClick={() => setActiveTab('bookMeals')}
+            className={`tab-btn ${activeTab === 'bookMeals' ? 'active' : ''}`}
+          >
+            🍽️ Book a meal
+          </button>
         </div>
 
         {/* Content Section */}
@@ -416,6 +424,11 @@ const MemberDashboard = () => {
           {activeTab === 'roomChange' && (
             <Suspense fallback={sectionLoadingFallback}>
               <RoomChangeRequest />
+            </Suspense>
+          )}
+          {activeTab === 'bookMeals' && (
+            <Suspense fallback={sectionLoadingFallback}>
+              <MemberBookMealsTab />
             </Suspense>
           )}
 

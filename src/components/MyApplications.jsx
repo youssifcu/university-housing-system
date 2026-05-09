@@ -8,7 +8,7 @@ const MyApplications = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
-  
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState(null);
 
@@ -28,7 +28,13 @@ const MyApplications = () => {
   const loadApplications = async () => {
     try {
       setLoading(true);
-      const appsData = await getMyApplications();
+
+      const res = await getMyApplications();
+      // console.log(res.application);
+      const app = res?.application
+      const appsData = app ? [app] : [];
+      // console.log(appsData);
+
       setApplications(appsData);
     } catch (error) {
       console.error('Error loading applications:', error);
@@ -39,7 +45,7 @@ const MyApplications = () => {
   };
 
   const handleCancel = async (id) => {
-    if (window.confirm('Are you sure you want to cancel this housing application?')) {
+    if (window.confirm('Are you sure you want to cancel this application?')) {
       try {
         await deleteApplication(id);
         await loadApplications();
@@ -57,16 +63,18 @@ const MyApplications = () => {
 
   const handleEditChange = (e) => {
     const { name, value } = e.target;
-    setEditFormData(prev => ({ ...prev, [name]: value }));
+    setEditFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const saveEdit = async (e) => {
     e.preventDefault();
     try {
-      const applicationId = editFormData.id || editFormData._id;
+      const applicationId = editFormData._id;
+
       await updateApplication(applicationId, {
-        notes: editFormData.notes
+        notes: editFormData.notes,
       });
+
       await loadApplications();
       setIsEditModalOpen(false);
     } catch (error) {
@@ -86,59 +94,90 @@ const MyApplications = () => {
   return (
     <div className="my-applications-wrapper">
       <h2 className="section-title-apps">My Housing Applications</h2>
-      
-      {applications.length === 0 ? (
+
+      {applications?.length === 0 ? (
         <div className="empty-state-apps">
           <div className="empty-icon-apps">📂</div>
           <h3>No Applications Found</h3>
-          <p>You haven't submitted any housing applications yet.</p>
+          <p>You haven't submitted any applications yet.</p>
         </div>
       ) : (
         <div className="apps-cards-grid">
-          {applications.map((app) => (
-            <div key={app.id || app._id} className="app-card-modern">
+          {applications?.map((app) => (
+            <div key={app._id} className="app-card-modern">
+
+              {/* HEADER */}
               <div className="app-card-header">
-                <span className="app-id-badge">{String(app.id || app._id).substring(0, 8).toUpperCase()}</span>
-                <span className={`status-tag status-${String(app.status || '').toLowerCase()}`}>
+                <span className="app-id-badge">
+                  {String(app._id).substring(0, 8).toUpperCase()}
+                </span>
+
+                <span className={`status-tag status-${(app.status || '').toLowerCase()}`}>
                   {app.status}
                 </span>
               </div>
-              
+
+              {/* BODY */}
               <div className="app-card-body">
+
                 <div className="app-info-row">
-                  <span className="app-info-label">Building</span>
-                  <span className="app-info-value">{app.buildingName}</span>
+                  <span className="app-info-label">Full Name</span>
+                  <span className="app-info-value">{app.fullName}</span>
                 </div>
+
                 <div className="app-info-row">
-                  <span className="app-info-label">Room</span>
-                  <span className="app-info-value">{app.roomNumber}</span>
+                  <span className="app-info-label">National ID</span>
+                  <span className="app-info-value">{app.nationalId}</span>
                 </div>
+
                 <div className="app-info-row">
-                  <span className="app-info-label">Room Type</span>
-                  <span className="app-info-value">{app.roomType}</span>
+                  <span className="app-info-label">Gender</span>
+                  <span className="app-info-value">{app.gender}</span>
                 </div>
+
+                <div className="app-info-row">
+                  <span className="app-info-label">College</span>
+                  <span className="app-info-value">{app.college}</span>
+                </div>
+
+                <div className="app-info-row">
+                  <span className="app-info-label">Academic Year</span>
+                  <span className="app-info-value">{app.academicYear}</span>
+                </div>
+
+                <div className="app-info-row">
+                  <span className="app-info-label">GPA</span>
+                  <span className="app-info-value">{app.gpa ?? 'N/A'}</span>
+                </div>
+
+                <div className="app-info-row">
+                  <span className="app-info-label">Housing Type</span>
+                  <span className="app-info-value">{app.housingType}</span>
+                </div>
+
                 <div className="app-info-row">
                   <span className="app-info-label">Date Submitted</span>
                   <span className="app-info-value">
-                    {app.submittedAt?.toDate ? 
-                      new Date(app.submittedAt.toDate()).toLocaleDateString() : 
-                      new Date(app.submittedAt).toLocaleDateString()}
+                    {new Date(app.createdAt).toLocaleDateString()}
                   </span>
                 </div>
-                {app.notes && (
-                  <div className="app-info-row app-notes-box">
-                    <span className="app-info-label">Notes</span>
-                    <span className="app-info-value">{app.notes}</span>
-                  </div>
-                )}
+
               </div>
 
-              {String(app.status || '').toLowerCase() === 'pending' && (
+              {/* FOOTER */}
+              {String(app.status).toLowerCase() === 'pending' && (
                 <div className="app-card-footer">
-                  <button onClick={() => openEditModal(app)} className="btn-edit-app">
-                    Edit Application
+                  <button
+                    onClick={() => openEditModal(app)}
+                    className="btn-edit-app"
+                  >
+                    Edit
                   </button>
-                  <button onClick={() => handleCancel(app.id || app._id)} className="btn-cancel-app">
+
+                  <button
+                    onClick={() => handleCancel(app._id)}
+                    className="btn-cancel-app"
+                  >
                     Cancel
                   </button>
                 </div>
@@ -148,24 +187,54 @@ const MyApplications = () => {
         </div>
       )}
 
+      {/* EDIT MODAL */}
       {isEditModalOpen && editFormData && (
         <div className="modal-overlay-apps">
           <div className="modal-content-apps">
+
             <div className="modal-header-apps">
-              <h3>Edit Application {String(editFormData.id || editFormData._id).substring(0, 8).toUpperCase()}</h3>
-              <button className="close-btn-apps" onClick={() => setIsEditModalOpen(false)}>×</button>
+              <h3>Edit Application</h3>
+              <button
+                className="close-btn-apps"
+                onClick={() => setIsEditModalOpen(false)}
+              >
+                ×
+              </button>
             </div>
+
             <form onSubmit={saveEdit} className="modal-form-apps">
+
               <div className="form-group-apps">
                 <label>Notes</label>
-                <textarea name="notes" value={editFormData.notes || ''} onChange={handleEditChange} rows="3" className="input-apps"></textarea>
+                <textarea
+                  name="notes"
+                  value={editFormData.notes || ''}
+                  onChange={handleEditChange}
+                  rows="3"
+                  className="input-apps"
+                />
               </div>
-              <p className="warning-text-apps">Note: To change building or room, you must cancel and create a new application.</p>
+
+              <p className="warning-text-apps">
+                You can only edit notes. Other data requires a new application.
+              </p>
+
               <div className="modal-actions-apps">
-                <button type="button" className="btn-secondary-apps" onClick={() => setIsEditModalOpen(false)}>Close</button>
-                <button type="submit" className="btn-primary-apps">Save Changes</button>
+                <button
+                  type="button"
+                  className="btn-secondary-apps"
+                  onClick={() => setIsEditModalOpen(false)}
+                >
+                  Close
+                </button>
+
+                <button type="submit" className="btn-primary-apps">
+                  Save Changes
+                </button>
               </div>
+
             </form>
+
           </div>
         </div>
       )}

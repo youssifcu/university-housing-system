@@ -18,7 +18,7 @@ const RoomChangesTab = ({
             <thead>
               <tr>
                 <th>Request ID</th>
-                <th>Student</th>
+                <th>Student ID</th>
                 <th>Current Room</th>
                 <th>Requested Room</th>
                 <th>Reason</th>
@@ -32,7 +32,7 @@ const RoomChangesTab = ({
                   <td className="fw-bold text-blue">{request.id.substring(0, 8).toUpperCase()}</td>
                   <td>
                     <div className="student-info-col">
-                      <span className="fw-bold">{request.studentName}</span>
+                      <span className="fw-bold">{request.studentId._id}</span>
                     </div>
                   </td>
                   <td>{request.currentRoomId ? 'Assigned' : 'Not Assigned'}</td>

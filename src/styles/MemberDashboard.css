@@ -467,6 +467,223 @@
   background: #fef2f2;
 }
 
+/* =========================================
+   Member — Book meals
+   ========================================= */
+.member-meals-section {
+  padding: 0 0 1rem 0;
+}
+
+.member-bookings-block {
+  margin-bottom: 2rem;
+}
+
+.member-bookings-title {
+  margin: 0 0 0.35rem 0;
+  font-size: 1.2rem;
+  color: #0f172a;
+}
+
+.member-bookings-hint {
+  margin-bottom: 1rem !important;
+}
+
+.member-bookings-id-cell {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.member-meals-cancel-btn {
+  background: #fff;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.member-meals-cancel-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.member-meals-cancel-btn:not(:disabled):hover {
+  background: #fef2f2;
+}
+
+.member-meals-header h2 {
+  margin: 0 0 0.35rem 0;
+  font-size: 1.5rem;
+  color: #0f172a;
+}
+
+.member-meals-sub {
+  margin: 0 0 1.25rem 0;
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.member-meals-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.member-meals-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 140px;
+}
+
+.member-meals-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.member-meals-apply {
+  background: #1e3a8a;
+  color: #fff;
+  border: none;
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  height: fit-content;
+}
+
+.member-meals-apply:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.member-meals-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.member-meals-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.member-meals-table th,
+.member-meals-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.member-meals-table th {
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.member-meals-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.member-meals-name {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.member-meals-desc {
+  color: #64748b;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-meals-type {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.member-meals-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.member-meals-book-btn {
+  background: #0d9488;
+  color: #fff;
+  border: none;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.member-meals-book-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.member-meals-book-btn:not(:disabled):hover {
+  background: #0f766e;
+}
+
+.member-meals-empty {
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+  margin: 0;
+}
+
+.member-meals-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.member-meals-page-btn {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #334155;
+}
+
+.member-meals-page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.member-meals-page-label {
+  font-size: 0.9rem;
+  color: #475569;
+  font-weight: 600;
+}
+
 /* 
    8. Responsive Design
     */

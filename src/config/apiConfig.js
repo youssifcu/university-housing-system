@@ -34,5 +34,7 @@ export const ENDPOINTS = {
   MEALS: {
     ALL: '/api/meals',
     BY_ID: (id) => `/api/meals/${id}`,
+    BOOK: '/api/meals/book',
+    BOOK_BY_ID: (bookingId) => `/api/meals/book/${bookingId}`,
   },
 };
