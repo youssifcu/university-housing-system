@@ -57,9 +57,20 @@ export const useAdminApplicationsLogic = () => {
   };
 
   const handleRejectApp = async (id) => {
+    const reason = window.prompt('Rejection reason (required):', '');
+    if (reason === null) {
+      return;
+    }
+
+    const trimmedReason = String(reason || '').trim();
+    if (!trimmedReason) {
+      alert('Rejection reason is required.');
+      return;
+    }
+
     if (window.confirm('Reject this application?')) {
       try {
-        await updateApplicationStatus(id, 'reject');
+        await updateApplicationStatus(id, 'reject', { reason: trimmedReason });
         await loadApplications();
         setShowReviewModal(false);
         alert('Application rejected successfully!');
