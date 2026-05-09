@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import '../../styles/AdminDashboard.css';
 
 const ManageUsersTab = ({
@@ -18,6 +18,19 @@ const ManageUsersTab = ({
   setShowAddModal,
   updatingRoleUserId
 }) => {
+  const [userNameQuery, setUserNameQuery] = useState('');
+
+  const filteredUsers = useMemo(() => {
+    const list = Array.isArray(users) ? users : [];
+    const q = String(userNameQuery || '').trim().toLowerCase();
+    if (!q) return list;
+
+    return list.filter((u) => {
+      const name = String(u?.name || u?.fullName || '').toLowerCase();
+      return name.includes(q);
+    });
+  }, [users, userNameQuery]);
+
   return (
     <div className="admin-section">
       <div className="admin-stats-row">
@@ -48,6 +61,26 @@ const ManageUsersTab = ({
         <div className="panel-header">
           <h2>Registered Users</h2>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <div className="admin-search">
+              <input
+                className="admin-search-input"
+                type="text"
+                value={userNameQuery}
+                onChange={(e) => setUserNameQuery(e.target.value)}
+                placeholder="Search by name..."
+              />
+              {userNameQuery?.trim() ? (
+                <button
+                  type="button"
+                  className="admin-search-clear"
+                  onClick={() => setUserNameQuery('')}
+                  aria-label="Clear search"
+                  title="Clear"
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
             <select
               value={userRoleFilter}
               onChange={async (e) => {
@@ -70,6 +103,13 @@ const ManageUsersTab = ({
             <button className="btn-primary" onClick={() => setShowAddModal(true)}>
               + Add New User
             </button>
+          </div>
+        </div>
+
+        <div style={{ padding: '0 1.5rem', marginTop: '-0.5rem', marginBottom: '0.75rem' }}>
+          <div className="admin-hint-text">
+            Showing <strong>{filteredUsers.length}</strong> of <strong>{users?.length || 0}</strong>
+            {userNameQuery?.trim() ? ` for "${userNameQuery.trim()}"` : ''}
           </div>
         </div>
         
@@ -129,7 +169,7 @@ const ManageUsersTab = ({
               </tr>
             </thead>
             <tbody>
-              {users?.map((u) => (
+              {filteredUsers?.map((u) => (
                 <tr key={u.id || u._id}>
                   <td>
                     <div className="user-cell">
