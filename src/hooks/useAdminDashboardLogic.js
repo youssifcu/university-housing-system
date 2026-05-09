@@ -7,6 +7,7 @@ import { useAdminApplicationsLogic } from './admin/useAdminApplicationsLogic';
 import { useAdminRoomChangesLogic } from './admin/useAdminRoomChangesLogic';
 import { useAdminMealsLogic } from './admin/useAdminMealsLogic';
 import { useAdminAttendanceLogic } from './admin/useAdminAttendanceLogic';
+import { useAdminReportsLogic } from './admin/useAdminReportsLogic';
 
 export const useAdminDashboardLogic = (navigate) => {
   const [loading, setLoading] = useState(true);
@@ -16,6 +17,7 @@ export const useAdminDashboardLogic = (navigate) => {
   const applicationsLogic = useAdminApplicationsLogic();
   const mealsLogic = useAdminMealsLogic();
   const attendanceLogic = useAdminAttendanceLogic();
+  const reportsLogic = useAdminReportsLogic();
   const roomChangesLogic = useAdminRoomChangesLogic({
     buildings: attendanceLogic.buildings,
     rooms: attendanceLogic.rooms,
@@ -71,6 +73,7 @@ export const useAdminDashboardLogic = (navigate) => {
       await applicationsLogic.loadApplications();
       await roomChangesLogic.loadRoomChangeRequests();
       await mealsLogic.loadMeals();
+      await reportsLogic.loadReports();
       const loadedBuildings = await attendanceLogic.loadBuildingsAndRooms();
       const firstBuildingId = loadedBuildings[0]?.id || loadedBuildings[0]?._id || '';
       if (firstBuildingId) {
@@ -89,6 +92,7 @@ export const useAdminDashboardLogic = (navigate) => {
     ...applicationsLogic,
     ...roomChangesLogic,
     ...attendanceLogic,
+    ...reportsLogic,
     ...mealsLogic,
     handleLogout,
   };

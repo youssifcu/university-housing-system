@@ -10,6 +10,7 @@ import { useAIChatContext } from '../context/AIChatContext';
 import '../styles/AdminDashboard.css';
 
 const ReportsTab = lazy(() => import('../components/admin/ReportsTab'));
+const AttendanceTab = lazy(() => import('../components/admin/AttendanceTab'));
 const ManageUsersTab = lazy(() => import('../components/admin/ManageUsersTab'));
 const ApplicationsTab = lazy(() => import('../components/admin/ApplicationsTab'));
 const RoomChangesTab = lazy(() => import('../components/admin/RoomChangesTab'));
@@ -38,6 +39,7 @@ const AdminDashboard = () => {
         buildings: dashboard.buildings?.length || 0,
         rooms: dashboard.rooms?.length || 0,
         attendanceRecords: dashboard.attendanceRecords?.length || 0,
+        reports: dashboard.reports?.length || 0,
       },
       users: dashboard.users,
       applications: dashboard.applications,
@@ -46,14 +48,16 @@ const AdminDashboard = () => {
       buildings: dashboard.buildings,
       rooms: dashboard.rooms,
       attendanceRecords: dashboard.attendanceRecords,
+      reports: dashboard.reports,
       filters: {
         userRoleFilter: dashboard.userRoleFilter,
         appStatusFilter: dashboard.appStatusFilter,
         mealFilters: dashboard.mealFilters,
         attendanceSelectedBuildingId: dashboard.attendanceSelectedBuildingId,
+        reportsFilters: dashboard.reportsFilters,
       },
       guidance:
-        'This is the admin dashboard. Use the loaded administrative data to answer questions about users, applications, rooms, meals, and attendance.',
+        'This is the admin dashboard. Use the loaded administrative data to answer questions about users, applications, rooms, meals, reports, and attendance.',
     });
   }, [
     activeTab,
@@ -65,6 +69,8 @@ const AdminDashboard = () => {
     dashboard.loading,
     dashboard.mealFilters,
     dashboard.meals,
+    dashboard.reports,
+    dashboard.reportsFilters,
     dashboard.roomChangeRequests,
     dashboard.rooms,
     dashboard.userName,
@@ -104,7 +110,8 @@ const AdminDashboard = () => {
           <button className={`admin-nav-item ${activeTab === 'buildings' ? 'active' : ''}`} onClick={() => setActiveTab('buildings')}>Manage Buildings</button>
           <button className={`admin-nav-item ${activeTab === 'rooms' ? 'active' : ''}`} onClick={() => setActiveTab('rooms')}>Manage Rooms</button>
           <button className={`admin-nav-item ${activeTab === 'meals' ? 'active' : ''}`} onClick={() => setActiveTab('meals')}>Manage Meals</button>
-          <button className={`admin-nav-item ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>Attendance</button>
+          <button className={`admin-nav-item ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>Reports</button>
+          <button className={`admin-nav-item ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>Attendance</button>
         </nav>
 
         <div className="admin-logout-container">
@@ -208,8 +215,33 @@ const AdminDashboard = () => {
           {activeTab === 'reports' && (
             <Suspense fallback={tabLoadingFallback}>
               <ReportsTab
+                reports={dashboard.reports}
+                reportsLoading={dashboard.reportsLoading}
+                reportsPage={dashboard.reportsPage}
+                setReportsPage={dashboard.setReportsPage}
+                reportsLimit={dashboard.reportsLimit}
+                setReportsLimit={dashboard.setReportsLimit}
+                reportsTotalPages={dashboard.reportsTotalPages}
+                reportsTotal={dashboard.reportsTotal}
+                reportsFilters={dashboard.reportsFilters}
+                setReportsFilters={dashboard.setReportsFilters}
+                availableReportTypes={dashboard.availableReportTypes}
+                availableReportSeverities={dashboard.availableReportSeverities}
+                availableReportStatuses={dashboard.availableReportStatuses}
+                loadReports={dashboard.loadReports}
+                handleUpdateReportStatus={dashboard.handleUpdateReportStatus}
+              />
+            </Suspense>
+          )}
+
+          {activeTab === 'attendance' && (
+            <Suspense fallback={tabLoadingFallback}>
+              <AttendanceTab
                 buildings={dashboard.buildings}
                 attendanceRecords={dashboard.attendanceRecords}
+                attendanceStats={dashboard.attendanceStats}
+                attendancePagination={dashboard.attendancePagination}
+                attendanceDate={dashboard.attendanceDate}
                 attendanceSelectedBuildingId={dashboard.attendanceSelectedBuildingId}
                 setAttendanceSelectedBuildingId={dashboard.setAttendanceSelectedBuildingId}
                 attendanceLoading={dashboard.attendanceLoading}
