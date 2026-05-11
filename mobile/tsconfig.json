@@ -1,0 +1,21 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "app/(student)/(housing)/HousingApplyScreen.jsx",
+    "app/(student)/index.jsx",
+    "app/(student)/explore.jsx",
+    "app/(auth)/login.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+, "app/(student)/(housing)/[id]/apply.jsx", "app/(student)/(housing)/[id]/status.jsx"  ]
+}

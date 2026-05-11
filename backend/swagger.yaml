@@ -1,0 +1,815 @@
+openapi: 3.0.3
+info:
+  title: University Housing System API
+  version: "2.0.0"
+  description: |
+    Complete API documentation for University Housing System.
+    - **Authentication:** Firebase Bearer token required for most endpoints.
+    - **Roles:** student, admin, supervisor, floor_admin, meal_admin.
+servers:
+  - url: http://localhost:5000
+    description: Local Development Server
+  - url: https://university-housing-api.up.railway.app
+    description: Railway Production Server
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+    description: Authentication & profile management
+  - name: Applications
+    description: Housing admission applications
+  - name: Buildings
+    description: Dormitory buildings
+  - name: Rooms
+    description: Rooms and assignment
+  - name: Housing Requests
+    description: Transfer, leave, vacate requests
+  - name: Meals
+    description: Meal menus, booking, and serving
+  - name: Attendance
+    description: Attendance recording and reports
+  - name: Reports
+    description: Complaints and maintenance reports
+  - name: Students
+    description: Student profiles and QR codes
+  - name: Payments
+    description: Financial transactions
+  - name: Stats
+    description: Dashboard and analytics
+  - name: Announcements
+    description: System announcements
+  - name: Notifications
+    description: User notifications
+  - name: V2 (Main)
+    description: Unified endpoints for requests, QR, and leave
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+        error:
+          type: string
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        data:
+          type: object
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        phoneNumber:
+          type: string
+        profilePicture:
+          type: string
+        housingStatus:
+          type: string
+    ApplicationInput:
+      type: object
+      required:
+        - studentType
+        - nationalId
+        - fullName
+        - gender
+        - dateOfBirth
+        - phoneNumber
+        - address
+        - fatherName
+        - fatherNationalId
+        - college
+        - academicYear
+      properties:
+        studentType:
+          type: string
+          enum: [new, returning]
+        nationalId:
+          type: string
+        fullName:
+          type: string
+        gender:
+          type: string
+          enum: [male, female]
+        dateOfBirth:
+          type: string
+          format: date
+        phoneNumber:
+          type: string
+        address:
+          type: string
+        fatherName:
+          type: string
+        fatherNationalId:
+          type: string
+        fatherPhone:
+          type: string
+        college:
+          type: string
+        academicYear:
+          type: string
+        gpa:
+          type: number
+        housingType:
+          type: string
+          enum: [normal, distinguished]
+        specialNeeds:
+          type: boolean
+        documents:
+          type: object
+          properties:
+            nationalIdCard:
+              type: string
+            personalPhoto:
+              type: string
+            medicalReport:
+              type: string
+    HousingRequestInput:
+      type: object
+      required:
+        - type
+        - reason
+      properties:
+        type:
+          type: string
+          enum: [transfer, leave, vacate, maintenance]
+          description: Type of housing request (transfer requests validate student grade against target building)
+        toRoomId:
+          type: string
+          description: Required for transfer requests. Target room must be in a building matching student's grade level.
+        reason:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+    BuildingInput:
+      type: object
+      required:
+        - name
+        - gender
+        - floors
+        - grade
+      properties:
+        name:
+          type: string
+        gender:
+          type: string
+          enum: [male, female]
+        floors:
+          type: integer
+        grade:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: Required grade level for housing eligibility (1-10)
+        description:
+          type: string
+        supervisorId:
+          type: string
+    RoomInput:
+      type: object
+      required:
+        - buildingId
+        - floorNumber
+        - roomNumber
+        - capacity
+      properties:
+        buildingId:
+          type: string
+        floorNumber:
+          type: integer
+        roomNumber:
+          type: string
+        capacity:
+          type: integer
+        amenities:
+          type: array
+          items:
+            type: string
+    MealInput:
+      type: object
+      required:
+        - name
+        - mealType
+        - date
+      properties:
+        name:
+          type: string
+        mealType:
+          type: string
+          enum: [breakfast, lunch, dinner, snack]
+        price:
+          type: number
+        date:
+          type: string
+          format: date
+        maxBookings:
+          type: integer
+        description:
+          type: string
+    AnnouncementInput:
+      type: object
+      required:
+        - title
+        - content
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        priority:
+          type: string
+          enum: [low, medium, high]
+        targetRole:
+          type: string
+          enum: [all, student, supervisor, admin]
+        expiresAt:
+          type: string
+          format: date-time
+    NotificationInput:
+      type: object
+      required:
+        - title
+        - message
+      properties:
+        title:
+          type: string
+        message:
+          type: string
+        targetUser:
+          type: string
+        targetRole:
+          type: string
+        type:
+          type: string
+          enum: [info, warning, success, meal, attendance, announcement]
+    ValidateQRRequest:
+      type: object
+      required: [qrCode]
+      properties:
+        qrCode:
+          type: string
+  responses:
+    Unauthorized:
+      description: Missing or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+paths:
+  # ==================== AUTH ====================
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register new student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [firebaseUid, email, name, phoneNumber]
+              properties:
+                firebaseUid:
+                  type: string
+                email:
+                  type: string
+                name:
+                  type: string
+                phoneNumber:
+                  type: string
+                studentId:
+                  type: string
+                nationalId:
+                  type: string
+                universityYear:
+                  type: string
+                faculty:
+                  type: string
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [firebaseUid]
+              properties:
+                firebaseUid:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/auth/profile:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Profile returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # ==================== APPLICATIONS ====================
+  /api/applications:
+    get:
+      tags: [Applications]
+      summary: Get all applications (Admin/Supervisor)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Applications]
+      summary: Submit housing application (Student)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApplicationInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/applications/my:
+    get:
+      tags: [Applications]
+      summary: Get my applications (Student)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+  /api/applications/{id}:
+    get:
+      tags: [Applications]
+      summary: Get application by ID
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/applications/{id}/approve:
+    patch:
+      tags: [Applications]
+      summary: Approve application (Admin)
+      description: |
+        Approve housing application and assign room based on:
+        - Student's gender
+        - Student's academic grade (derived from GPA)
+        - Building grade requirements
+        
+        Student will be assigned to a building matching their grade level.
+        Their grade (1-10) determines eligible buildings for future room transfers.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Approved and assigned to room with grade level considered
+        '400':
+          description: No buildings found matching student's grade level
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/applications/{id}/reject:
+    patch:
+      tags: [Applications]
+      summary: Reject application (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: Rejected
+
+  # ==================== BUILDINGS ====================
+  /api/buildings:
+    get:
+      tags: [Buildings]
+      summary: Get all buildings
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: limit
+          in: query
+          schema: { type: integer }
+        - name: gender
+          in: query
+          schema: { type: string, enum: [male, female] }
+      responses:
+        '200':
+          description: Success
+    post:
+      tags: [Buildings]
+      summary: Create building (Admin)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuildingInput'
+      responses:
+        '201':
+          description: Created
+  /api/buildings/{id}:
+    get:
+      tags: [Buildings]
+      summary: Get building by ID with stats
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+    put:
+      tags: [Buildings]
+      summary: Update building (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuildingInput'
+      responses:
+        '200':
+          description: Updated
+
+  # ==================== ROOMS ====================
+  /api/rooms:
+    get:
+      tags: [Rooms]
+      summary: Get all rooms
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: limit
+          in: query
+          schema: { type: integer }
+        - name: buildingId
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+    post:
+      tags: [Rooms]
+      summary: Create room (Admin)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomInput'
+      responses:
+        '201':
+          description: Created
+  /api/rooms/available:
+    get:
+      tags: [Rooms]
+      summary: Get available rooms
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+  /api/rooms/my:
+    get:
+      tags: [Rooms]
+      summary: Get my assigned room (Student)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/rooms/{id}:
+    get:
+      tags: [Rooms]
+      summary: Get room by ID
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+    put:
+      tags: [Rooms]
+      summary: Update room (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomInput'
+      responses:
+        '200':
+          description: Updated
+  /api/rooms/{id}/assign:
+    patch:
+      tags: [Rooms]
+      summary: Assign student to room (Admin/Supervisor)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [studentId]
+              properties:
+                studentId: { type: string }
+      responses:
+        '200':
+          description: Assigned
+  /api/rooms/{id}/remove:
+    patch:
+      tags: [Rooms]
+      summary: Remove student from room (Admin/Supervisor)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [studentId]
+              properties:
+                studentId: { type: string }
+      responses:
+        '200':
+          description: Removed
+
+  # ==================== HOUSING REQUESTS ====================
+  /api/housing-requests:
+    get:
+      tags: [Housing Requests]
+      summary: Get all requests (Admin/Supervisor)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: limit
+          in: query
+          schema: { type: integer }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+    post:
+      tags: [Housing Requests]
+      summary: Submit request (Student)
+      description: |
+        Submit transfer, leave, vacate, or maintenance request.
+        For transfer requests: Target room must be in a building matching student's grade level.
+        Students cannot request buildings with a higher grade requirement than their academic grade.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HousingRequestInput'
+      responses:
+        '201':
+          description: Created
+        '403':
+          description: Grade requirement not met for target building
+  /api/housing-requests/my:
+    get:
+      tags: [Housing Requests]
+      summary: Get my requests (Student)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success
+  /api/housing-requests/{id}:
+    get:
+      tags: [Housing Requests]
+      summary: Get request by ID
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+  /api/housing-requests/{id}/status:
+    patch:
+      tags: [Housing Requests]
+      summary: Approve/Reject request (Admin/Supervisor)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [approved, rejected] }
+                adminComment: { type: string }
+      responses:
+        '200':
+          description: Updated
+
+  # ==================== MEALS ====================
+  /api/meals:
+    get:
+      tags: [Meals]
+      summary: Get meals (with pagination/date filter)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: limit
+          in: query
+          schema: { type: integer }
+        - name: date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Success
+    post:
+      tags: [Meals]
+      summary: Create meal (Meal Admin)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          app

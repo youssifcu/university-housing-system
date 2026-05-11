@@ -1,0 +1,229 @@
+.app-form-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 50px 20px;
+  background: #f8fafc; 
+  min-height: 100vh;
+  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  box-sizing: border-box;
+}
+
+.form-card {
+  background: #ffffff;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); 
+  width: 100%;
+  max-width: 550px;
+  border: 1px solid #e2e8f0;
+}
+
+/* --- Stepper with connecting line --- */
+.stepper {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 40px;
+  position: relative;
+  padding: 0 20px;
+}
+
+.stepper::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 40px;
+  right: 40px;
+  height: 2px;
+  background: #e2e8f0;
+  z-index: 1;
+  transform: translateY(-50%);
+}
+
+.step {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #64748b;
+  z-index: 2;
+  border: 4px solid #ffffff; 
+  transition: all 0.3s ease;
+}
+
+.step.active {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+/* --- Typography --- */
+.form-section h3 {
+  margin-top: 0;
+  margin-bottom: 25px;
+  color: #0f172a;
+  font-size: 1.4rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* --- Forced White Inputs (High Specificity) --- */
+body .app-form-wrapper .form-card .form-section input,
+body .app-form-wrapper .form-card .form-section input[type="text"],
+body .app-form-wrapper .form-card .form-section input[type="date"],
+body .app-form-wrapper .form-card .form-section select {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 10px !important;
+  padding: 14px 16px !important;
+  margin-bottom: 20px !important;
+  font-size: 15px !important;
+  box-sizing: border-box !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+
+body .app-form-wrapper .form-card .form-section input:focus,
+body .app-form-wrapper .form-card .form-section select:focus {
+  outline: none !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1) !important;
+  background-color: #ffffff !important;
+}
+
+body .app-form-wrapper .form-card .form-section input::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+/* --- Buttons --- */
+.btn-group {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.form-section button {
+  width: 100%;
+  padding: 14px !important;
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  font-weight: 600 !important;
+  font-size: 1rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.form-section button:hover {
+  background: #1d4ed8 !important;
+}
+
+.form-section button:disabled {
+  background: #94a3b8 !important;
+  cursor: not-allowed !important;
+}
+
+.form-section button.back {
+  background: #f8fafc !important;
+  color: #475569 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.form-section button.back:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* --- File Upload Area --- */
+.file-upload {
+  background: #f8fafc;
+  padding: 25px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  margin-bottom: 25px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.file-upload:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.file-upload label {
+  display: block;
+  font-size: 14px;
+  color: #475569;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.file-upload input[type="file"] {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  color: #64748b !important;
+  font-size: 0.9rem !important;
+}
+
+/* File Upload Group for multiple files */
+.file-upload-group {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.file-preview {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  text-align: center;
+}
+
+.file-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.file-preview .pdf-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+/* Review Summary */
+.review-summary {
+  background: #f8fafc;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+}
+
+.review-summary .review-item {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.review-summary .review-item:last-child {
+  border-bottom: none;
+}
+
+.review-summary .review-item strong {
+  color: #475569;
+  margin-right: 0.5rem;
+}
