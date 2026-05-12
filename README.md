@@ -51,7 +51,7 @@
 
 - **Language/Config:** TypeScript (`vite.config.ts`) / JavaScript
 
-- **State & Routing:** Context API & React Router
+- ** Routing:** React Router
 
 
 
@@ -76,8 +76,6 @@
 - **Authentication:** Firebase Admin SDK (Stateless JWT verification)
 
 - **File Uploads:** Multer (Buffers stored in MongoDB)
-
-- **Real-time Engine:** Socket.io
 
 - **API Documentation:** Swagger UI & Swagger JSDoc
 
