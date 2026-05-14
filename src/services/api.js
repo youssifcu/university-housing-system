@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://university-housing-system-production-64e5.up.railway.app';
+const API_BASE_URL = 'https://university-housing-system-production.up.railway.app';
 
 const getAuthToken = () => {
   return localStorage.getItem('authToken');
